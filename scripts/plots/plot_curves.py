@@ -1,0 +1,133 @@
+#!/usr/bin/env python
+"""Training curves of the chopper / answerer runs (2026-10-30, user: "log ce tok etc, some accuracy measures for these
+trainings? can you put them on some chart? … in the readme page, too; i will see if training curve flattens").
+Parses the train.log files, puts a continuation run after its parent on one x axis (training rows seen), writes
+  release/figures/curves.json            (data for the HTML chart page)
+  release/figures/training_curves{,_dark}.png   (README; light + dark)
+usage: MM_DIR=<mm runs> KEEPER_DIR=<keeper runs> python plot_curves.py"""
+import json, os, re
+import numpy as np
+MM, KP = os.environ.get("MM_DIR", "mm"), os.environ.get("KEEPER_DIR", "keeper")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "figures")
+# entity → [(log, row offset)]; a continuation starts where its parent ended
+CHOPPERS = {
+    "mmBERT-base (0.31B)": [(f"{MM}/chopper27k/train.log", 0)],
+    "10% Qwen3-1.7B (0.14B)": [(f"{KP}/w10_q17/train.log", 0), (f"{KP}/w10_q17_27k/train.log", 9000)],
+    "mmBERT-small (0.14B)": [(f"{MM}/chopper_small9k/train.log", 0), (f"{MM}/chopper_small27k/train.log", 9000)],
+}
+REF = ("mmBERT-base, 9k-row run", [(f"{MM}/reader2/train.log", 0)])
+ANSWERER = ("Qwen3-1.7B answerer", [(f"{MM}/qans17/train.log", 0), (f"{MM}/qans17_27k/train.log", 9000)])
+DS = ("musique", "hotpot", "triviaqa")
+num = lambda pat, s: float(m.group(1)) if (m := re.search(pat, s)) else None
+
+
+def chopper(parts):
+    tr, va = [], {}
+    for path, off in parts:
+        if not os.path.exists(path):
+            continue
+        for l in open(path):
+            if re.search(r"\| step \d+/\d+ \|", " | " + l[9:]) and "keepL" in l:
+                st = int(re.search(r"step (\d+)/", l).group(1)) + off
+                tr.append({"rows": st, "loss": num(r"keepL ([\d.]+)", l), "f1": num(r"train KEEP@0\.5 bal-acc [\d.]+ F1 ([\d.]+)", l),
+                           "bal": num(r"bal-acc ([\d.]+)", l)})
+            elif l[9:].startswith("EVAL step") and "answer in kept" in l:
+                # mmBERT logs its in-training eval at p>0.5 with no shaping; the keeper logs "raw p>0.5" — the comparable line
+                if "BASELINE" in l or ("CHAR" in l and "raw p>0.5" not in l):
+                    continue
+                st = re.search(r"EVAL step (\d+)", l)
+                if not st:
+                    continue
+                ds = next((d for d in DS if f"| {d}" in l), None)
+                e = va.setdefault(int(st.group(1)) + off, {})
+                e[ds] = {"ans": num(r"answer in kept ([\d.]+)", l), "kept": num(r"\| kept ([\d.]+)", l)}
+    val = [{"rows": r, **{k: float(np.mean([v[d][k] for d in DS])) for k in ("ans", "kept")},
+            "per": {d: v[d]["ans"] for d in DS}} for r, v in sorted(va.items()) if all(d in v for d in DS)]
+    return tr, val
+
+
+def answerer(parts):
+    tr, va = [], {}
+    for path, off in parts:
+        if not os.path.exists(path):
+            continue
+        for l in open(path):
+            if re.search(r" step \d+/\d+ \| CE", l):
+                st = int(re.search(r"step (\d+)/", l).group(1)) + off
+                tr.append({"rows": st, "ce": num(r"CE ([\d.]+)", l), "tok": num(r"tok ([\d.]+)", l)})
+            elif "EVAL step" in l and ("notes=reader" in l or "notes=chopper" in l) and "base model" not in l:
+                st = int(re.search(r"EVAL step (\d+)", l).group(1)) + off
+                ds = next((d for d in DS if f"| {d}" in l), None)
+                va.setdefault(st, {})[ds] = num(r"exact ([\d.]+)", l)
+    val = [{"rows": r, "exact": float(np.mean([v[d] for d in DS])), "per": v} for r, v in sorted(va.items()) if all(d in v for d in DS)]
+    return tr, val
+
+
+D = {"choppers": {k: dict(zip(("train", "val"), chopper(v))) for k, v in CHOPPERS.items()},
+     "reference": {REF[0]: dict(zip(("train", "val"), chopper(REF[1])))},
+     "answerer": dict(zip(("train", "val"), answerer(ANSWERER[1])))}
+os.makedirs(OUT, exist_ok=True)
+json.dump(D, open(f"{OUT}/curves.json", "w"), indent=0)
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+THEMES = {"": dict(bg="#fcfcfb", fg="#0b0b0b", fg2="#52514e", grid="#e4e3df",
+                   c=["#2a78d6", "#eb6834", "#1baf7a"], a="#6250d6"),
+          "_dark": dict(bg="#1a1a19", fg="#f0efec", fg2="#c3c2b7", grid="#34332f",
+                        c=["#3987e5", "#d95926", "#199e70"], a="#9085e9")}
+
+
+def smooth(y, k=5):
+    y = np.array([np.nan if v is None else v for v in y], float)
+    return np.array([np.nanmean(y[max(0, i - k + 1):i + 1]) for i in range(len(y))])
+
+
+for suf, T in THEMES.items():
+    plt.rcParams.update({"font.size": 10, "axes.edgecolor": T["grid"], "axes.labelcolor": T["fg2"], "xtick.color": T["fg2"],
+                         "ytick.color": T["fg2"], "text.color": T["fg"], "axes.titlecolor": T["fg"], "axes.titleweight": "bold",
+                         "axes.titlesize": 11, "axes.titlelocation": "left"})
+    fig, ax = plt.subplots(2, 4, figsize=(19, 8.2), facecolor=T["bg"])
+    for a in ax.flat:
+        a.set_facecolor(T["bg"]); a.grid(True, color=T["grid"], lw=0.6); a.spines[["top", "right"]].set_visible(False)
+        a.axvline(9000, color=T["fg2"], lw=0.8, ls=":"); a.set_xlabel("training rows seen"); a.set_xlim(0, 27500)
+    P = [("loss", "Chopper · train KEEP loss", ax[0, 0], "train"),
+         ("f1", "Chopper · train KEEP F1 (p>0.5)", ax[0, 1], "train"),
+         ("ans", "Chopper · val answer-in-kept (p>0.5)", ax[0, 2], "val"),
+         ("kept", "Chopper · val share of text kept (p>0.5)", ax[1, 0], "val"),
+         ("bal", "Chopper · train balanced accuracy (p>0.5)", ax[0, 3], "train")]
+    for key, title, a, part in P:
+        a.set_title(title)
+        for (name, run), col in zip(D["choppers"].items(), T["c"]):
+            pts = [p for p in run[part] if p.get(key) is not None]
+            if not pts:
+                continue
+            x = [p["rows"] for p in pts]; y = [p[key] for p in pts]
+            y = smooth(y) if part == "train" else y
+            a.plot(x, y, color=col, lw=2, marker=None if part == "train" else "o", ms=4, label=name)
+            a.annotate(name.split(" (")[0], (x[-1], y[-1]), xytext=(4, 0), textcoords="offset points", color=T["fg2"], fontsize=8, va="center")
+        rr = D["reference"][REF[0]][part]
+        pts = [p for p in rr if p.get(key) is not None]
+        if pts:
+            y = [p[key] for p in pts]
+            a.plot([p["rows"] for p in pts], smooth(y) if part == "train" else y, color=T["c"][0], lw=1, ls="--", label=REF[0])
+        a.legend(frameon=False, fontsize=8, labelcolor=T["fg2"])
+    for key, title, a, part in (("ce", "Answerer · train CE", ax[1, 1], "train"),
+                                ("tok", "Answerer · train token accuracy", ax[1, 2], "train"),
+                                ("exact", "Answerer · val exact (chopper notes)", ax[1, 3], "val")):
+        a.set_title(title); pts = D["answerer"][part]
+        if pts:
+            a.plot([p["rows"] for p in pts], smooth([p[key] for p in pts]) if part == "train" else [p[key] for p in pts],
+                   color=T["a"], lw=2, marker=None if part == "train" else "o", ms=4)
+    ax[1, 3].set_ylim(0, 1)
+    ax[0, 2].set_ylim(0.5, 1); ax[1, 0].set_ylim(0, 0.25); ax[0, 1].set_ylim(0, 1); ax[0, 3].set_ylim(0.5, 1)
+    for a in (ax[0, 1], ax[0, 3]):
+        if not any(p.get("f1") for r in D["choppers"].values() for p in r["train"]):
+            a.text(0.5, 0.5, "logged from the next runs on", transform=a.transAxes, ha="center", color=T["fg2"])
+    fig.suptitle("Training curves — train lines are 500-row rolling means; dotted line = end of the first 9,000 rows; val points = mean of MuSiQue, HotpotQA, TriviaQA",
+                 x=0.01, ha="left", color=T["fg2"], fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    fig.savefig(f"{OUT}/training_curves{suf}.png", dpi=110, facecolor=T["bg"]); plt.close(fig)
+print("CURVES", {k: (len(v["train"]), len(v["val"])) for k, v in D["choppers"].items()}, "answerer", len(D["answerer"]["train"]))
+import subprocess, sys as _sys                       # the HTML artifact page from the same curves.json
+subprocess.run([_sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "curves_page.py"), f"{OUT}/curves.html"], check=False)
