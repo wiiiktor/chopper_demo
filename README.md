@@ -85,7 +85,7 @@ Two versions of the chopper:
 
 ## What is in this repository
 
-Code lives here; weights and data live on Hugging Face (private for now).
+Code lives here; weights and data live on Hugging Face (private for now): one model repo [`wiiiktor/chopper_demo`](https://huggingface.co/wiiiktor/chopper_demo) with a folder per model, and the dataset repo of the same name.
 
 | where | what |
 |---|---|
@@ -96,11 +96,11 @@ Code lives here; weights and data live on Hugging Face (private for now).
 | `scripts/plots/` | training curves (`plot_curves.py`) and the HTML chart page (`curves_page.py`) |
 | `chains/` | the exact shell chains the results came from (they contain the original absolute paths) |
 | `figures/` | the charts |
-| 🤗 [`wiiiktor/chopper-mmbert-base`](https://huggingface.co/wiiiktor/chopper-mmbert-base) | mmBERT-base chopper, all 27,000 rows: `encoder/` (a normal Transformers model) + `heads.safetensors` (KEEP + ANSWER/SEARCH) |
-| 🤗 [`wiiiktor/chopper-mmbert-small`](https://huggingface.co/wiiiktor/chopper-mmbert-small) | the size-matched mmBERT-small chopper, same layout |
-| 🤗 [`wiiiktor/chopper-qwen3-1.7b-w10`](https://huggingface.co/wiiiktor/chopper-qwen3-1.7b-w10) | `rewired/` Qwen3-1.7B (exact permutation, same outputs), `permutation.safetensors`, `chopper_lora.safetensors`, `keep_head.safetensors` |
-| 🤗 [`wiiiktor/chopper-answerer-qwen3-1.7b-lora`](https://huggingface.co/wiiiktor/chopper-answerer-qwen3-1.7b-lora) | the answer-or-`[search]` PEFT LoRA for the **plain** Qwen3-1.7B |
-| 🤗 [`wiiiktor/chopper-data`](https://huggingface.co/datasets/wiiiktor/chopper-data) | dataset A (benchmark chains) and, when finished, dataset B (Wikipedia chains) ⏳ |
+| 🤗 [`chopper_demo/mmbert-base/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/mmbert-base) | mmBERT-base chopper, all 27,000 rows: `encoder/` (a normal Transformers model) + `heads.safetensors` (KEEP + ANSWER/SEARCH) |
+| 🤗 [`chopper_demo/mmbert-small/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/mmbert-small) | the size-matched mmBERT-small chopper, same layout |
+| 🤗 [`chopper_demo/qwen3-1.7b-w10/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/qwen3-1.7b-w10) | `rewired/` Qwen3-1.7B (exact permutation, same outputs), `permutation.safetensors`, `chopper_lora.safetensors`, `keep_head.safetensors` |
+| 🤗 [`chopper_demo/answerer-qwen3-1.7b-lora/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/answerer-qwen3-1.7b-lora) | the answer-or-`[search]` PEFT LoRA for the **plain** Qwen3-1.7B |
+| 🤗 [`wiiiktor/chopper_demo` (dataset)](https://huggingface.co/datasets/wiiiktor/chopper_demo) | dataset A (benchmark chains) and, when finished, dataset B (Wikipedia chains) ⏳ |
 | `operator.py` ⏳ | the full loop: retrieve → chop → roll back → answer or search |
 
 `scripts/data/mm_dump_pools.py` builds the dataset A pools with the benchmark loaders of this project's larger
@@ -548,11 +548,11 @@ training_data:
 labels: {teacher: Qwen/Qwen3-14B-AWQ, sees_gold_answer: true, use: training only}
 hardware: {gpu: RTX 3090 24GB, cloud: none}
 weights_and_data:   # Hugging Face, private for now
-  mmbert_base_chopper: {repo: wiiiktor/chopper-mmbert-base, files: ["encoder/", heads.safetensors, chopper_config.json]}
-  mmbert_small_chopper: {repo: wiiiktor/chopper-mmbert-small, files: ["encoder/", heads.safetensors, chopper_config.json]}
-  rewired_qwen_chopper: {repo: wiiiktor/chopper-qwen3-1.7b-w10, files: ["rewired/", permutation.safetensors, chopper_lora.safetensors, keep_head.safetensors]}
-  answerer_lora: {repo: wiiiktor/chopper-answerer-qwen3-1.7b-lora, base: Qwen/Qwen3-1.7B (NOT rewired)}
-  datasets: {repo: wiiiktor/chopper-data, type: dataset}
+  mmbert_base_chopper: {repo: wiiiktor/chopper_demo, folder: mmbert-base/, files: ["encoder/", heads.safetensors, chopper_config.json]}
+  mmbert_small_chopper: {repo: wiiiktor/chopper_demo, folder: mmbert-small/, files: ["encoder/", heads.safetensors, chopper_config.json]}
+  rewired_qwen_chopper: {repo: wiiiktor/chopper_demo, folder: qwen3-1.7b-w10/, files: ["rewired/", permutation.safetensors, chopper_lora.safetensors, keep_head.safetensors]}
+  answerer_lora: {repo: wiiiktor/chopper_demo, folder: answerer-qwen3-1.7b-lora/, base: Qwen/Qwen3-1.7B (NOT rewired)}
+  datasets: {repo: wiiiktor/chopper_demo, type: dataset}
 key_results:
   answerer_exact_with_chopper_fragments: {musique: 0.40, hotpotqa: 0.57, triviaqa: 0.63}
   musique_all_hops: {first_16: 0.62, plus_followup_question_search: 0.87}
