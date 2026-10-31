@@ -1,9 +1,6 @@
-<!--
-  VIDEO: a YouTube walkthrough goes here, as the very first thing on the page.
-  GitHub does not play iframes; use a clickable thumbnail instead:
-  [![Watch the walkthrough](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=VIDEO_ID)
--->
-> 🎬 **Video walkthrough: coming soon** *(placeholder: the YouTube embed will go here)*
+[![LLMs need a Chopper: watch the video](media/video-screen-with-title.png)](https://youtu.be/KMvmdXCEOJU)
+
+*70-second video: [youtu.be/KMvmdXCEOJU](https://youtu.be/KMvmdXCEOJU) · also in this repo as [media/chopper.mp4](media/chopper.mp4)*
 
 # Chopper: cut retrieved text down to the fragments that answer the question
 
