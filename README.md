@@ -80,7 +80,7 @@ Three versions of the chopper:
 | extra memory | 0.31B / 0.14B weights | ~15M parameters (no copy of the base weights) | ~15M: the slice is part of the model |
 | reads the conversation | re-encodes what fits in its window | reads the model's **own cached keys/values**, so nothing is recomputed | the same: the model's own cache |
 | works with | any answering model (text in, text out) | the model it was carved from | the model it was trained with |
-| quality today | the better of the two measured | below mmBERT (see [Results 2](#2-the-chopper)) | not built yet: contact the repo owner for cooperation |
+| quality today | the better of the two measured | below mmBERT (see [Results 2](#2-the-chopper)) | not built yet: contact the repo owner ([wiiiktor](https://github.com/wiiiktor)) for cooperation |
 
 > [!IMPORTANT]
 > ## 🤝 Why the third one: a chopper trained with the model
@@ -116,7 +116,10 @@ Code lives here; weights and data live on Hugging Face (private for now): one mo
 | 🤗 [`chopper_demo/qwen3-1.7b-w10/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/qwen3-1.7b-w10) | `rewired/` Qwen3-1.7B (exact permutation, same outputs), `permutation.safetensors`, `chopper_lora.safetensors`, `keep_head.safetensors` |
 | 🤗 [`chopper_demo/answerer-qwen3-1.7b-lora/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/answerer-qwen3-1.7b-lora) | the answer-or-`[search]` PEFT LoRA for the **plain** Qwen3-1.7B |
 | 🤗 [`wiiiktor/chopper_demo` (dataset)](https://huggingface.co/datasets/wiiiktor/chopper_demo) | dataset A (benchmark chains) and, when finished, dataset B (Wikipedia chains) ⏳ |
-| `operator.py` ⏳ | the full loop: retrieve → chop → roll back → answer or search |
+| `operator-for-llm-with-mmbert.py` | the full loop over **your documents** with the mmBERT chopper and **any** Hugging Face causal LM (default Qwen3-1.7B + our answerer LoRA): retrieve → chop → roll back → answer or search |
+| `operator-for-llm-slice.py` | the same loop with the 10% slice chopper inside the rewired Qwen3-1.7B (no second model; the slice reads the session from the model's own cache) |
+| `scripts/operator_common.py` | what both operators share: corpus chunking, retrieval, the session cache with rollback, the answer loop |
+| `requirements.txt` | Python packages for the operators |
 
 `scripts/data/mm_dump_pools.py` builds the dataset A pools with the benchmark loaders of this project's larger
 trainer, which is not part of this repository; the pools it wrote are in the dataset repo.
@@ -125,7 +128,23 @@ trainer, which is not part of this repository; the pools it wrote are in the dat
 
 ## Quick start
 
-> ⏳ Commands will be finalised with `operator.py`; the scripts below exist and ran to produce every result.
+Run a work session over your own documents (a folder of `.txt` / `.md` files, or a `.jsonl` with `"title"` and
+`"text"`). The weights download from Hugging Face on first use.
+
+```bash
+pip install -r requirements.txt
+
+# mmBERT chopper + Qwen3-1.7B with the answerer LoRA (any other model: --model <hf id>)
+python operator-for-llm-with-mmbert.py --docs my_docs/ --ask "Who founded the company that distributed the film UHF?"
+
+# the 10% slice chopper inside the rewired Qwen3-1.7B
+python operator-for-llm-slice.py --docs my_docs/
+
+# without --ask: an interactive session; after each answer it prints how many tokens the session holds
+# and how many plain RAG would have added
+```
+
+The research scripts behind every number in this README:
 
 ```bash
 # 1. chop: evaluate the mmBERT chopper on the validation contexts
@@ -424,7 +443,25 @@ mmBERT-small at the same size, which is why a slice trained with the model is th
 
 ## The operator
 
-> ⏳ `operator.py` is planned; all of its parts exist as separate scripts.
+Two scripts implement it: `operator-for-llm-with-mmbert.py` and `operator-for-llm-slice.py` (shared code in
+`scripts/operator_common.py`).
+
+| | with mmBERT | slice |
+|---|---|---|
+| chopper | mmBERT-base or -small, a separate 0.31B / 0.14B encoder | the 10% slice of the answering model + its LoRA and KEEP head |
+| answering model | **any** Hugging Face decoder-only causal LM; default Qwen3-1.7B + our answerer LoRA, other models get a short instruction | the rewired Qwen3-1.7B (or another model you rewired and trained with `scripts/rewire/`) |
+| answerer LoRA | used as trained | permuted into the rewired layout: same outputs as on the plain model (max logit difference 3e-5, fp32) |
+| what the chopper reads | the question + 16 passages (8k-token window) | the **whole session** from the model's own cache + the 16 passages, twice |
+
+**Assumptions about "any transformer"** (mmBERT operator): a Hugging Face decoder-only causal LM whose cache is a
+`DynamicCache` with `crop()`, i.e. full attention (Llama, Qwen, Mistral and similar). Sliding-window-only or
+recurrent caches cannot be rolled back this way. Our answerer LoRA exists for Qwen3-1.7B only, so other models
+answer from an instruction and their `[search]` decisions are untested.
+
+**Measured so far:** both operators ran end to end on a CPU over a small corpus (229 chunks from the validation
+passages): sessions of 3 questions held 151–334 tokens in the cache where plain RAG would have added 2,200–6,350
+passage tokens. The answers themselves have the answerer's known weakness: it rarely writes `[search]` when a hop is
+missing (SEARCH recall .50, see Results 3).
 
 ```
 state: answering model M with its KV cache of the conversation, at position P (the end of the conversation)
