@@ -70,12 +70,23 @@ function panel(host, title, note, series, yr, fmt) {
   for (const x of [0, 9000, 18000, 27000]) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">${x / 1000}k</text>`;
   g += `<line x1="${X(9000)}" x2="${X(9000)}" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg3")}" stroke-dasharray="2 3"/>`;
   if (!all.length) g += `<text class="empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">logged from the next runs on</text>`;
+  // a run that logged this metric only from a later point: hatch the unlogged span, open circle where logging starts
+  const gaps = series.filter(s => s.pts.length && s.from != null && s.pts[0].x - s.from > 1000);
+  gaps.forEach((s, k) => {
+    const pid = "h" + Math.random().toString(36).slice(2), x0 = X(s.from), x1 = X(s.pts[0].x);
+    g += `<defs><pattern id="${pid}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${s.col}" stroke-width="1.2" opacity=".35"/></pattern></defs>`;
+    g += `<rect x="${x0}" y="${M.t}" width="${x1 - x0}" height="${H - M.t - M.b}" fill="url(#${pid})"/>`;
+    g += `<text x="${x0 + 6}" y="${H - M.b - 22 - 26 * k}" style="fill:var(--fg2)">${s.name.split(" (")[0].replace(/^10% /, "")}:</text><text x="${x0 + 6}" y="${H - M.b - 9 - 26 * k}" style="fill:var(--fg2)">not logged</text>`;
+  });
   for (const s of series) {
     if (!s.pts.length) continue;
     const d = s.pts.map((p, i) => `${i ? "L" : "M"}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join("");
     g += `<path d="${d}" fill="none" stroke="${s.col}" stroke-width="${s.dash ? 1.3 : 2}" ${s.dash ? 'stroke-dasharray="4 3"' : ""} stroke-linejoin="round"/>`;
     if (s.dots) for (const p of s.pts) g += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="4" fill="${s.col}" stroke="${css("--panel")}" stroke-width="2"/>`;
+    if (gaps.includes(s)) g += `<circle cx="${X(s.pts[0].x)}" cy="${Y(s.pts[0].y)}" r="4" fill="${css("--panel")}" stroke="${s.col}" stroke-width="2"/>`;
   }
+  const missing = series.filter(s => !s.pts.length && s.from != null).map(s => s.name.split(/ \(|,/)[0]).filter((n, i, A) => A.indexOf(n) === i);
+  if (missing.length && all.length) card.querySelector("p").insertAdjacentHTML("beforeend", ` · <i>not logged by ${missing.join(", ")} (older trainer)</i>`);
   g += `<line class="xh" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg2")}" stroke-width="1" visibility="hidden"/>`;
   svg.innerHTML = g;
   const tip = card.querySelector(".tip"), xh = svg.querySelector(".xh");
@@ -109,8 +120,9 @@ function render() {
              ["ans", "Val answer-in-kept", "share of questions whose answer survives the chop · per dataset M / H / T", "val", [0.5, 1], f2],
              ["kept", "Val share of text kept", "lower = less context spent", "val", [0, 0.25], pc]];
   for (const [key, t, note, part, yr, fmt] of P) {
-    const S = NAMES.map((n, i) => ({ name: n, col: css(COLS[i]), dots: part === "val", pts: seriesFor(DATA.choppers[n], part, key) }));
-    S.push({ name: REFN, col: css("--c0"), dash: true, dots: false, pts: seriesFor(DATA.reference[REFN], part, key) });
+    const from = run => (run[part] || []).length ? run[part][0].rows : null;     // first row the run logged anything
+    const S = NAMES.map((n, i) => ({ name: n, col: css(COLS[i]), dots: part === "val", from: part === "train" ? from(DATA.choppers[n]) : null, pts: seriesFor(DATA.choppers[n], part, key) }));
+    S.push({ name: REFN, col: css("--c0"), dash: true, dots: false, from: part === "train" ? from(DATA.reference[REFN]) : null, pts: seriesFor(DATA.reference[REFN], part, key) });
     panel(document.getElementById("g1"), t, note, S, yr, fmt);
   }
   const A = DATA.answerer, ca = css("--ca");
