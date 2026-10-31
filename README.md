@@ -269,10 +269,12 @@ Software: PyTorch 2.12, transformers 5.10, peft, vLLM.
 
 ### Training curves
 
-<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, the 10% Qwen3-1.7B slice and mmBERT-small; answerer CE, token accuracy and val exact, against training rows seen (0–27,000)" src="figures/training_curves.png">
+<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, the 10% Qwen3-1.7B slice and mmBERT-small; answerer CE, token accuracy and val exact, against training rows seen (0–54,000)" src="figures/training_curves.png">
 
 - The x axis is training rows seen. A run that continues on the other 18,000 rows is drawn after its 9,000-row
-  parent; the dotted line marks 9,000.
+  parent; after 27,000 the runs continue on the 27,000 Wikipedia rows (dataset B). The dotted lines mark 9,000 and
+  27,000. The train F1 jump at 27,000 is the easier Wikipedia labels, not a better chopper (see the ⚠️ in Results 2).
+- Dashed green: mmBERT-small trained once on all 54,000 rows mixed (benchmark + Wikipedia), from the base model.
 - Train lines are 500-row rolling means.
 - Validation points are the mean over MuSiQue, HotpotQA and TriviaQA, at p > 0.5 with no span shaping, which is the
   setting every chopper logs during training.

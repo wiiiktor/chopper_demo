@@ -21,7 +21,7 @@ h1{font-size:24px;margin:0 0 4px;text-wrap:balance}h2{font-size:15px;margin:28px
 .sub{color:var(--fg2);max-width:70ch;margin:0 0 14px}.meta{font:12px "IBM Plex Mono",monospace;color:var(--fg3)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 4px;font-size:13px;color:var(--fg2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}.sw{width:18px;height:3px;border-radius:2px;display:inline-block}
-.sw.dash{background:none!important;border-top:2px dashed var(--c0);height:0}
+.sw.dash{background:none!important;border-top:2px dashed var(--c2);height:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 12px 6px;position:relative}
 .card h3{margin:0;font-size:14px}.card p{margin:2px 0 6px;font-size:12px;color:var(--fg3)}
@@ -34,7 +34,8 @@ svg text{font:11px "IBM Plex Mono",monospace;fill:var(--fg3)}
 </style></head><body><main>
 <h1>Chopper training curves</h1>
 <p class="sub">Three choppers learn which tokens of 16 retrieved passages to keep; the Qwen3-1.7B answerer learns to answer
-or ask a follow-up question. Every run sees the same 9,000 rows first, then a continuation sees the other 18,000.
+or ask a follow-up question. Every run sees the same 9,000 rows first, then a continuation sees the other 18,000; after 27k the runs continue on the
+27,000 Wikipedia rows. The dashed line is mmBERT-small trained once on all 54k rows mixed, for comparison.
 Train lines are 500-row rolling means; validation points are the mean over MuSiQue, HotpotQA and TriviaQA (300 questions), read at p&nbsp;&gt;&nbsp;0.5.</p>
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
 <div class="legend" id="legend"></div>
@@ -55,7 +56,7 @@ function seriesFor(run, part, key) {
 const lg = document.getElementById("legend");
 NAMES.forEach((n, i) => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${COLS[i]})"></i>${n}</span>`));
 lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash"></i>${REFN}</span><span><i class="sw" style="background:var(--ca)"></i>Qwen3-1.7B answerer</span>`);
-const W = 300, H = 180, M = { l: 38, r: 10, t: 8, b: 26 }, XMAX = 27500;
+const W = 300, H = 180, M = { l: 38, r: 10, t: 8, b: 26 }, XMAX = 55000;
 function panel(host, title, note, series, yr, fmt) {
   const card = document.createElement("div"); card.className = "card";
   card.innerHTML = `<h3>${title}</h3><p>${note}</p><div class="tip"></div>`; host.appendChild(card);
@@ -67,8 +68,8 @@ function panel(host, title, note, series, yr, fmt) {
   const X = x => M.l + x / XMAX * (W - M.l - M.r), Y = y => H - M.b - (y - y0) / (y1 - y0) * (H - M.t - M.b);
   let g = "";
   for (let i = 0; i <= 4; i++) { const v = y0 + (y1 - y0) * i / 4; g += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css("--grid")}"/><text x="${M.l - 4}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`; }
-  for (const x of [0, 9000, 18000, 27000]) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">${x / 1000}k</text>`;
-  g += `<line x1="${X(9000)}" x2="${X(9000)}" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg3")}" stroke-dasharray="2 3"/>`;
+  for (const x of [0, 9000, 18000, 27000, 36000, 45000, 54000]) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">${x / 1000}k</text>`;
+  for (const x of [9000, 27000]) g += `<line x1="${X(x)}" x2="${X(x)}" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg3")}" stroke-dasharray="2 3"/>`;
   if (!all.length) g += `<text class="empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">logged from the next runs on</text>`;
   // a run that logged this metric only from a later point: hatch the unlogged span, open circle where logging starts
   const gaps = series.filter(s => s.pts.length && s.from != null && s.pts[0].x - s.from > 1000);
@@ -122,7 +123,7 @@ function render() {
   for (const [key, t, note, part, yr, fmt] of P) {
     const from = run => (run[part] || []).length ? run[part][0].rows : null;     // first row the run logged anything
     const S = NAMES.map((n, i) => ({ name: n, col: css(COLS[i]), dots: part === "val", from: part === "train" ? from(DATA.choppers[n]) : null, pts: seriesFor(DATA.choppers[n], part, key) }));
-    S.push({ name: REFN, col: css("--c0"), dash: true, dots: false, from: part === "train" ? from(DATA.reference[REFN]) : null, pts: seriesFor(DATA.reference[REFN], part, key) });
+    S.push({ name: REFN, col: css("--c2"), dash: true, dots: part === "val", from: part === "train" ? from(DATA.reference[REFN]) : null, pts: seriesFor(DATA.reference[REFN], part, key) });
     panel(document.getElementById("g1"), t, note, S, yr, fmt);
   }
   const A = DATA.answerer, ca = css("--ca");

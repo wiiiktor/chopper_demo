@@ -11,11 +11,15 @@ MM, KP = os.environ.get("MM_DIR", "mm"), os.environ.get("KEEPER_DIR", "keeper")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "figures")
 # entity → [(log, row offset)]; a continuation starts where its parent ended
 CHOPPERS = {
-    "mmBERT-base (0.31B)": [(f"{MM}/chopper27k/train.log", 0)],
-    "10% Qwen3-1.7B (0.14B)": [(f"{KP}/w10_q17/train.log", 0), (f"{KP}/w10_q17_27k/train.log", 9000)],
-    "mmBERT-small (0.14B)": [(f"{MM}/chopper_small9k/train.log", 0), (f"{MM}/chopper_small27k/train.log", 9000)],
+    "mmBERT-base (0.31B)": [(f"{MM}/chopper27k/train.log", 0), (f"{MM}/chopper54k/train.log", 27000)],
+    "10% Qwen3-1.7B (0.14B)": [(f"{KP}/w10_q17/train.log", 0), (f"{KP}/w10_q17_27k/train.log", 9000),
+                               (f"{KP}/w10_q17_54k/train.log", 27000)],
+    "mmBERT-small (0.14B)": [(f"{MM}/chopper_small9k/train.log", 0), (f"{MM}/chopper_small27k/train.log", 9000),
+                             (f"{MM}/chopper_small54k/train.log", 27000)],
 }
-REF = ("mmBERT-base, 9k-row run", [(f"{MM}/reader2/train.log", 0)])
+# 2026-10-31: the dashed line is mmBERT-small trained ONCE on all 54k rows mixed (benchmark + Wikipedia, from the base
+# model), against the solid mmBERT-small that saw the benchmark rows first and the Wikipedia rows after 27k
+REF = ("mmBERT-small, all 54k rows mixed", [(f"{MM}/chopper_smallmix54k/train.log", 0)])
 ANSWERER = ("Qwen3-1.7B answerer", [(f"{MM}/qans17/train.log", 0), (f"{MM}/qans17_27k/train.log", 9000)])
 DS = ("musique", "hotpot", "triviaqa")
 num = lambda pat, s: float(m.group(1)) if (m := re.search(pat, s)) else None
@@ -90,7 +94,8 @@ for suf, T in THEMES.items():
     fig, ax = plt.subplots(2, 4, figsize=(19, 8.2), facecolor=T["bg"])
     for a in ax.flat:
         a.set_facecolor(T["bg"]); a.grid(True, color=T["grid"], lw=0.6); a.spines[["top", "right"]].set_visible(False)
-        a.axvline(9000, color=T["fg2"], lw=0.8, ls=":"); a.set_xlabel("training rows seen"); a.set_xlim(0, 27500)
+        a.axvline(9000, color=T["fg2"], lw=0.8, ls=":"); a.axvline(27000, color=T["fg2"], lw=0.8, ls=":")
+        a.set_xlabel("training rows seen"); a.set_xlim(0, 55000)
     P = [("loss", "Chopper · train KEEP loss", ax[0, 0], "train"),
          ("f1", "Chopper · train KEEP F1 (p>0.5)", ax[0, 1], "train"),
          ("ans", "Chopper · val answer-in-kept (p>0.5)", ax[0, 2], "val"),
@@ -110,7 +115,7 @@ for suf, T in THEMES.items():
         pts = [p for p in rr if p.get(key) is not None]
         if pts:
             y = [p[key] for p in pts]
-            a.plot([p["rows"] for p in pts], smooth(y) if part == "train" else y, color=T["c"][0], lw=1, ls="--", label=REF[0])
+            a.plot([p["rows"] for p in pts], smooth(y) if part == "train" else y, color=T["c"][2], lw=1.3, ls="--", label=REF[0])
         a.legend(frameon=False, fontsize=8, labelcolor=T["fg2"])
     for key, title, a, part in (("ce", "Answerer · train CE", ax[1, 1], "train"),
                                 ("tok", "Answerer · train token accuracy", ax[1, 2], "train"),
@@ -124,7 +129,7 @@ for suf, T in THEMES.items():
     for a in (ax[0, 1], ax[0, 3]):
         if not any(p.get("f1") for r in D["choppers"].values() for p in r["train"]):
             a.text(0.5, 0.5, "logged from the next runs on", transform=a.transAxes, ha="center", color=T["fg2"])
-    fig.suptitle("Training curves — train lines are 500-row rolling means; dotted line = end of the first 9,000 rows; val points = mean of MuSiQue, HotpotQA, TriviaQA",
+    fig.suptitle("Training curves — train lines are 500-row rolling means; dotted lines = 9,000 and 27,000 rows (after 27k: + the Wikipedia rows); dashed = mmBERT-small on all 54k mixed; val points = mean of MuSiQue, HotpotQA, TriviaQA",
                  x=0.01, ha="left", color=T["fg2"], fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(f"{OUT}/training_curves{suf}.png", dpi=110, facecolor=T["bg"]); plt.close(fig)
