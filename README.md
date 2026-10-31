@@ -240,10 +240,7 @@ Software: PyTorch 2.12, transformers 5.10, peft, vLLM.
 
 ### Training curves
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="figures/training_curves_dark.png">
-  <img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, the 10% Qwen3-1.7B slice and mmBERT-small; answerer CE, token accuracy and val exact, against training rows seen (0–27,000)" src="figures/training_curves.png">
-</picture>
+<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, the 10% Qwen3-1.7B slice and mmBERT-small; answerer CE, token accuracy and val exact, against training rows seen (0–27,000)" src="figures/training_curves.png">
 
 - The x axis is training rows seen. A run that continues on the other 18,000 rows is drawn after its 9,000-row
   parent; the dotted line marks 9,000.
