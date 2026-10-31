@@ -21,7 +21,7 @@ h1{font-size:24px;margin:0 0 4px;text-wrap:balance}h2{font-size:15px;margin:28px
 .sub{color:var(--fg2);max-width:70ch;margin:0 0 14px}.meta{font:12px "IBM Plex Mono",monospace;color:var(--fg3)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 4px;font-size:13px;color:var(--fg2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}.sw{width:18px;height:3px;border-radius:2px;display:inline-block}
-.sw.dash{background:none!important;border-top:2px dashed var(--c2);height:0}
+.sw.dash{background:none!important;border-top:2px dashed;height:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 12px 6px;position:relative}
 .card h3{margin:0;font-size:14px}.card p{margin:2px 0 6px;font-size:12px;color:var(--fg3)}
@@ -35,7 +35,7 @@ svg text{font:11px "IBM Plex Mono",monospace;fill:var(--fg3)}
 <h1>Chopper training curves</h1>
 <p class="sub">Three choppers learn which tokens of 16 retrieved passages to keep; the Qwen3-1.7B answerer learns to answer
 or ask a follow-up question. Every run sees the same 9,000 rows first, then a continuation sees the other 18,000; after 27k the runs continue on the
-27,000 Wikipedia rows. The dashed line is mmBERT-small trained once on all 54k rows mixed, for comparison.
+27,000 Wikipedia rows. Dashed lines: the same chopper trained once, from scratch, on all 54k rows mixed (in its solid line’s colour).
 Train lines are 500-row rolling means; validation points are the mean over MuSiQue, HotpotQA and TriviaQA (300 questions), read at p&nbsp;&gt;&nbsp;0.5.</p>
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
 <div class="legend" id="legend"></div>
@@ -46,7 +46,7 @@ Train lines are 500-row rolling means; validation points are the mean over MuSiQ
 const DATA = __DATA__;
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const NAMES = Object.keys(DATA.choppers), COLS = ["--c0", "--c1", "--c2"];
-const REFN = Object.keys(DATA.reference)[0];
+const REFS = Object.keys(DATA.reference);   // dashed, in the colour of the solid run with the same model
 function smooth(a, k = 5) { return a.map((_, i) => { const w = a.slice(Math.max(0, i - k + 1), i + 1).filter(v => v != null); return w.length ? w.reduce((s, v) => s + v, 0) / w.length : null; }); }
 function seriesFor(run, part, key) {
   const pts = (run[part] || []).filter(p => p[key] != null);
@@ -55,7 +55,8 @@ function seriesFor(run, part, key) {
 }
 const lg = document.getElementById("legend");
 NAMES.forEach((n, i) => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${COLS[i]})"></i>${n}</span>`));
-lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash"></i>${REFN}</span><span><i class="sw" style="background:var(--ca)"></i>Qwen3-1.7B answerer</span>`);
+REFS.forEach((n, i) => { if ((DATA.reference[n].train || []).length) lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash" style="border-color:var(${COLS[i]})"></i>${n}</span>`); });
+lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(--ca)"></i>Qwen3-1.7B answerer</span>`);
 const W = 300, H = 180, M = { l: 38, r: 10, t: 8, b: 26 }, XMAX = 55000;
 function panel(host, title, note, series, yr, fmt) {
   const card = document.createElement("div"); card.className = "card";
@@ -123,7 +124,7 @@ function render() {
   for (const [key, t, note, part, yr, fmt] of P) {
     const from = run => (run[part] || []).length ? run[part][0].rows : null;     // first row the run logged anything
     const S = NAMES.map((n, i) => ({ name: n, col: css(COLS[i]), dots: part === "val", from: part === "train" ? from(DATA.choppers[n]) : null, pts: seriesFor(DATA.choppers[n], part, key) }));
-    S.push({ name: REFN, col: css("--c2"), dash: true, dots: part === "val", from: part === "train" ? from(DATA.reference[REFN]) : null, pts: seriesFor(DATA.reference[REFN], part, key) });
+    REFS.forEach((n, i) => S.push({ name: n, col: css(COLS[i]), dash: true, dots: part === "val", from: part === "train" ? from(DATA.reference[n]) : null, pts: seriesFor(DATA.reference[n], part, key) }));
     panel(document.getElementById("g1"), t, note, S, yr, fmt);
   }
   const A = DATA.answerer, ca = css("--ca");

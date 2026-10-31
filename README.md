@@ -275,9 +275,9 @@ Software: PyTorch 2.12, transformers 5.10, peft, vLLM.
 - The x axis is training rows seen. A run that continues on the other 18,000 rows is drawn after its 9,000-row
   parent; after 27,000 the runs continue on the 27,000 Wikipedia rows (dataset B). The dotted lines mark 9,000 and
   27,000. The train F1 jump at 27,000 is the easier Wikipedia labels, not a better chopper (see the ⚠️ in Results 2).
-- Dashed green: mmBERT-small trained once on all 54,000 rows mixed (benchmark + Wikipedia), from the base model: the
-  version on Hugging Face. Its validation answer-in-kept stays level to the end, where the sequential run (solid green)
-  drops after 27,000.
+- Dashed lines: the same chopper trained once, from scratch, on all 54,000 rows mixed (benchmark + Wikipedia), in
+  its solid line's colour. mmBERT-small mixed is the version on Hugging Face: its validation answer-in-kept stays level
+  to the end, where the sequential run drops after 27,000. mmBERT-base mixed and the Qwen slice mixed are training.
 - Train lines are 500-row rolling means.
 - Validation points are the mean over MuSiQue, HotpotQA and TriviaQA, at p > 0.5 with no span shaping, which is the
   setting every chopper logs during training.

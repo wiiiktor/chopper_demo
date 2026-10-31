@@ -17,9 +17,11 @@ CHOPPERS = {
     "mmBERT-small (0.14B)": [(f"{MM}/chopper_small9k/train.log", 0), (f"{MM}/chopper_small27k/train.log", 9000),
                              (f"{MM}/chopper_small54k/train.log", 27000)],
 }
-# 2026-10-31: the dashed line is mmBERT-small trained ONCE on all 54k rows mixed (benchmark + Wikipedia, from the base
-# model), against the solid mmBERT-small that saw the benchmark rows first and the Wikipedia rows after 27k
-REF = ("mmBERT-small, all 54k rows mixed", [(f"{MM}/chopper_smallmix54k/train.log", 0)])
+# 2026-10-31: the dashed lines are each chopper trained ONCE on all 54k rows mixed (benchmark + Wikipedia, from the base
+# model), in its solid line's colour, against the solid run that saw the benchmark rows first and the Wikipedia rows after 27k
+REFS = {"mmBERT-base, 54k mixed": [(f"{MM}/chopper_basemix54k/train.log", 0)],
+        "10% Qwen3-1.7B, 54k mixed": [(f"{KP}/w10_q17_mix54k/train.log", 0)],
+        "mmBERT-small, 54k mixed": [(f"{MM}/chopper_smallmix54k/train.log", 0)]}
 ANSWERER = ("Qwen3-1.7B answerer", [(f"{MM}/qans17/train.log", 0), (f"{MM}/qans17_27k/train.log", 9000)])
 DS = ("musique", "hotpot", "triviaqa")
 num = lambda pat, s: float(m.group(1)) if (m := re.search(pat, s)) else None
@@ -68,7 +70,7 @@ def answerer(parts):
 
 
 D = {"choppers": {k: dict(zip(("train", "val"), chopper(v))) for k, v in CHOPPERS.items()},
-     "reference": {REF[0]: dict(zip(("train", "val"), chopper(REF[1])))},
+     "reference": {k: dict(zip(("train", "val"), chopper(v))) for k, v in REFS.items()},
      "answerer": dict(zip(("train", "val"), answerer(ANSWERER[1])))}
 os.makedirs(OUT, exist_ok=True)
 json.dump(D, open(f"{OUT}/curves.json", "w"), indent=0)
@@ -111,11 +113,11 @@ for suf, T in THEMES.items():
             y = smooth(y) if part == "train" else y
             a.plot(x, y, color=col, lw=2, marker=None if part == "train" else "o", ms=4, label=name)
             a.annotate(name.split(" (")[0], (x[-1], y[-1]), xytext=(4, 0), textcoords="offset points", color=T["fg2"], fontsize=8, va="center")
-        rr = D["reference"][REF[0]][part]
-        pts = [p for p in rr if p.get(key) is not None]
-        if pts:
-            y = [p[key] for p in pts]
-            a.plot([p["rows"] for p in pts], smooth(y) if part == "train" else y, color=T["c"][2], lw=1.3, ls="--", label=REF[0])
+        for (name, run), col in zip(D["reference"].items(), T["c"]):
+            pts = [p for p in run[part] if p.get(key) is not None]
+            if pts:
+                y = [p[key] for p in pts]
+                a.plot([p["rows"] for p in pts], smooth(y) if part == "train" else y, color=col, lw=1.3, ls="--", label=name)
         a.legend(frameon=False, fontsize=8, labelcolor=T["fg2"])
     for key, title, a, part in (("ce", "Answerer · train CE", ax[1, 1], "train"),
                                 ("tok", "Answerer · train token accuracy", ax[1, 2], "train"),
@@ -129,7 +131,7 @@ for suf, T in THEMES.items():
     for a in (ax[0, 1], ax[0, 3]):
         if not any(p.get("f1") for r in D["choppers"].values() for p in r["train"]):
             a.text(0.5, 0.5, "logged from the next runs on", transform=a.transAxes, ha="center", color=T["fg2"])
-    fig.suptitle("Training curves — train lines are 500-row rolling means; dotted lines = 9,000 and 27,000 rows (after 27k: + the Wikipedia rows); dashed = mmBERT-small on all 54k mixed; val points = mean of MuSiQue, HotpotQA, TriviaQA",
+    fig.suptitle("Training curves — train lines are 500-row rolling means; dotted lines = 9,000 and 27,000 rows (after 27k: + the Wikipedia rows); dashed = same chopper on all 54k mixed; val points = mean of MuSiQue, HotpotQA, TriviaQA",
                  x=0.01, ha="left", color=T["fg2"], fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(f"{OUT}/training_curves{suf}.png", dpi=110, facecolor=T["bg"]); plt.close(fig)
