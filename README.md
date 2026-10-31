@@ -100,7 +100,7 @@ Three versions of the chopper:
 
 ## What is in this repository
 
-Code lives here; weights and data live on Hugging Face (private for now): one model repo [`wiiiktor/chopper_demo`](https://huggingface.co/wiiiktor/chopper_demo) with a folder per model, and the dataset repo of the same name.
+Code lives here; weights and data live on Hugging Face (public): one model repo [`wiiiktor/chopper_demo`](https://huggingface.co/wiiiktor/chopper_demo) with a folder per model, and the dataset repo of the same name.
 
 | where | what |
 |---|---|
@@ -601,7 +601,7 @@ training_data:
   wikipedia_chains: {status: generating, rows: 27000, mix: "18000 2-hop + 9000 1-hop", scripts: [wk_chains.py, wk_gen.py, wk_judge.py, wk_pools.py]}
 labels: {teacher: Qwen/Qwen3-14B-AWQ, sees_gold_answer: true, use: training only}
 hardware: {gpu: RTX 3090 24GB, cloud: none}
-weights_and_data:   # Hugging Face, private for now
+weights_and_data:   # Hugging Face, public
   mmbert_base_chopper: {repo: wiiiktor/chopper_demo, folder: mmbert-base/, files: ["encoder/", heads.safetensors, chopper_config.json]}
   mmbert_small_chopper: {repo: wiiiktor/chopper_demo, folder: mmbert-small/, files: ["encoder/", heads.safetensors, chopper_config.json]}
   rewired_qwen_chopper: {repo: wiiiktor/chopper_demo, folder: qwen3-1.7b-w10/, files: ["rewired/", permutation.safetensors, chopper_lora.safetensors, keep_head.safetensors]}
