@@ -33,7 +33,7 @@ def prompt(d):
 
 
 def norm_map(s):
-    keep = [(c.lower(), i) for i, c in enumerate(s) if c.isalnum()]
+    keep = [(lc, i) for i, c in enumerate(s) if c.isalnum() for lc in c.lower() if lc.isalnum()]   # "İ".lower() is 2 chars
     return "".join(c for c, _ in keep), [i for _, i in keep]
 
 
@@ -66,6 +66,9 @@ sp = SamplingParams(temperature=0.0, max_tokens=1024)
 t0 = time.time()
 TX = [o.outputs[0].text for o in llm.chat([[{"role": "user", "content": prompt(d)}] for d in D], sp, use_tqdm=True,
                                           chat_template_kwargs={"enable_thinking": False})]
+with open(A.out + ".raw", "w") as fr:                     # the generations survive a post-processing crash
+    for t in TX:
+        fr.write(json.dumps(t, ensure_ascii=False) + "\n")
 bad = nq = nmiss = 0
 with open(A.out, "w") as fo:
     for d, txt in zip(D, TX):
