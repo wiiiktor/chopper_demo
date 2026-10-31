@@ -11,17 +11,14 @@ MM, KP = os.environ.get("MM_DIR", "mm"), os.environ.get("KEEPER_DIR", "keeper")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "figures")
 # entity → [(log, row offset)]; a continuation starts where its parent ended
 CHOPPERS = {
-    "mmBERT-base (0.31B)": [(f"{MM}/chopper27k/train.log", 0), (f"{MM}/chopper54k/train.log", 27000)],
+    "mmBERT-base (0.31B), 54k mixed": [(f"{MM}/chopper_basemix54k/train.log", 0)],
     "10% Qwen3-1.7B (0.14B)": [(f"{KP}/w10_q17/train.log", 0), (f"{KP}/w10_q17_27k/train.log", 9000),
                                (f"{KP}/w10_q17_54k/train.log", 27000)],
-    "mmBERT-small (0.14B)": [(f"{MM}/chopper_small9k/train.log", 0), (f"{MM}/chopper_small27k/train.log", 9000),
-                             (f"{MM}/chopper_small54k/train.log", 27000)],
+    "mmBERT-small (0.14B), 54k mixed": [(f"{MM}/chopper_smallmix54k/train.log", 0)],
 }
-# 2026-10-31: the dashed lines are each chopper trained ONCE on all 54k rows mixed (benchmark + Wikipedia, from the base
-# model), in its solid line's colour, against the solid run that saw the benchmark rows first and the Wikipedia rows after 27k
-REFS = {"mmBERT-base, 54k mixed": [(f"{MM}/chopper_basemix54k/train.log", 0)],
-        "10% Qwen3-1.7B, 54k mixed": [(f"{KP}/w10_q17_mix54k/train.log", 0)],
-        "mmBERT-small, 54k mixed": [(f"{MM}/chopper_smallmix54k/train.log", 0)]}
+# 2026-10-31: only the mmBERTs trained once on all 54k rows mixed are kept (the sequential ones were deleted). The dashed
+# line is the Qwen slice trained the same way, from scratch, against the solid slice that saw the benchmark rows first
+REFS = {"10% Qwen3-1.7B, 54k mixed": (1, [(f"{KP}/w10_q17_mix54k/train.log", 0)])}   # name: (colour index, logs)
 ANSWERER = ("Qwen3-1.7B answerer", [(f"{MM}/qans17/train.log", 0), (f"{MM}/qans17_27k/train.log", 9000)])
 DS = ("musique", "hotpot", "triviaqa")
 num = lambda pat, s: float(m.group(1)) if (m := re.search(pat, s)) else None
@@ -70,7 +67,7 @@ def answerer(parts):
 
 
 D = {"choppers": {k: dict(zip(("train", "val"), chopper(v))) for k, v in CHOPPERS.items()},
-     "reference": {k: dict(zip(("train", "val"), chopper(v))) for k, v in REFS.items()},
+     "reference": {k: {**dict(zip(("train", "val"), chopper(v))), "ci": ci} for k, (ci, v) in REFS.items()},
      "answerer": dict(zip(("train", "val"), answerer(ANSWERER[1])))}
 os.makedirs(OUT, exist_ok=True)
 json.dump(D, open(f"{OUT}/curves.json", "w"), indent=0)
@@ -113,7 +110,8 @@ for suf, T in THEMES.items():
             y = smooth(y) if part == "train" else y
             a.plot(x, y, color=col, lw=2, marker=None if part == "train" else "o", ms=4, label=name)
             a.annotate(name.split(" (")[0], (x[-1], y[-1]), xytext=(4, 0), textcoords="offset points", color=T["fg2"], fontsize=8, va="center")
-        for (name, run), col in zip(D["reference"].items(), T["c"]):
+        for name, run in D["reference"].items():
+            col = T["c"][run["ci"]]
             pts = [p for p in run[part] if p.get(key) is not None]
             if pts:
                 y = [p[key] for p in pts]
@@ -131,7 +129,7 @@ for suf, T in THEMES.items():
     for a in (ax[0, 1], ax[0, 3]):
         if not any(p.get("f1") for r in D["choppers"].values() for p in r["train"]):
             a.text(0.5, 0.5, "logged from the next runs on", transform=a.transAxes, ha="center", color=T["fg2"])
-    fig.suptitle("Training curves — train lines are 500-row rolling means; dotted lines = 9,000 and 27,000 rows (after 27k: + the Wikipedia rows); dashed = same chopper on all 54k mixed; val points = mean of MuSiQue, HotpotQA, TriviaQA",
+    fig.suptitle("Training curves — train lines are 500-row rolling means; mmBERTs: one epoch over all 54k rows mixed; solid slice: 9k, then 18k more, then Wikipedia (dotted lines); dashed slice: 54k mixed; val points = mean of MuSiQue, HotpotQA, TriviaQA",
                  x=0.01, ha="left", color=T["fg2"], fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(f"{OUT}/training_curves{suf}.png", dpi=110, facecolor=T["bg"]); plt.close(fig)

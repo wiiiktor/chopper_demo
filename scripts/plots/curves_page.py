@@ -34,8 +34,8 @@ svg text{font:11px "IBM Plex Mono",monospace;fill:var(--fg3)}
 </style></head><body><main>
 <h1>Chopper training curves</h1>
 <p class="sub">Three choppers learn which tokens of 16 retrieved passages to keep; the Qwen3-1.7B answerer learns to answer
-or ask a follow-up question. Every run sees the same 9,000 rows first, then a continuation sees the other 18,000; after 27k the runs continue on the
-27,000 Wikipedia rows. Dashed lines: the same chopper trained once, from scratch, on all 54k rows mixed (in its solid line’s colour).
+or ask a follow-up question. The two mmBERTs were trained once on all 54k rows mixed (benchmark + Wikipedia). The solid Qwen slice saw 9,000
+benchmark rows, then the other 18,000, then Wikipedia rows after 27k; the dashed slice is trained once on all 54k mixed, from scratch.
 Train lines are 500-row rolling means; validation points are the mean over MuSiQue, HotpotQA and TriviaQA (300 questions), read at p&nbsp;&gt;&nbsp;0.5.</p>
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
 <div class="legend" id="legend"></div>
@@ -55,7 +55,7 @@ function seriesFor(run, part, key) {
 }
 const lg = document.getElementById("legend");
 NAMES.forEach((n, i) => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${COLS[i]})"></i>${n}</span>`));
-REFS.forEach((n, i) => { if ((DATA.reference[n].train || []).length) lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash" style="border-color:var(${COLS[i]})"></i>${n}</span>`); });
+REFS.forEach(n => { if ((DATA.reference[n].train || []).length) lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash" style="border-color:var(${COLS[DATA.reference[n].ci]})"></i>${n}</span>`); });
 lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(--ca)"></i>Qwen3-1.7B answerer</span>`);
 const W = 300, H = 180, M = { l: 38, r: 10, t: 8, b: 26 }, XMAX = 55000;
 function panel(host, title, note, series, yr, fmt) {
@@ -124,7 +124,7 @@ function render() {
   for (const [key, t, note, part, yr, fmt] of P) {
     const from = run => (run[part] || []).length ? run[part][0].rows : null;     // first row the run logged anything
     const S = NAMES.map((n, i) => ({ name: n, col: css(COLS[i]), dots: part === "val", from: part === "train" ? from(DATA.choppers[n]) : null, pts: seriesFor(DATA.choppers[n], part, key) }));
-    REFS.forEach((n, i) => S.push({ name: n, col: css(COLS[i]), dash: true, dots: part === "val", from: part === "train" ? from(DATA.reference[n]) : null, pts: seriesFor(DATA.reference[n], part, key) }));
+    REFS.forEach(n => S.push({ name: n, col: css(COLS[DATA.reference[n].ci]), dash: true, dots: part === "val", from: part === "train" ? from(DATA.reference[n]) : null, pts: seriesFor(DATA.reference[n], part, key) }));
     panel(document.getElementById("g1"), t, note, S, yr, fmt);
   }
   const A = DATA.answerer, ca = css("--ca");

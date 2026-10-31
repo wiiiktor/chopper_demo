@@ -111,7 +111,7 @@ Code lives here; weights and data live on Hugging Face (public): one model repo 
 | `scripts/plots/` | training curves (`plot_curves.py`) and the HTML chart page (`curves_page.py`) |
 | `chains/` | the exact shell chains the results came from (they contain the original absolute paths) |
 | `figures/` | the charts |
-| 🤗 [`chopper_demo/mmbert-base/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/mmbert-base) | mmBERT-base chopper, 54,000 rows (all of dataset A, then continued on dataset B; see the ⚠️ in [Results 2](#2-the-chopper)): `encoder/` (a normal Transformers model) + `heads.safetensors` (KEEP + ANSWER/SEARCH) |
+| 🤗 [`chopper_demo/mmbert-base/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/mmbert-base) | mmBERT-base chopper, trained once on all 54,000 rows (datasets A and B mixed): `encoder/` (a normal Transformers model) + `heads.safetensors` (KEEP + ANSWER/SEARCH) |
 | 🤗 [`chopper_demo/mmbert-small/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/mmbert-small) | the size-matched mmBERT-small chopper, same layout and data |
 | 🤗 [`chopper_demo/qwen3-1.7b-w10/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/qwen3-1.7b-w10) | `rewired/` Qwen3-1.7B (exact permutation, same outputs), `permutation.safetensors`, `chopper_lora.safetensors`, `keep_head.safetensors` |
 | 🤗 [`chopper_demo/answerer-qwen3-1.7b-lora/`](https://huggingface.co/wiiiktor/chopper_demo/tree/main/answerer-qwen3-1.7b-lora) | the answer-or-`[search]` PEFT LoRA for the **plain** Qwen3-1.7B |
@@ -239,17 +239,13 @@ Planned later: 3-hop chains (A → B → C).
 
 | model | base | trainable | trained on | status |
 |---|---|---|---|---|
-| **mmBERT-base chopper** | `jhu-clsp/mmBERT-base` (0.31B) | all weights + KEEP head + decision head | 9,000 rows of dataset A | ✅ |
 | **answerer** (answer or `[search] <question>`) | `Qwen/Qwen3-1.7B` | LoRA r32 on all projections (35M) | 9,000 rows of dataset A, then continued on the other 18,000 | ✅ (continuation: 2 h 40 min, 4.0 GiB) |
 | **rewired chopper, 10% width** | `Qwen/Qwen3-1.7B`: 1 of 8 KV groups + 512 of 6,144 MLP neurons per layer | LoRA r32 + KEEP head (14.9M) | 9,000 rows of dataset A, then continued on the other 18,000 | ✅ (continuation 3 h 35 min at ~0.85 s/step, 4.9 GiB) |
-| mmBERT-base chopper, full data | `jhu-clsp/mmBERT-base` | all weights + heads | all 27,000 rows | ✅ (3090, 2 h 20 min incl. 3 evals, 3.4 GiB, shared GPU) |
 | rewired choppers, other sizes | any Qwen / Llama-layout model (e.g. Qwen3-4B / 8B / 14B) | LoRA + KEEP head | datasets from this repo and/or your data, on a small GPU card | 🛠️ anyone can make one: `scripts/rewire/keeper_rewire.py` rewires the model, `scripts/rewire/keeper_train.py` trains its chopper |
-| **mmBERT-small chopper** (size-matched control) | `jhu-clsp/mmBERT-small` (0.14B, about the size of the 1.7B's 10% slice) | all weights + heads | the same 9,000 rows, then continued on the other 18,000 | ✅ (9k: 24 min, 27k continuation: 1 h 35 min, 1.8 GiB) |
-| mmBERT-base and -small, continued on Wikipedia | the 27k choppers above | all weights + heads | + the 27,000 rows of dataset B (54k in total) | ✅ (base 2 h 30 min, small 1 h 45 min, run side by side with the slice on one 3090) |
-| **mmBERT-base and -small, all 54k mixed** (the versions on Hugging Face) | `jhu-clsp/mmBERT-base` / `-small`, from scratch | all weights + heads | datasets A and B shuffled together, one epoch | ✅ (base 2 h 50 min, small 2 h, 3090) |
+| **mmBERT-base and mmBERT-small choppers** (small = the size-matched control) | `jhu-clsp/mmBERT-base` (0.31B) / `jhu-clsp/mmBERT-small` (0.14B, about the size of the 1.7B's 10% slice) | all weights + KEEP head + decision head | all 54,000 rows: datasets A and B shuffled together, one epoch | ✅ (base 2 h 50 min, small 2 h, 3090)
 | 10% Qwen3-1.7B slice, all 54k mixed | the rewired `Qwen/Qwen3-1.7B`, fresh LoRA | LoRA r32 + KEEP head | datasets A and B shuffled together, one epoch | ⏳ (~12 h, 3090) |
 
-**Name:** "chopper" is the component that cuts fragments. Older checkpoints and output folders from before the rename are still called `reader` (`reader.pt`, `reader2/`), and the scripts load them under either name.
+**Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
 
 ---
 
@@ -262,7 +258,7 @@ Everything was built and trained on **one NVIDIA RTX 3090 (24 GB)**. No cloud.
 | retrieval contexts | Qwen3-Embedding-0.6B + bge-reranker-v2-m3 | 0.46 s / question (18k ≈ 2.3 h) | ~6 GB |
 | fragment labels | Qwen3-14B-AWQ in vLLM | ~2,640 questions / h (18k ≈ 7 h) | ~21 GB |
 | follow-up questions | Qwen3-14B-AWQ in vLLM | 9k in < 1 h | ~21 GB |
-| mmBERT chopper | mmBERT-base, full fine-tune, 1 epoch, batch 4 | 0.24 s / step → 9k ≈ 36 min | 3.0 GiB |
+| mmBERT chopper | mmBERT-base, full fine-tune, 1 epoch, accum 4 | 0.18 s / step → 54k ≈ 2 h 45 min | 3.4 GiB |
 | answerer | Qwen3-1.7B + LoRA, 1 epoch, accum 8 | 0.41 s / step → 9k ≈ 62 min | 3.9 GiB |
 | rewiring | Qwen3-1.7B, activation scores on 128 contexts + permutation + checks | 25 s scoring, < 1 min in total | ~5 GB |
 | rewired chopper | 10% slice + LoRA, 1 epoch, passages ~2.9k tokens read twice | 0.8 s / step → 9k ≈ 2 h | 4.9 GiB |
@@ -271,14 +267,11 @@ Software: PyTorch 2.12, transformers 5.10, peft, vLLM.
 
 ### Training curves
 
-<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, the 10% Qwen3-1.7B slice and mmBERT-small; answerer CE, token accuracy and val exact, against training rows seen (0–54,000)" src="figures/training_curves.png">
+<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base and mmBERT-small (54k mixed) and the 10% Qwen3-1.7B slice; answerer CE, token accuracy and val exact, against training rows seen (0–54,000)" src="figures/training_curves.png">
 
-- The x axis is training rows seen. A run that continues on the other 18,000 rows is drawn after its 9,000-row
-  parent; after 27,000 the runs continue on the 27,000 Wikipedia rows (dataset B). The dotted lines mark 9,000 and
-  27,000. The train F1 jump at 27,000 is the easier Wikipedia labels, not a better chopper (see the ⚠️ in Results 2).
-- Dashed lines: the same chopper trained once, from scratch, on all 54,000 rows mixed (benchmark + Wikipedia), in
-  its solid line's colour. The mixed mmBERTs are the versions on Hugging Face: their validation answer-in-kept stays
-  level to the end, where the sequential runs drop after 27,000. The Qwen slice mixed is training.
+- The x axis is training rows seen. Both mmBERTs were trained once on all 54,000 rows mixed (benchmark + Wikipedia).
+  The solid Qwen slice saw 9,000 benchmark rows, then the other 18,000, then Wikipedia rows after 27,000 (dotted
+  lines); the dashed slice is trained once on all 54,000 rows mixed, from scratch (⏳).
 - Train lines are 500-row rolling means.
 - Validation points are the mean over MuSiQue, HotpotQA and TriviaQA, at p > 0.5 with no span shaping, which is the
   setting every chopper logs during training.
@@ -351,9 +344,11 @@ The same trained answerer gets different inputs (exact match on questions whose 
 | notes the answerer reads | MuSiQue | HotpotQA | TriviaQA |
 |---|---|---|---|
 | Qwen3-14B fragments (upper bound) | **.55** | **.64** | **.72** |
-| **mmBERT chopper fragments** | **.40** | **.57** | **.63** |
+| **mmBERT chopper fragments** ² | **.40** | **.57** | **.63** |
 | nothing (question only) | .00 | .12 | .11 |
 | all 16 passages in full *(RWKV-1.5B answerer)* | .02 | .19 | .26 |
+
+² measured with an earlier mmBERT-base chopper (9,000 rows), since replaced by the 54k mixed one; not yet rerun.
 
 ### 2. The chopper
 
@@ -362,62 +357,35 @@ Decoded at p > 0.8, gaps ≤ 5 tokens merged, runs < 4 tokens dropped:
 | chopper | trained on | character F1 | answer-in-kept | fragments / question |
 |---|---|---|---|---|
 | teacher: Qwen3-14B quotes (saw the answer) | — | 1 (by definition) | .62 / .80 / .83 | — |
-| **mmBERT-base** (0.31B) | 9k | **.49 / .53 / .30** | **.52 / .80 / .80** | 3.0 / 3.9 / 7.8 |
+| **mmBERT-base** (0.31B), on HF | 54k mixed | **.55 / .64 / .39** ¹ | **.48 / .80 / .80** | 2.5 / 3.2 / 5.0 |
+| **mmBERT-small** (0.14B, size-matched), on HF | 54k mixed | .53 / .61 / .33 ¹ | .47 / .81 / .74 | 2.5 / 3.0 / 5.5 |
 | 10% Qwen3-1.7B (0.14B slice), **⅓ of the way through training** | 3k of 9k | .31 / .36 / .17 | .23 / .72 / .72 | 2.6 / 2.7 / 7.0 |
 | same, threshold lowered to p > 0.5 | 3k of 9k | .25 / .32 / .14 | .32 / .88 / .83 | ~11 / 11 / 31 |
 | **10% Qwen3-1.7B, end of the 9k epoch** | 9k | .29 / .42 / .17 | .22 / .65 / .71 | 2.9 / 2.9 / 3.8 |
 | same, threshold lowered to p > 0.5 | 9k | .20 / .24 / .13 | .36 / .87 / .82 | ~17 / 17 / 26 (keeps 16% of the text) |
-| **mmBERT-small (0.14B), size-matched** | 9k | .40 / .45 / .23 ¹ | .51 / .81 / .76 | 3.4 / 4.1 / 10.5 |
-| **mmBERT-base, all data** | 27k | **.52 / .60 / .37** ¹ | **.54 / .83 / .79** | 2.9 / 3.4 / 5.5 |
-| mmBERT-small, continued | 27k | .49 / .55 / .32 ¹ | .48 / .80 / .75 | 2.6 / 3.4 / 6.1 |
 | 10% Qwen3-1.7B, continued | 27k | .31 / .48 / .19 | .24 / .70 / .72 | 3.1 / 3.0 / 3.8 |
-| mmBERT-base, + Wikipedia | 54k | **.56 / .66 / .44** ¹ | .44 / .80 / .69 | 2.3 / 2.6 / 3.7 |
-| **mmBERT-base, all 54k mixed** (on HF) | 54k | .55 / .64 / .39 ¹ | .48 / .80 / **.80** | 2.5 / 3.2 / 5.0 |
-| mmBERT-small, + Wikipedia | 54k | .53 / .62 / .38 ¹ | .28 / .74 / .58 | 1.9 / 2.5 / 3.0 |
-| **mmBERT-small, all 54k mixed** (on HF) | 54k | .53 / .61 / .33 ¹ | **.47 / .81 / .74** | 2.5 / 3.0 / 5.5 |
 
-¹ token-level F1 from the training script's own eval. Scored at character level, mmBERT-small gives .40 / .45 / .23
-(9k) and .49 / .55 / .32 (27k), the same to ±.01.
+¹ token-level F1 from the training script's own eval (character-level scoring agrees to ±.01).
 
-> ⚠️ **Continuing on the Wikipedia chains (dataset B) lowers the benchmark scores that matter most.** F1 rises, but
-> answer-in-kept falls: mmBERT-base .54 / .83 / .79 → .44 / .80 / .69, mmBERT-small .48 / .80 / .75 → .28 / .74 / .58.
-> The choppers learn the tighter Wikipedia fragments (they keep 2–4% of the text instead of 4–6%) and drop the answer
-> more often on the benchmarks. **Training once on all 54k rows mixed avoids it**: mmBERT-small mixed keeps
-> .47 / .81 / .74 (the 27k level), mmBERT-base mixed .48 / .80 / .80, and both still gain most of the F1. The mixed
-> runs replaced the sequential ones in `mmbert-base/` and `mmbert-small/`. Older versions: revisions `538bf1f0e4`
-> (base, sequential 54k), `1bc437c1ae` (small, sequential 54k), `d560e98814` (both 27k).
+Both mmBERT choppers were trained once on all 54k rows mixed. Training on the benchmark rows first and continuing on
+the Wikipedia rows gave tighter fragments but lost the answer more often on the benchmarks, so those versions were
+dropped.
 
 On the 300 Wikipedia validation questions (2-hop / 1-hop), the same decode:
 
 | chopper | trained on | token F1 | answer-in-kept | fragments / question |
 |---|---|---|---|---|
-| mmBERT-base | 27k (dataset A) | .50 / .57 | .91 / .96 | 4.0 / 2.2 |
-| **mmBERT-base** | 54k (+ dataset B) | **.65 / .76** | .91 / .92 | 2.8 / 1.4 |
-| **mmBERT-base** (on HF) | 54k mixed | .62 / .72 | .92 / .91 | 3.0 / 1.5 |
-| mmBERT-small | 27k (dataset A) | .43 / .49 | .86 / .97 | 4.2 / 2.4 |
-| mmBERT-small | 54k (+ dataset B) | .62 / .74 | .89 / .96 | 2.8 / 1.4 |
-| **mmBERT-small** (on HF) | 54k mixed | .60 / .68 | .90 / .94 | 3.0 / 1.6 |
+| **mmBERT-base** | 54k mixed | **.62 / .72** | .92 / .91 | 3.0 / 1.5 |
+| mmBERT-small | 54k mixed | .60 / .68 | .90 / .94 | 3.0 / 1.6 |
 
-The choppers trained on benchmarks alone already keep the answer on 86–97% of the Wikipedia questions, so dataset B
-transfers in that direction. Note that the 27k rows above were run again for this table at p > 0.8 with shaping: they
-match the earlier table to ±.01.
 
-**Three times the data buys mmBERT-base +.03 / +.07 / +.07 F1** at the same answer-in-kept, i.e. tighter fragments
-(it keeps 4–6% of the text instead of 5–7%). Its validation curve is flat from 9k to 27k rows at p > 0.5, so more
-of the same benchmark rows is unlikely to help much further.
-
-**After 9,000 rows the 10% Qwen3-1.7B slice is clearly behind mmBERT-base (0.31B).** When allowed to keep more text
-(p > 0.5), it keeps the answer about as often on HotpotQA and TriviaQA, but it needs ~16% of the text to do so,
-against ~10% for mmBERT-base, and it is much weaker on MuSiQue. Its training loss levels off near 0.40, against ~0.25
-for mmBERT-base (see the curves). Two runs will show whether this is a data limit or a capacity limit: the
-continuation on the other 18,000 rows, and mmBERT-small, which has the same 0.14B size.
-
-**mmBERT-small answers the size question: it is not the size.** At the same 0.14B and the same 9,000 rows it keeps the
-answer almost as often as mmBERT-base (.51 / .81 / .76 vs .52 / .80 / .80) and far more often than the 10% Qwen slice
-on MuSiQue (.51 vs .22). A small encoder trained end to end beats a 10% slice of a decoder whose other 90% stays frozen.
+**The 10% Qwen3-1.7B slice is clearly behind mmBERT-small, an encoder of the same 0.14B size.** When allowed to keep
+more text (p > 0.5), it keeps the answer about as often on HotpotQA and TriviaQA, but it needs ~16% of the text to do
+so, and it is much weaker on MuSiQue. Its training loss levels off near 0.40, against ~0.15–0.20 for the mmBERTs (see the
+curves). A small encoder trained end to end beats a 10% slice of a decoder whose other 90% stays frozen.
 
 **After all 27,000 rows the gap holds.** The 10% slice improves a little (F1 +.02 to +.06), but it keeps the answer
-less often than mmBERT-small: .24 / .70 / .72 against .48 / .80 / .75. Read on the full model's cache, it remains
+less often than mmBERT-small: .24 / .70 / .72 against .47 / .81 / .74. Read on the full model's cache, it remains
 the cheaper option to run, at 133 ms per read with no second model in memory, but it is not yet the better one.
 One advantage these benchmarks cannot show: the slice attends to the **whole conversation** through the full model's
 KV cache, at no extra cost, while mmBERT only sees what fits in its 8,192-token window next to the passages. Here
@@ -436,8 +404,8 @@ The Qwen3-1.7B answerer's decisions on MuSiQue (the dataset where a hop is often
 |---|---|---|---|---|
 | Qwen3-14B fragments | 9k | .61 | .95 | .55 / .64 / .72 |
 | Qwen3-14B fragments | 27k | **.74** | .94 | .50 / .65 / .74 |
-| mmBERT chopper fragments | 9k | .37 | .95 | .40 / .57 / .63 |
-| mmBERT chopper fragments | 27k | **.50** | .95 | .42 / .66 / .60 |
+| mmBERT chopper fragments ² | 9k | .37 | .95 | .40 / .57 / .63 |
+| mmBERT chopper fragments ² | 27k | **.50** | .95 | .42 / .66 / .60 |
 
 Three times the data mainly teaches the answerer **when to search** (+.13 recall on both kinds of notes). Exact
 match moves by a few points in either direction. With 100 questions per dataset, a few points is within noise.
@@ -639,8 +607,8 @@ training_data:
 labels: {teacher: Qwen/Qwen3-14B-AWQ, sees_gold_answer: true, use: training only}
 hardware: {gpu: RTX 3090 24GB, cloud: none}
 weights_and_data:   # Hugging Face, public
-  mmbert_base_chopper: {repo: wiiiktor/chopper_demo, folder: mmbert-base/, trained_on: "54k = dataset A + dataset B mixed, one epoch", sequential_54k_revision: 538bf1f0e4, previous_27k_revision: d560e98814, files: ["encoder/", heads.safetensors, chopper_config.json]}
-  mmbert_small_chopper: {repo: wiiiktor/chopper_demo, folder: mmbert-small/, trained_on: "54k = dataset A + dataset B mixed, one epoch", sequential_54k_revision: 1bc437c1ae, previous_27k_revision: d560e98814, files: ["encoder/", heads.safetensors, chopper_config.json]}
+  mmbert_base_chopper: {repo: wiiiktor/chopper_demo, folder: mmbert-base/, trained_on: "54k = dataset A + dataset B mixed, one epoch", files: ["encoder/", heads.safetensors, chopper_config.json]}
+  mmbert_small_chopper: {repo: wiiiktor/chopper_demo, folder: mmbert-small/, trained_on: "54k = dataset A + dataset B mixed, one epoch", files: ["encoder/", heads.safetensors, chopper_config.json]}
   rewired_qwen_chopper: {repo: wiiiktor/chopper_demo, folder: qwen3-1.7b-w10/, files: ["rewired/", permutation.safetensors, chopper_lora.safetensors, keep_head.safetensors]}
   answerer_lora: {repo: wiiiktor/chopper_demo, folder: answerer-qwen3-1.7b-lora/, base: Qwen/Qwen3-1.7B (NOT rewired)}
   datasets: {repo: wiiiktor/chopper_demo, type: dataset}
