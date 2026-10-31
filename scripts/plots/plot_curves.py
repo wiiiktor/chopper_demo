@@ -87,10 +87,11 @@ def smooth(y, k=5):
 
 
 for suf, T in THEMES.items():
-    plt.rcParams.update({"font.size": 10, "axes.edgecolor": T["grid"], "axes.labelcolor": T["fg2"], "xtick.color": T["fg2"],
+    plt.rcParams.update({"font.size": 13, "axes.edgecolor": T["grid"], "axes.labelcolor": T["fg2"], "xtick.color": T["fg2"],
                          "ytick.color": T["fg2"], "text.color": T["fg"], "axes.titlecolor": T["fg"], "axes.titleweight": "bold",
-                         "axes.titlesize": 11, "axes.titlelocation": "left"})
-    fig, ax = plt.subplots(2, 4, figsize=(19, 8.2), facecolor=T["bg"])
+                         "axes.titlesize": 15, "axes.titlelocation": "left"})
+    fig, axs = plt.subplots(4, 2, figsize=(16, 19), facecolor=T["bg"])   # 2 wide so each panel stays large on GitHub
+    ax = axs.flatten().reshape(2, 4)                                     # keep the ax[r, c] panel names
     for a in ax.flat:
         a.set_facecolor(T["bg"]); a.grid(True, color=T["grid"], lw=0.6); a.spines[["top", "right"]].set_visible(False)
         a.axvline(9000, color=T["fg2"], lw=0.8, ls=":"); a.axvline(27000, color=T["fg2"], lw=0.8, ls=":")
@@ -109,14 +110,14 @@ for suf, T in THEMES.items():
             x = [p["rows"] for p in pts]; y = [p[key] for p in pts]
             y = smooth(y) if part == "train" else y
             a.plot(x, y, color=col, lw=2, marker=None if part == "train" else "o", ms=4, label=name)
-            a.annotate(name.split(" (")[0], (x[-1], y[-1]), xytext=(4, 0), textcoords="offset points", color=T["fg2"], fontsize=8, va="center")
+            a.annotate(name.split(" (")[0], (x[-1], y[-1]), xytext=(4, 0), textcoords="offset points", color=T["fg2"], fontsize=11, va="center")
         for name, run in D["reference"].items():
             col = T["c"][run["ci"]]
             pts = [p for p in run[part] if p.get(key) is not None]
             if pts:
                 y = [p[key] for p in pts]
                 a.plot([p["rows"] for p in pts], smooth(y) if part == "train" else y, color=col, lw=1.3, ls="--", label=name)
-        a.legend(frameon=False, fontsize=8, labelcolor=T["fg2"])
+        a.legend(frameon=False, fontsize=11, labelcolor=T["fg2"])
     for key, title, a, part in (("ce", "Answerer · train CE", ax[1, 1], "train"),
                                 ("tok", "Answerer · train token accuracy", ax[1, 2], "train"),
                                 ("exact", "Answerer · val exact (chopper notes)", ax[1, 3], "val")):
@@ -129,9 +130,10 @@ for suf, T in THEMES.items():
     for a in (ax[0, 1], ax[0, 3]):
         if not any(p.get("f1") for r in D["choppers"].values() for p in r["train"]):
             a.text(0.5, 0.5, "logged from the next runs on", transform=a.transAxes, ha="center", color=T["fg2"])
-    fig.suptitle("Training curves — train lines are 500-row rolling means; mmBERTs: one epoch over all 54k rows mixed; solid slice: 9k, then 18k more, then Wikipedia (dotted lines); dashed slice: 54k mixed; val points = mean of MuSiQue, HotpotQA, TriviaQA",
-                 x=0.01, ha="left", color=T["fg2"], fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    fig.suptitle("Training curves — train lines are 500-row rolling means; val points = mean of MuSiQue, HotpotQA, TriviaQA\n"
+                 "mmBERTs: one epoch over all 54k rows mixed; solid slice: 9k, then 18k more, then Wikipedia (dotted lines); dashed slice: 54k mixed",
+                 x=0.01, ha="left", color=T["fg2"], fontsize=13)
+    fig.tight_layout(rect=(0, 0, 1, 0.965))
     fig.savefig(f"{OUT}/training_curves{suf}.png", dpi=110, facecolor=T["bg"]); plt.close(fig)
 print("CURVES", {k: (len(v["train"]), len(v["val"])) for k, v in D["choppers"].items()}, "answerer", len(D["answerer"]["train"]))
 import subprocess, sys as _sys                       # the HTML artifact page from the same curves.json

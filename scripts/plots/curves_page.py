@@ -16,17 +16,22 @@ html = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name
 :root[data-theme="dark"]{--bg:#1a1a19;--panel:#222220;--fg:#f0efec;--fg2:#c3c2b7;--fg3:#8f8e86;--grid:#2f2e2b;--line:#45443f;
  --c0:#3987e5;--c1:#d95926;--c2:#199e70;--ca:#9085e9}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
-main{max-width:1240px;margin:0 auto;padding:28px 16px 48px}
+main{max-width:1640px;margin:0 auto;padding:28px 16px 48px}
 h1{font-size:24px;margin:0 0 4px;text-wrap:balance}h2{font-size:15px;margin:28px 0 10px;color:var(--fg2);letter-spacing:.04em;text-transform:uppercase}
 .sub{color:var(--fg2);max-width:70ch;margin:0 0 14px}.meta{font:12px "IBM Plex Mono",monospace;color:var(--fg3)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 4px;font-size:13px;color:var(--fg2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}.sw{width:18px;height:3px;border-radius:2px;display:inline-block}
 .sw.dash{background:none!important;border-top:2px dashed;height:0}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,600px),1fr));gap:16px}
+.zoombar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:10px 0 4px;font-size:13px;color:var(--fg2)}
+.zoombar button{font:13px "IBM Plex Mono",monospace;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:3px 10px;cursor:pointer}
+.zoombar button:hover{border-color:var(--fg3)}.zoombar button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.zoombar button:focus-visible,.zoombar input:focus-visible{outline:2px solid var(--c0);outline-offset:2px}
+.zoombar .hint{color:var(--fg3)}.zoombar label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 12px 6px;position:relative}
 .card h3{margin:0;font-size:14px}.card p{margin:2px 0 6px;font-size:12px;color:var(--fg3)}
-svg{width:100%;height:auto;display:block;overflow:visible}
-svg text{font:11px "IBM Plex Mono",monospace;fill:var(--fg3)}
+svg{width:100%;height:auto;display:block;overflow:visible;cursor:crosshair;touch-action:pan-y;user-select:none}
+svg text{font:12px "IBM Plex Mono",monospace;fill:var(--fg3)}
 .tip{position:absolute;pointer-events:none;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 8px;
  font:12px "IBM Plex Mono",monospace;color:var(--fg);white-space:nowrap;display:none;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
@@ -39,6 +44,10 @@ benchmark rows, then the other 18,000, then Wikipedia rows after 27k; the dashed
 Train lines are 500-row rolling means; validation points are the mean over MuSiQue, HotpotQA and TriviaQA (300 questions), read at p&nbsp;&gt;&nbsp;0.5.</p>
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
 <div class="legend" id="legend"></div>
+<div class="zoombar" id="zoombar">Zoom:
+<button data-r="0,55000">all</button><button data-r="0,9000">0–9k</button><button data-r="9000,27000">9k–27k</button><button data-r="27000,55000">27k–54k</button>
+<label><input type="checkbox" id="fity" checked> fit y to the view</label>
+<span class="hint">· or drag across any chart; double-click a chart to reset</span></div>
 <h2>Chopper</h2><div class="grid" id="g1"></div>
 <h2>Answerer</h2><div class="grid" id="g2"></div>
 </main>
@@ -57,25 +66,39 @@ const lg = document.getElementById("legend");
 NAMES.forEach((n, i) => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${COLS[i]})"></i>${n}</span>`));
 REFS.forEach(n => { if ((DATA.reference[n].train || []).length) lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash" style="border-color:var(${COLS[DATA.reference[n].ci]})"></i>${n}</span>`); });
 lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(--ca)"></i>Qwen3-1.7B answerer</span>`);
-const W = 300, H = 180, M = { l: 38, r: 10, t: 8, b: 26 }, XMAX = 55000;
+const W = 600, H = 330, M = { l: 50, r: 16, t: 10, b: 30 }, XMAX = 55000;
+let ZX = [0, XMAX];                                      // shared x zoom, rows seen
+function setZoom(a, b) { ZX = [Math.max(0, a), Math.min(XMAX, b)]; render(); }
+document.querySelectorAll("#zoombar button").forEach(b => b.addEventListener("click", () => setZoom(...b.dataset.r.split(",").map(Number))));
+document.getElementById("fity").addEventListener("change", () => render());
+function xticks() {
+  const span = ZX[1] - ZX[0], step = [250, 500, 1000, 2000, 2500, 5000, 9000].find(s => span / s <= 7) || 9000, out = [];
+  for (let x = Math.ceil(ZX[0] / step) * step; x <= ZX[1]; x += step) out.push(x);
+  return out;
+}
 function panel(host, title, note, series, yr, fmt) {
   const card = document.createElement("div"); card.className = "card";
   card.innerHTML = `<h3>${title}</h3><p>${note}</p><div class="tip"></div>`; host.appendChild(card);
   const ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", title); card.insertBefore(svg, card.querySelector(".tip"));
-  const all = series.flatMap(s => s.pts.map(p => p.y));
-  let [y0, y1] = yr || [Math.min(...all), Math.max(...all)];
-  if (!yr && all.length) { const pad = (y1 - y0) * 0.08 || 0.05; y0 -= pad; y1 += pad; }
-  const X = x => M.l + x / XMAX * (W - M.l - M.r), Y = y => H - M.b - (y - y0) / (y1 - y0) * (H - M.t - M.b);
+  const all = series.flatMap(s => s.pts.map(p => p.y)), zoomed = ZX[0] > 0 || ZX[1] < XMAX;
+  const vis = series.flatMap(s => s.pts.filter(p => p.x >= ZX[0] && p.x <= ZX[1]).map(p => p.y));
+  const fit = zoomed && document.getElementById("fity").checked && vis.length;
+  let [y0, y1] = fit ? [Math.min(...vis), Math.max(...vis)] : yr || [Math.min(...all), Math.max(...all)];
+  if ((fit || !yr) && all.length) { const pad = (y1 - y0) * 0.08 || 0.02; y0 -= pad; y1 += pad; }
+  const PW = W - M.l - M.r, X = x => M.l + (x - ZX[0]) / (ZX[1] - ZX[0]) * PW, Y = y => H - M.b - (y - y0) / (y1 - y0) * (H - M.t - M.b);
+  const cid = "c" + Math.random().toString(36).slice(2);
   let g = "";
   for (let i = 0; i <= 4; i++) { const v = y0 + (y1 - y0) * i / 4; g += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css("--grid")}"/><text x="${M.l - 4}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`; }
-  for (const x of [0, 9000, 18000, 27000, 36000, 45000, 54000]) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">${x / 1000}k</text>`;
-  for (const x of [9000, 27000]) g += `<line x1="${X(x)}" x2="${X(x)}" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg3")}" stroke-dasharray="2 3"/>`;
+  for (const x of xticks()) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">${+(x / 1000).toFixed(2)}k</text>`;
+  g += `<defs><clipPath id="${cid}"><rect x="${M.l}" y="${M.t - 6}" width="${PW}" height="${H - M.t - M.b + 12}"/></clipPath></defs><g clip-path="url(#${cid})">`;
+  for (const x of [9000, 27000].filter(x => x > ZX[0] && x < ZX[1])) g += `<line x1="${X(x)}" x2="${X(x)}" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg3")}" stroke-dasharray="2 3"/>`;
   if (!all.length) g += `<text class="empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">logged from the next runs on</text>`;
   // a run that logged this metric only from a later point: hatch the unlogged span, open circle where logging starts
   const gaps = series.filter(s => s.pts.length && s.from != null && s.pts[0].x - s.from > 1000);
   gaps.forEach((s, k) => {
-    const pid = "h" + Math.random().toString(36).slice(2), x0 = X(s.from), x1 = X(s.pts[0].x);
+    const pid = "h" + Math.random().toString(36).slice(2), x0 = Math.max(M.l, X(s.from)), x1 = Math.min(W - M.r, X(s.pts[0].x));
+    if (x1 <= x0) return;
     g += `<defs><pattern id="${pid}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${s.col}" stroke-width="1.2" opacity=".35"/></pattern></defs>`;
     g += `<rect x="${x0}" y="${M.t}" width="${x1 - x0}" height="${H - M.t - M.b}" fill="url(#${pid})"/>`;
     g += `<text x="${x0 + 6}" y="${H - M.b - 22 - 26 * k}" style="fill:var(--fg2)">${s.name.split(" (")[0].replace(/^10% /, "")}:</text><text x="${x0 + 6}" y="${H - M.b - 9 - 26 * k}" style="fill:var(--fg2)">not logged</text>`;
@@ -87,19 +110,31 @@ function panel(host, title, note, series, yr, fmt) {
     if (s.dots) for (const p of s.pts) g += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="4" fill="${s.col}" stroke="${css("--panel")}" stroke-width="2"/>`;
     if (gaps.includes(s)) g += `<circle cx="${X(s.pts[0].x)}" cy="${Y(s.pts[0].y)}" r="4" fill="${css("--panel")}" stroke="${s.col}" stroke-width="2"/>`;
   }
+  g += `</g>`;
   const missing = series.filter(s => !s.pts.length && s.from != null).map(s => s.name.split(/ \(|,/)[0]).filter((n, i, A) => A.indexOf(n) === i);
   if (missing.length && all.length) card.querySelector("p").insertAdjacentHTML("beforeend", ` · <i>not logged by ${missing.join(", ")} (older trainer)</i>`);
+  g += `<rect class="brush" y="${M.t}" height="${H - M.t - M.b}" fill="${css("--fg3")}" opacity=".18" visibility="hidden"/>`;
   g += `<line class="xh" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg2")}" stroke-width="1" visibility="hidden"/>`;
   svg.innerHTML = g;
-  const tip = card.querySelector(".tip"), xh = svg.querySelector(".xh");
-  svg.addEventListener("mousemove", e => {
-    const r = svg.getBoundingClientRect(), sx = (e.clientX - r.left) / r.width * W;
-    const xv = (sx - M.l) / (W - M.l - M.r) * XMAX; if (xv < 0 || xv > XMAX) { tip.style.display = "none"; xh.setAttribute("visibility", "hidden"); return; }
+  const tip = card.querySelector(".tip"), xh = svg.querySelector(".xh"), br = svg.querySelector(".brush");
+  const toX = e => { const r = svg.getBoundingClientRect(); return (e.clientX - r.left) / r.width * W; };
+  const toRows = sx => ZX[0] + (sx - M.l) / PW * (ZX[1] - ZX[0]);
+  let drag = null;                                         // drag across the plot = zoom every chart to that span
+  svg.addEventListener("pointerdown", e => { if (e.button) return; drag = Math.min(Math.max(toX(e), M.l), W - M.r); svg.setPointerCapture(e.pointerId); });
+  svg.addEventListener("pointerup", e => {
+    if (drag == null) return; const a = drag, b = Math.min(Math.max(toX(e), M.l), W - M.r); drag = null; br.setAttribute("visibility", "hidden");
+    if (Math.abs(b - a) > 8) setZoom(Math.round(toRows(Math.min(a, b))), Math.round(toRows(Math.max(a, b))));
+  });
+  svg.addEventListener("dblclick", () => setZoom(0, XMAX));
+  svg.addEventListener("pointermove", e => {
+    if (drag != null) { const b = Math.min(Math.max(toX(e), M.l), W - M.r); br.setAttribute("x", Math.min(drag, b)); br.setAttribute("width", Math.abs(b - drag)); br.setAttribute("visibility", "visible"); }
+    const sx = toX(e), tol = (ZX[1] - ZX[0]) / XMAX;
+    const xv = toRows(sx); if (xv < ZX[0] || xv > ZX[1]) { tip.style.display = "none"; xh.setAttribute("visibility", "hidden"); return; }
     let rows = [], snap = null;
     for (const s of series) {
       if (!s.pts.length) continue;
       const p = s.pts.reduce((a, b) => Math.abs(b.x - xv) < Math.abs(a.x - xv) ? b : a);
-      if (Math.abs(p.x - xv) > (s.dots ? 1500 : 600)) continue;
+      if (Math.abs(p.x - xv) > (s.dots ? 1500 : 600) * Math.max(tol, 0.1)) continue;
       snap = snap ?? p.x;
       const per = p.per ? ` <span style="color:var(--fg3)">(${Object.values(p.per).map(v => v.toFixed(2)).join(" / ")})</span>` : "";
       rows.push(`<div><i style="background:${s.col}"></i>${s.name}: <b>${fmt(p.y)}</b>${per}</div>`);
@@ -114,6 +149,7 @@ function panel(host, title, note, series, yr, fmt) {
   svg.addEventListener("mouseleave", () => { tip.style.display = "none"; xh.setAttribute("visibility", "hidden"); });
 }
 function render() {
+  document.querySelectorAll("#zoombar button").forEach(b => { const [a, c] = b.dataset.r.split(",").map(Number); b.setAttribute("aria-pressed", a === ZX[0] && Math.min(c, XMAX) === ZX[1]); });
   document.getElementById("g1").innerHTML = ""; document.getElementById("g2").innerHTML = "";
   const f2 = v => v.toFixed(2), f3 = v => v.toFixed(3), pc = v => (v * 100).toFixed(0) + "%";
   const P = [["loss", "Train KEEP loss", "balanced BCE (binary cross-entropy), lower is better", "train", null, f2],
