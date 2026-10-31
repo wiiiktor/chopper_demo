@@ -77,18 +77,24 @@ Three versions of the chopper:
 | | **mmBERT chopper** ✅ | **rewired chopper** ✅ | **chopper trained with the model** 🤝 |
 |---|---|---|---|
 | what it is | a separate encoder, fine-tuned: `jhu-clsp/mmBERT-base` (0.31B) or `jhu-clsp/mmBERT-small` (0.14B); 8k context, bidirectional | a ~10% **slice of an existing model's own weights**, cut out after training (rewired), + a small LoRA + KEEP head | a ~10% slice **trained together with the full model** from the start, with chopping as one of its training tasks |
-| extra memory | 0.31B / 0.14B weights | ~15M parameters (no copy of the base weights) | ~0: the slice is part of the model |
+| extra memory | 0.31B / 0.14B weights | ~15M parameters (no copy of the base weights) | ~15M: the slice is part of the model |
 | reads the conversation | re-encodes what fits in its window | reads the model's **own cached keys/values**, so nothing is recomputed | the same: the model's own cache |
 | works with | any answering model (text in, text out) | the model it was carved from | the model it was trained with |
-| quality today | the better of the two measured | below mmBERT (see [Results 2](#2-the-chopper)) | not built yet |
+| quality today | the better of the two measured | below mmBERT (see [Results 2](#2-the-chopper)) | not built yet: contact the repo owner for cooperation |
 
-**Why the third one.** A 10% slice cut out of a finished model has to work with features that were never trained for
-cutting, and a LoRA cannot fully fix that: our rewired slice loses to mmBERT-small, an encoder of the same size trained
-end to end. A slice trained **together with the full model** would have its own features shaped for the job and would
-still read the full model's cache. It should come almost for free (about 10% of the model's compute, no extra
-weights, no second model) and at a much higher quality than either version here. It needs a pretraining run, which is
-beyond one GPU. **If you train models and want to build this, contact the repository owner
-([wiiiktor](https://github.com/wiiiktor)) to cooperate on the project.**
+> [!IMPORTANT]
+> ## 🤝 Why the third one: a chopper trained with the model
+>
+> A 10% slice cut out of a finished model has to work with features that were never trained for cutting, and a LoRA
+> cannot fully fix that: **our rewired slice loses to mmBERT-small**, an encoder of the same size trained end to end.
+>
+> A slice trained **together with the full model** would have its own features shaped for the job and would still
+> read the full model's cache. It should come **almost for free** (about 10% of the model's compute, no second
+> model) and at a **much higher quality** than either version here.
+>
+> It needs a pretraining run, which is beyond one GPU.
+> **If you train models and want to build this, contact the repository owner
+> ([wiiiktor](https://github.com/wiiiktor)) to cooperate on the project.**
 
 ---
 
@@ -215,7 +221,7 @@ Planned later: 3-hop chains (A → B → C).
 | **answerer** (answer or `[search] <question>`) | `Qwen/Qwen3-1.7B` | LoRA r32 on all projections (35M) | 9,000 rows of dataset A, then continued on the other 18,000 | ✅ (continuation: 2 h 40 min, 4.0 GiB) |
 | **rewired chopper, 10% width** | `Qwen/Qwen3-1.7B`: 1 of 8 KV groups + 512 of 6,144 MLP neurons per layer | LoRA r32 + KEEP head (14.9M) | 9,000 rows of dataset A, then continued on the other 18,000 | ✅ (continuation 3 h 35 min at ~0.85 s/step, 4.9 GiB) |
 | mmBERT-base chopper, full data | `jhu-clsp/mmBERT-base` | all weights + heads | all 27,000 rows | ✅ (3090, 2 h 20 min incl. 3 evals, 3.4 GiB, shared GPU) |
-| rewired choppers, other sizes | any Qwen / Llama-layout model (e.g. Qwen3-4B / 8B / 14B) | LoRA + KEEP head | your data | 🛠️ anyone can make one: `scripts/rewire/keeper_rewire.py` rewires the model, `scripts/rewire/keeper_train.py` trains its chopper |
+| rewired choppers, other sizes | any Qwen / Llama-layout model (e.g. Qwen3-4B / 8B / 14B) | LoRA + KEEP head | datasets from this repo and/or your data, on a small GPU card | 🛠️ anyone can make one: `scripts/rewire/keeper_rewire.py` rewires the model, `scripts/rewire/keeper_train.py` trains its chopper |
 | **mmBERT-small chopper** (size-matched control) | `jhu-clsp/mmBERT-small` (0.14B, about the size of the 1.7B's 10% slice) | all weights + heads | the same 9,000 rows, then continued on the other 18,000 | ✅ (9k: 24 min, 27k continuation: 1 h 35 min, 1.8 GiB) |
 
 **Name:** "chopper" is the component that cuts fragments. Older checkpoints and output folders from before the rename are still called `reader` (`reader.pt`, `reader2/`), and the scripts load them under either name.
