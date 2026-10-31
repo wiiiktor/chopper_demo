@@ -27,6 +27,7 @@ ap.add_argument("--eval-every", type=int, default=3000); ap.add_argument("--eval
 ap.add_argument("--pred-thr", type=float, default=0.8); ap.add_argument("--merge-gap", type=int, default=5)
 ap.add_argument("--min-run", type=int, default=4)
 ap.add_argument("--baseline", default="")
+ap.add_argument("--val-split", default="val", help="ctx_/qw_ tag to evaluate on (val, wval)")
 ap.add_argument("--eval-only", default="")
 ap.add_argument("--init", default="", help="keeper.pt to CONTINUE from (LoRA + head; fresh optimiser and schedule)")
 A = ap.parse_args()
@@ -148,7 +149,7 @@ def report(tag, R):
 
 
 sync = lambda: torch.cuda.synchronize() if dev == "cuda" else None
-VA = load("val")
+VA = load(A.val_split)
 if A.eval_n:
     VA = VA[:A.eval_n]
 new_acc = lambda: {"tp": 0, "fp": 0, "fn": 0, "ans": 0, "n": 0, "kept": 0, "tot": 0, "frag": 0}

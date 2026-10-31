@@ -26,6 +26,7 @@ ap.add_argument("--eval-every", type=int, default=1000); ap.add_argument("--smok
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--train-splits", default="train", help="comma list of ctx_/qw_ file tags to train on (e.g. train,train2)")
 ap.add_argument("--eval-only", default="", help="chopper.pt (or an older reader.pt) to load; evaluate on val and dump preds, no training")
+ap.add_argument("--val-split", default="val", help="ctx_/qw_ tag to evaluate on (val, wval)")
 ap.add_argument("--init", default="", help="chopper.pt (or an older reader.pt) to CONTINUE training from (fresh optimiser and schedule)")
 ap.add_argument("--merge-gap", type=int, default=0, help="decode: fill gaps of ≤ this many tokens between kept tokens")
 ap.add_argument("--min-run", type=int, default=1, help="decode: drop kept runs shorter than this many tokens")
@@ -83,7 +84,7 @@ M = Chopper().to(dev)
 M.enc.gradient_checkpointing_enable() if hasattr(M.enc, "gradient_checkpointing_enable") else None
 opt = torch.optim.AdamW([{"params": M.enc.parameters(), "lr": A.lr},
                          {"params": list(M.keep.parameters()) + list(M.dec.parameters()), "lr": A.head_lr}], weight_decay=0.0)
-TR, VA = [x for sp in A.train_splits.split(",") for x in load(sp)], load("val")
+TR, VA = [x for sp in A.train_splits.split(",") for x in load(sp)], load(A.val_split)
 random.shuffle(TR)
 if A.smoke:
     TR, VA = TR[:A.smoke], VA[:max(6, A.smoke)]
