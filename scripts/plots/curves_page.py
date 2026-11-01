@@ -63,7 +63,8 @@ function seriesFor(run, part, key) {
   return pts.map((p, i) => ({ x: p.rows, y: ys[i], per: p.per }));
 }
 const lg = document.getElementById("legend");
-NAMES.forEach((n, i) => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${COLS[i]})"></i>${n}</span>`));
+const LORDER = NAMES.map((n, i) => i).sort((a, b) => (/mmBERT-base/.test(NAMES[b]) - /mmBERT-base/.test(NAMES[a])) || (/mmBERT/.test(NAMES[b]) - /mmBERT/.test(NAMES[a])));   // legend: mmBERT-base, mmBERT-small, then the slices
+LORDER.forEach(i => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${COLS[i]})"></i>${NAMES[i]}</span>`));
 REFS.forEach(n => { if ((DATA.reference[n].train || []).length) lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash" style="border-color:var(${COLS[DATA.reference[n].ci]})"></i>${n}</span>`); });
 lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(--ca)"></i>Qwen3-1.7B answerer</span>`);
 const W = 600, H = 330, M = { l: 50, r: 16, t: 10, b: 30 }, XMAX = 55000;
