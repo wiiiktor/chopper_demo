@@ -551,7 +551,7 @@ slice agree to rounding (max logit difference ≤ 1.2e-4).
 |---|---|---|
 | Qwen3-1.7B 10% slice | ~0.14B | 140 ms (measured) |
 | **MiniCPM3-4B 10% slice** (4 heads + 320 neurons per layer) | 0.39B | **410 ms** (measured, idle GPU) |
-| **MiniCPM3-4B 20% slice** (8 heads + 960 neurons per layer) | 0.76B | **~750–900 ms** (estimated from the weight count) |
+| **MiniCPM3-4B 20% slice** (8 heads + 960 neurons per layer) | 0.76B | **536 ms** (measured, idle GPU — the weight-count estimate of 750–900 ms was too high) |
 
 The MiniCPM3 slice is slower than the Qwen one for two reasons. It is deeper: 62 layers against 28. It also keeps two
 compressions whole in every layer, the query compression (2560 → 768) and the latent (2560 → 288), because the
