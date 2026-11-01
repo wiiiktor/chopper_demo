@@ -4,17 +4,19 @@ trainings? can you put them on some chart? … in the readme page, too; i will s
 Parses the train.log files, puts a continuation run after its parent on one x axis (training rows seen), writes
   release/figures/curves.json            (data for the HTML chart page)
   release/figures/training_curves{,_dark}.png   (README; light + dark)
-usage: MM_DIR=<mm runs> KEEPER_DIR=<keeper runs> python plot_curves.py"""
+usage: MM_DIR=<mm runs> KEEPER_DIR=<keeper runs> MLA_DIR=<mla runs> python plot_curves.py"""
 import json, os, re
 import numpy as np
 MM, KP = os.environ.get("MM_DIR", "mm"), os.environ.get("KEEPER_DIR", "keeper")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "figures")
+MLA = os.environ.get("MLA_DIR", "mla")
 # entity → [(log, row offset)]; a continuation starts where its parent ended
 CHOPPERS = {
     "mmBERT-base (0.31B), 54k mixed": [(f"{MM}/chopper_basemix54k/train.log", 0)],
     "10% Qwen3-1.7B (0.14B)": [(f"{KP}/w10_q17/train.log", 0), (f"{KP}/w10_q17_27k/train.log", 9000),
                                (f"{KP}/w10_q17_54k/train.log", 27000)],
     "mmBERT-small (0.14B), 54k mixed": [(f"{MM}/chopper_smallmix54k/train.log", 0)],
+    "10% MiniCPM3-4B (MLA), 54k mixed": [(f"{MLA}/mla10_mix54k/train.log", 0)],   # 2026-11-01
 }
 # 2026-10-31: only the mmBERTs trained once on all 54k rows mixed are kept (the sequential ones were deleted). The dashed
 # line is the Qwen slice trained the same way, from scratch, against the solid slice that saw the benchmark rows first
@@ -76,9 +78,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 THEMES = {"": dict(bg="#fcfcfb", fg="#0b0b0b", fg2="#52514e", grid="#e4e3df",
-                   c=["#2a78d6", "#eb6834", "#1baf7a"], a="#6250d6"),
+                   c=["#2a78d6", "#eb6834", "#1baf7a", "#c2449f"], a="#6250d6"),
           "_dark": dict(bg="#1a1a19", fg="#f0efec", fg2="#c3c2b7", grid="#34332f",
-                        c=["#3987e5", "#d95926", "#199e70"], a="#9085e9")}
+                        c=["#3987e5", "#d95926", "#199e70", "#d55fb3"], a="#9085e9")}
 
 
 def smooth(y, k=5):
@@ -131,7 +133,7 @@ for suf, T in THEMES.items():
         if not any(p.get("f1") for r in D["choppers"].values() for p in r["train"]):
             a.text(0.5, 0.5, "logged from the next runs on", transform=a.transAxes, ha="center", color=T["fg2"])
     fig.suptitle("Training curves — train lines are 500-row rolling means; val points = mean of MuSiQue, HotpotQA, TriviaQA\n"
-                 "mmBERTs: one epoch over all 54k rows mixed; solid slice: 9k, then 18k more, then Wikipedia (dotted lines); dashed slice: 54k mixed",
+                 "mmBERTs and MiniCPM3 MLA slice: one epoch over all 54k rows mixed; solid Qwen slice: 9k, then 18k more, then Wikipedia (dotted lines); dashed Qwen slice: 54k mixed, stopped",
                  x=0.01, ha="left", color=T["fg2"], fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.965))
     fig.savefig(f"{OUT}/training_curves{suf}.png", dpi=110, facecolor=T["bg"]); plt.close(fig)

@@ -10,11 +10,11 @@ html = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400&display=swap">
 <style>
 :root{--bg:#fcfcfb;--panel:#ffffff;--fg:#0b0b0b;--fg2:#52514e;--fg3:#7a7974;--grid:#e9e8e4;--line:#d6d5d0;
- --c0:#2a78d6;--c1:#eb6834;--c2:#1baf7a;--ca:#6250d6}
+ --c0:#2a78d6;--c1:#eb6834;--c2:#1baf7a;--c3:#c2449f;--ca:#6250d6}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1a1a19;--panel:#222220;--fg:#f0efec;--fg2:#c3c2b7;--fg3:#8f8e86;--grid:#2f2e2b;--line:#45443f;
- --c0:#3987e5;--c1:#d95926;--c2:#199e70;--ca:#9085e9}}
+ --c0:#3987e5;--c1:#d95926;--c2:#199e70;--c3:#d55fb3;--ca:#9085e9}}
 :root[data-theme="dark"]{--bg:#1a1a19;--panel:#222220;--fg:#f0efec;--fg2:#c3c2b7;--fg3:#8f8e86;--grid:#2f2e2b;--line:#45443f;
- --c0:#3987e5;--c1:#d95926;--c2:#199e70;--ca:#9085e9}
+ --c0:#3987e5;--c1:#d95926;--c2:#199e70;--c3:#d55fb3;--ca:#9085e9}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
 main{max-width:1640px;margin:0 auto;padding:28px 16px 48px}
 h1{font-size:24px;margin:0 0 4px;text-wrap:balance}h2{font-size:15px;margin:28px 0 10px;color:var(--fg2);letter-spacing:.04em;text-transform:uppercase}
@@ -38,9 +38,10 @@ svg text{font:12px "IBM Plex Mono",monospace;fill:var(--fg3)}
 .empty{font-size:12px;fill:var(--fg3)}
 </style></head><body><main>
 <h1>Chopper training curves</h1>
-<p class="sub">Three choppers learn which tokens of 16 retrieved passages to keep; the Qwen3-1.7B answerer learns to answer
-or ask a follow-up question. The two mmBERTs were trained once on all 54k rows mixed (benchmark + Wikipedia). The solid Qwen slice saw 9,000
-benchmark rows, then the other 18,000, then Wikipedia rows after 27k; the dashed slice is trained once on all 54k mixed, from scratch.
+<p class="sub">The choppers learn which tokens of 16 retrieved passages to keep; the Qwen3-1.7B answerer learns to answer
+or ask a follow-up question. The two mmBERTs and the MiniCPM3-4B slice (MLA, multi-head latent attention: every slice head reads the
+full model's whole conversation cache) are trained once on all 54k rows mixed (benchmark + Wikipedia). The solid Qwen slice saw 9,000
+benchmark rows, then the other 18,000, then Wikipedia rows after 27k; the dashed Qwen slice was trained on all 54k mixed and stopped at 18k.
 Train lines are 500-row rolling means; validation points are the mean over MuSiQue, HotpotQA and TriviaQA (300 questions), read at p&nbsp;&gt;&nbsp;0.5.</p>
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
 <div class="legend" id="legend"></div>
@@ -54,7 +55,7 @@ Train lines are 500-row rolling means; validation points are the mean over MuSiQ
 <script>
 const DATA = __DATA__;
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const NAMES = Object.keys(DATA.choppers), COLS = ["--c0", "--c1", "--c2"];
+const NAMES = Object.keys(DATA.choppers), COLS = ["--c0", "--c1", "--c2", "--c3"];
 const REFS = Object.keys(DATA.reference);   // dashed, in the colour of the solid run with the same model
 function smooth(a, k = 5) { return a.map((_, i) => { const w = a.slice(Math.max(0, i - k + 1), i + 1).filter(v => v != null); return w.length ? w.reduce((s, v) => s + v, 0) / w.length : null; }); }
 function seriesFor(run, part, key) {
