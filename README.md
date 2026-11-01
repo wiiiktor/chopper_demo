@@ -536,6 +536,42 @@ This is the third version of the chopper in [How it works](#how-it-works): almos
 be much better than a rewired slice. It needs a pretraining run; **contact the repository owner
 ([wiiiktor](https://github.com/wiiiktor)) to cooperate on it.**
 
+### A host with latent attention: MiniCPM3-4B (⏳ training)
+
+MiniCPM3-4B uses **MLA** (multi-head latent attention): every head rebuilds its keys and values from one shared
+compressed vector per token, so the cache holds that latent, not per-head keys/values. A slice of a few heads
+therefore reads the **whole** conversation cache, where the Qwen GQA slice (grouped-query attention) sees 1 of 8 KV
+groups. A 10% slice (4 of 40 heads + 320 of 6,400 MLP neurons per layer, LoRA r32) is being trained on all 54k
+rows mixed. Rewiring was checked in fp32: cached and uncached passes, rewired and original model, and the full-width
+slice agree to rounding (max logit difference ≤ 1.2e-4).
+
+**Chopping speed**, one read = the cached question + 16 passages (~2,600 tokens) read twice, RTX 3090, plain PyTorch:
+
+| chopper | weights used per token | time per read |
+|---|---|---|
+| Qwen3-1.7B 10% slice | ~0.14B | 140 ms (measured) |
+| **MiniCPM3-4B 10% slice** (4 heads + 320 neurons per layer) | 0.39B | **~450 ms** (measured once) |
+| **MiniCPM3-4B 20% slice** (8 heads + 960 neurons per layer) | 0.76B | **~750–900 ms** (estimated from the weight count) |
+
+The MiniCPM3 slice is slower than the Qwen one for two reasons. It is deeper: 62 layers against 28. It also keeps two
+compressions whole in every layer, the query compression (2560 → 768) and the latent (2560 → 288), because the
+latents the slice writes for its own tokens must have the full model's format. Those two are 2.7M of the 6.2M
+weights a layer uses at 10%.
+
+**Speed-ups, not yet done:**
+- **Merge the LoRA into the slice weights for inference.** This removes 16 small extra matmuls per layer, likely
+  20–30% of the time.
+- **Compile the 62-layer loop and capture it as a CUDA graph.** At these narrow widths the time is dominated by kernel
+  launches, so this could gain up to ~2×.
+- **Use a bigger GPU:** an H100 is about 3–4× faster again.
+
+With these, the 10% slice could come close to the Qwen slice's 140 ms on the 3090, and the 20% slice would stay at
+about twice that.
+
+**10% should be enough if the slice is trained together with the full model** (see above): a slice shaped for the
+job during pretraining does not need extra width to make up for a frozen 90%. 20% is the fallback for a slice added
+after the fact.
+
 ### Toward production long-context sessions
 - **Compacting the conversation itself.** The same chopper tags what to keep from the session's own history. The model
   re-prefills only the kept spans, plus verbatim copies or short summaries, which keeps the context from filling with
