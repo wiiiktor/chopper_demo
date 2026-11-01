@@ -16,11 +16,12 @@ CHOPPERS = {
     "10% Qwen3-1.7B (0.14B)": [(f"{KP}/w10_q17/train.log", 0), (f"{KP}/w10_q17_27k/train.log", 9000),
                                (f"{KP}/w10_q17_54k/train.log", 27000)],
     "mmBERT-small (0.14B), 54k mixed": [(f"{MM}/chopper_smallmix54k/train.log", 0)],
-    "10% MiniCPM3-4B (MLA), 54k mixed": [(f"{MLA}/mla10_mix54k/train.log", 0)],   # 2026-11-01
+    "10% MiniCPM3-4B (MLA), 54k mixed": [(f"{MLA}/mla10_mix54k/train.log", 0)],   # 2026-11-01, stopped at 4.5k
 }
 # 2026-10-31: only the mmBERTs trained once on all 54k rows mixed are kept (the sequential ones were deleted). The dashed
 # line is the Qwen slice trained the same way, from scratch, against the solid slice that saw the benchmark rows first
-REFS = {"10% Qwen3-1.7B, 54k mixed": (1, [(f"{KP}/w10_q17_mix54k/train.log", 0)])}   # name: (colour index, logs)
+REFS = {"10% Qwen3-1.7B, 54k mixed": (1, [(f"{KP}/w10_q17_mix54k/train.log", 0)]),   # name: (colour index, logs)
+        "20% MiniCPM3-4B (MLA), 54k mixed": (3, [(f"{MLA}/mla20_mix54k/train.log", 0)])}
 ANSWERER = ("Qwen3-1.7B answerer", [(f"{MM}/qans17/train.log", 0), (f"{MM}/qans17_27k/train.log", 9000)])
 DS = ("musique", "hotpot", "triviaqa")
 num = lambda pat, s: float(m.group(1)) if (m := re.search(pat, s)) else None
@@ -133,7 +134,7 @@ for suf, T in THEMES.items():
         if not any(p.get("f1") for r in D["choppers"].values() for p in r["train"]):
             a.text(0.5, 0.5, "logged from the next runs on", transform=a.transAxes, ha="center", color=T["fg2"])
     fig.suptitle("Training curves — train lines are 500-row rolling means; val points = mean of MuSiQue, HotpotQA, TriviaQA\n"
-                 "mmBERTs and MiniCPM3 MLA slice: one epoch over all 54k rows mixed; solid Qwen slice: 9k, then 18k more, then Wikipedia (dotted lines); dashed Qwen slice: 54k mixed, stopped",
+                 "mmBERTs and MiniCPM3 MLA slice: one epoch over all 54k rows mixed; solid Qwen slice: 9k, then 18k more, then Wikipedia (dotted lines); dashed: Qwen slice 54k mixed (stopped), MiniCPM3 20% slice",
                  x=0.01, ha="left", color=T["fg2"], fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.965))
     fig.savefig(f"{OUT}/training_curves{suf}.png", dpi=110, facecolor=T["bg"]); plt.close(fig)

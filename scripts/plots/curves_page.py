@@ -41,7 +41,7 @@ svg text{font:12px "IBM Plex Mono",monospace;fill:var(--fg3)}
 <p class="sub">The choppers learn which tokens of 16 retrieved passages to keep; the Qwen3-1.7B answerer learns to answer
 or ask a follow-up question. The two mmBERTs and the MiniCPM3-4B slice (MLA, multi-head latent attention: every slice head reads the
 full model's whole conversation cache) are trained once on all 54k rows mixed (benchmark + Wikipedia). The solid Qwen slice saw 9,000
-benchmark rows, then the other 18,000, then Wikipedia rows after 27k; the dashed Qwen slice was trained on all 54k mixed and stopped at 18k.
+benchmark rows, then the other 18,000, then Wikipedia rows after 27k; dashed lines: the Qwen slice on all 54k mixed (stopped at 18k) and the MiniCPM3 20% slice (8 heads + 960 neurons per layer; the 10% run stopped at 4.5k for it).
 Train lines are 500-row rolling means; validation points are the mean over MuSiQue, HotpotQA and TriviaQA (300 questions), read at p&nbsp;&gt;&nbsp;0.5.</p>
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
 <div class="legend" id="legend"></div>

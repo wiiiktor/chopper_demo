@@ -550,7 +550,7 @@ slice agree to rounding (max logit difference ≤ 1.2e-4).
 | chopper | weights used per token | time per read |
 |---|---|---|
 | Qwen3-1.7B 10% slice | ~0.14B | 140 ms (measured) |
-| **MiniCPM3-4B 10% slice** (4 heads + 320 neurons per layer) | 0.39B | **~450 ms** (measured once) |
+| **MiniCPM3-4B 10% slice** (4 heads + 320 neurons per layer) | 0.39B | **410 ms** (measured, idle GPU) |
 | **MiniCPM3-4B 20% slice** (8 heads + 960 neurons per layer) | 0.76B | **~750–900 ms** (estimated from the weight count) |
 
 The MiniCPM3 slice is slower than the Qwen one for two reasons. It is deeper: 62 layers against 28. It also keeps two
