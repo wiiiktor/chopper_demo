@@ -46,7 +46,7 @@ Train lines are 500-row rolling means; validation points are the mean over MuSiQ
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
 <div class="legend" id="legend"></div>
 <div class="zoombar" id="zoombar">Zoom:
-<button data-r="0,55000">all</button><button data-r="0,9000">0–9k</button><button data-r="9000,27000">9k–27k</button><button data-r="27000,55000">27k–54k</button>
+<button data-r="0,999999">all</button><button data-r="0,9000">0–9k</button><button data-r="9000,27000">9k–27k</button><button data-r="27000,55000">27k–54k</button><button data-r="54000,999999">epoch 2</button>
 <label><input type="checkbox" id="fity" checked> fit y to the view</label>
 <span class="hint">· or drag across any chart; double-click a chart to reset</span></div>
 <h2>Chopper</h2><div class="grid" id="g1"></div>
@@ -68,13 +68,13 @@ const LORDER = NAMES.map((n, i) => i).sort((a, b) => (/mmBERT-base/.test(NAMES[b
 LORDER.forEach(i => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${COLS[i]})"></i>${NAMES[i]}</span>`));
 REFS.forEach(n => { if ((DATA.reference[n].train || []).length) lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash" style="border-color:var(${COLS[DATA.reference[n].ci]})"></i>${n}</span>`); });
 lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(--ca)"></i>Qwen3-1.7B answerer</span>`);
-const W = 600, H = 330, M = { l: 50, r: 16, t: 10, b: 30 }, XMAX = 55000;
+const W = 600, H = 330, M = { l: 50, r: 16, t: 10, b: 30 }, XMAX = Math.max(55000, Math.ceil(Math.max(...[DATA.choppers, DATA.reference].flatMap(o => Object.values(o)).flatMap(r => [...(r.train || []), ...(r.val || [])]).map(p => p.rows)) / 9000) * 9000);   // past 54k = a second epoch
 let ZX = [0, XMAX];                                      // shared x zoom, rows seen
 function setZoom(a, b) { ZX = [Math.max(0, a), Math.min(XMAX, b)]; render(); }
 document.querySelectorAll("#zoombar button").forEach(b => b.addEventListener("click", () => setZoom(...b.dataset.r.split(",").map(Number))));
 document.getElementById("fity").addEventListener("change", () => render());
 function xticks() {
-  const span = ZX[1] - ZX[0], step = [250, 500, 1000, 2000, 2500, 5000, 9000].find(s => span / s <= 7) || 9000, out = [];
+  const span = ZX[1] - ZX[0], step = [250, 500, 1000, 2000, 2500, 5000, 9000, 18000].find(s => span / s <= 7) || 18000, out = [];
   for (let x = Math.ceil(ZX[0] / step) * step; x <= ZX[1]; x += step) out.push(x);
   return out;
 }
@@ -94,7 +94,7 @@ function panel(host, title, note, series, yr, fmt) {
   for (let i = 0; i <= 4; i++) { const v = y0 + (y1 - y0) * i / 4; g += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css("--grid")}"/><text x="${M.l - 4}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`; }
   for (const x of xticks()) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">${+(x / 1000).toFixed(2)}k</text>`;
   g += `<defs><clipPath id="${cid}"><rect x="${M.l}" y="${M.t - 6}" width="${PW}" height="${H - M.t - M.b + 12}"/></clipPath></defs><g clip-path="url(#${cid})">`;
-  for (const x of [9000, 27000].filter(x => x > ZX[0] && x < ZX[1])) g += `<line x1="${X(x)}" x2="${X(x)}" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg3")}" stroke-dasharray="2 3"/>`;
+  for (const x of [9000, 27000, 54000].filter(x => x > ZX[0] && x < ZX[1])) g += `<line x1="${X(x)}" x2="${X(x)}" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg3")}" stroke-dasharray="2 3"/>`;
   if (!all.length) g += `<text class="empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">logged from the next runs on</text>`;
   // a run that logged this metric only from a later point: hatch the unlogged span, open circle where logging starts
   const gaps = series.filter(s => s.pts.length && s.from != null && s.pts[0].x - s.from > 1000);

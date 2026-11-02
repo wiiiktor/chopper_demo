@@ -95,12 +95,13 @@ for suf, T in THEMES.items():
     plt.rcParams.update({"font.size": 13, "axes.edgecolor": T["grid"], "axes.labelcolor": T["fg2"], "xtick.color": T["fg2"],
                          "ytick.color": T["fg2"], "text.color": T["fg"], "axes.titlecolor": T["fg"], "axes.titleweight": "bold",
                          "axes.titlesize": 15, "axes.titlelocation": "left"})
+    XMAX = max(55000, -(-max(p["rows"] for g in ("choppers", "reference") for r in D[g].values() for k in ("train", "val") for p in r.get(k, [])) // 9000) * 9000)
     fig, axs = plt.subplots(4, 2, figsize=(16, 19), facecolor=T["bg"])   # 2 wide so each panel stays large on GitHub
     ax = axs.flatten().reshape(2, 4)                                     # keep the ax[r, c] panel names
     for a in ax.flat:
         a.set_facecolor(T["bg"]); a.grid(True, color=T["grid"], lw=0.6); a.spines[["top", "right"]].set_visible(False)
-        a.axvline(9000, color=T["fg2"], lw=0.8, ls=":"); a.axvline(27000, color=T["fg2"], lw=0.8, ls=":")
-        a.set_xlabel("training rows seen"); a.set_xlim(0, 55000)
+        a.axvline(9000, color=T["fg2"], lw=0.8, ls=":"); a.axvline(27000, color=T["fg2"], lw=0.8, ls=":"); a.axvline(54000, color=T["fg2"], lw=0.8, ls=":")
+        a.set_xlabel("training rows seen"); a.set_xlim(0, XMAX)
     P = [("loss", "Chopper · train KEEP loss", ax[0, 0], "train"),
          ("f1", "Chopper · train KEEP F1 (p>0.5)", ax[0, 1], "train"),
          ("ans", "Chopper · val answer-in-kept (p>0.5)", ax[0, 2], "val"),
