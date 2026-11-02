@@ -8,7 +8,7 @@ model's own KV cache.
   back to the end of the session (the full model never read the passages) → the model prefills only
   "Notes: … Question: …" → it answers, or writes [search] <follow-up question> for the next round
 
-Needs a model whose slice was trained: by default Qwen/Qwen3-1.7B with the files in wiiiktor/chopper_demo
+Needs a model whose slice was trained: by default Qwen/Qwen3-1.7B with the files in wiiiktor/chopper_qwen3
 (qwen3-1.7b-w10/). For another Qwen / Llama-layout model, make them with scripts/rewire/keeper_rewire.py and
 keeper_train.py and point --slice at that folder (perms .pt + keeper.pt).
 
@@ -17,7 +17,7 @@ exactly as on the plain model. While the slice reads, the LoRA is switched off, 
 
 usage:
   python operator-for-llm-slice.py --docs <folder of .txt/.md | file.jsonl> [--ask "question" ...]
-         [--slice <dir with perms_*.pt + keeper.pt>] [--answerer-lora auto|none|<dir>] [--weights wiiiktor/chopper_demo]
+         [--slice <dir with perms_*.pt + keeper.pt>] [--answerer-lora auto|none|<dir>] [--weights wiiiktor/chopper_qwen3]
          [--max-rounds 3] [--threshold 0.8] [--device auto]"""
 import argparse, glob, os, re, sys
 import numpy as np
@@ -32,7 +32,7 @@ ap.add_argument("--docs", required=True)
 ap.add_argument("--ask", action="append")
 ap.add_argument("--slice", default="", help="folder with perms_*.pt and keeper.pt (default: qwen3-1.7b-w10 from --weights)")
 ap.add_argument("--answerer-lora", default="auto", help="auto = ours (Qwen3-1.7B only); none; or a PEFT dir for the plain model")
-ap.add_argument("--weights", default="wiiiktor/chopper_demo")
+ap.add_argument("--weights", default="wiiiktor/chopper_qwen3")
 ap.add_argument("--max-rounds", type=int, default=3)
 ap.add_argument("--threshold", type=float, default=0.8)
 ap.add_argument("--device", default="auto")

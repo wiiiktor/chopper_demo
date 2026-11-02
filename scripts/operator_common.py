@@ -27,7 +27,7 @@ def device(arg):
 
 
 def fetch(weights, folder, files=("*",)):
-    """a folder of the weights: a local directory, or downloaded from a Hugging Face repo (default wiiiktor/chopper_demo)"""
+    """a folder of the weights: a local directory, or downloaded from a Hugging Face repo (wiiiktor/chopper_mmbert or wiiiktor/chopper_qwen3)"""
     if os.path.isdir(os.path.join(weights, folder)):
         return os.path.join(weights, folder)
     from huggingface_hub import snapshot_download
