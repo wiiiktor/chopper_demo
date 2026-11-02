@@ -632,7 +632,7 @@ after the fact.
 |---|---|---|---|
 | mmBERT-base | JHU CLSP | MIT | mmBERT chopper |
 | Qwen3-1.7B / 4B / 14B, Qwen3-14B-AWQ | Qwen team, Alibaba | Apache 2.0 | answerer, rewired chopper, labeller, follow-up questions |
-| MiniCPM3-4B | OpenBMB | Apache 2.0 | MLA slice chopper |
+| MiniCPM3-4B | OpenBMB / ModelBest | code Apache 2.0; weights [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md) | MLA slice chopper |
 | Qwen3-Embedding-0.6B | Qwen team, Alibaba | Apache 2.0 | first-stage retrieval |
 | bge-reranker-v2-m3 | BAAI | Apache 2.0 | reranking |
 | MuSiQue | Trivedi et al., 2022 | CC BY 4.0 | dataset A |
@@ -645,8 +645,10 @@ after the fact.
 - **Code:** ⏳ (suggested: Apache 2.0, matching the models).
 - **Datasets:** they inherit from their sources. Because HotpotQA and Wikipedia are CC BY-SA, the derived datasets
   must be **CC BY-SA 4.0** (share-alike).
-- **Models:** follow their base models: MIT for the mmBERT choppers, Apache 2.0 for the Qwen LoRAs and choppers and for
-  the MiniCPM3 chopper.
+- **Models:** follow their base models: MIT for the mmBERT choppers, Apache 2.0 for the Qwen LoRAs and choppers. The
+  MiniCPM3 chopper derives from the MiniCPM3-4B weights and follows the [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md): free for
+  academic research; commercial use is free after registering with OpenBMB / ModelBest (questionnaire linked from the
+  [MiniCPM3-4B model card](https://huggingface.co/openbmb/MiniCPM3-4B)).
 
 **Citations:** ⏳ (BibTeX for mmBERT, Qwen3, BGE-M3 / bge-reranker, MuSiQue, HotpotQA, TriviaQA, Minitron, MatFormer).
 
