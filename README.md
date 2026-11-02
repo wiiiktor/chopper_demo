@@ -247,10 +247,10 @@ Planned later: 3-hop chains (A → B → C).
 | model | base | trainable | trained on | status |
 |---|---|---|---|---|
 | **answerer** (answer or `[search] <question>`) | `Qwen/Qwen3-1.7B` | LoRA r32 on all projections (35M) | 9,000 rows of dataset A, then continued on the other 18,000 | ✅ (continuation: 2 h 40 min, 4.0 GiB) |
-| **rewired chopper, 10% width** | `Qwen/Qwen3-1.7B`: 1 of 8 KV groups + 512 of 6,144 MLP neurons per layer | LoRA r32 + KEEP head (14.9M) | 9,000 rows of dataset A, then continued on the other 18,000 | ✅ (continuation 3 h 35 min at ~0.85 s/step, 4.9 GiB) |
+| **rewired chopper, 10% width** | `Qwen/Qwen3-1.7B`: 1 of 8 KV groups + 512 of 6,144 MLP neurons per layer | LoRA r32 + KEEP head (14.9M) | first 9,000 rows of dataset A, then continued on the other 18,000; now replaced by the 54k-mixed run below | ✅ (continuation 3 h 35 min at ~0.85 s/step, 4.9 GiB) |
 | rewired choppers, other sizes | any Qwen / Llama-layout model (e.g. Qwen3-4B / 8B / 14B) | LoRA + KEEP head | datasets from this repo and/or your data, on a small GPU card | 🛠️ anyone can make one: `scripts/rewire/keeper_rewire.py` rewires the model, `scripts/rewire/keeper_train.py` trains its chopper |
 | **mmBERT-base and mmBERT-small choppers** (small = the size-matched control) | `jhu-clsp/mmBERT-base` (0.31B) / `jhu-clsp/mmBERT-small` (0.14B, about the size of the 1.7B's 10% slice) | all weights + KEEP head + decision head | all 54,000 rows: datasets A and B shuffled together, one epoch | ✅ (base 2 h 50 min, small 2 h, 3090)
-| 10% Qwen3-1.7B slice, all 54k mixed | the rewired `Qwen/Qwen3-1.7B`, fresh LoRA | LoRA r32 + KEEP head | datasets A and B shuffled together, one epoch | ⏳ the first run diverged at step ~16k (lr 3e-4); retraining from scratch at lr 1.5e-4 (~11 h, 3090, sharing the GPU) |
+| 10% Qwen3-1.7B slice, all 54k mixed | the rewired `Qwen/Qwen3-1.7B`, fresh LoRA | LoRA r32 + KEEP head | datasets A and B shuffled together, one epoch | ✅ on HF (`qwen3-1.7b-w10/`): from scratch at lr 1.5e-4, 12 h at 0.79 s/step sharing the GPU, 4.9 GiB (the first run, at lr 3e-4, diverged at step ~16k) |
 | **20% MiniCPM3-4B slice** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ⏳ |
 
 **Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
@@ -376,6 +376,7 @@ Decoded at p > 0.8, gaps ≤ 5 tokens merged, runs < 4 tokens dropped:
 | **10% Qwen3-1.7B, end of the 9k epoch** | 9k | .29 / .42 / .17 | .22 / .65 / .71 | 2.9 / 2.9 / 3.8 |
 | same, threshold lowered to p > 0.5 | 9k | .20 / .24 / .13 | .36 / .87 / .82 | ~17 / 17 / 26 (keeps 16% of the text) |
 | 10% Qwen3-1.7B, continued | 27k | .31 / .48 / .19 | .24 / .70 / .72 | 3.1 / 3.0 / 3.8 |
+| 10% Qwen3-1.7B, on HF | 54k mixed | .27 / .44 / .18 | .22 / .72 / .71 | 2.9 / 2.7 / 4.1 |
 | **20% MiniCPM3-4B slice** (0.76B of weights used per token), on HF | 54k mixed | .52 / .58 / .35 | .47 / .80 / .69 | 2.6 / 3.6 / 4.9 |
 | same, threshold raised to p > 0.85 | 54k mixed | .56 / .61 / .38 | .45 / .77 / .67 | 2.3 / 3.4 / 4.1 |
 | same, threshold lowered to p > 0.6 | 54k mixed | .41 / .48 / .25 | .51 / .84 / .76 | 3.5 / 4.2 / 8.2 |
@@ -393,6 +394,7 @@ On the 300 Wikipedia validation questions (2-hop / 1-hop), the same decode:
 | **mmBERT-base** | 54k mixed | **.62 / .72** | .92 / .91 | 3.0 / 1.5 |
 | mmBERT-small | 54k mixed | .60 / .68 | .90 / .94 | 3.0 / 1.6 |
 | 20% MiniCPM3-4B slice | 54k mixed | .55 / .65 | .90 / .96 | 3.6 / 1.7 |
+| 10% Qwen3-1.7B slice (character F1) | 54k mixed | .34 / .39 | .63 / .99 | 3.3 / 1.4 |
 
 
 **The 10% Qwen3-1.7B slice is clearly behind mmBERT-small, an encoder of the same 0.14B size.** When allowed to keep
@@ -403,6 +405,8 @@ curves). A small encoder trained end to end beats a 10% slice of a decoder whose
 **After all 27,000 rows the gap holds.** The 10% slice improves a little (F1 +.02 to +.06), but it keeps the answer
 less often than mmBERT-small: .24 / .70 / .72 against .47 / .81 / .74. Read on the full model's cache, it remains
 the cheaper option to run, at 133 ms per read with no second model in memory, but it is not yet the better one.
+Retrained from scratch on all 54k rows mixed, it is no better (F1 .27 / .44 / .18, answer kept .22 / .72 / .71) and
+far behind on Wikipedia 2-hop (F1 .34, answer kept .63 against .60 / .90 for mmBERT-small): its loss stays near 0.33.
 One advantage these benchmarks cannot show: the slice attends to the **whole conversation** through the full model's
 KV cache, at no extra cost, while mmBERT only sees what fits in its 8,192-token window next to the passages. Here
 the "conversation" is just the question, so a test with long real sessions is still to do. To make the slice the
