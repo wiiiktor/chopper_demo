@@ -13,17 +13,14 @@ MLA = os.environ.get("MLA_DIR", "mla")
 # entity → [(log, row offset)]; a continuation starts where its parent ended
 CHOPPERS = {
     "mmBERT-base (0.31B), 54k mixed": [(f"{MM}/chopper_basemix54k/train.log", 0)],
-    "10% Qwen3-1.7B (0.14B)": [(f"{KP}/w10_q17/train.log", 0), (f"{KP}/w10_q17_27k/train.log", 9000),
-                               (f"{KP}/w10_q17_54k/train.log", 27000)],
+    "10% Qwen3-1.7B (0.14B), 54k mixed": [(f"{KP}/w10_q17_mix54k_lr15/train.log", 0)],   # from scratch, lr 1.5e-4
     "mmBERT-small (0.14B), 54k mixed": [(f"{MM}/chopper_smallmix54k/train.log", 0)],
-    "10% MiniCPM3-4B (MLA), 54k mixed": [(f"{MLA}/mla10_mix54k/train.log", 0)],   # 2026-11-01, stopped at 4.5k
+    "20% MiniCPM3-4B (MLA), 54k mixed": [(f"{MLA}/mla20_mix54k/train.log", 0),       # 2nd epoch (lr 5e-5, seed 1) continues at 54k
+                                         (f"{MLA}/mla20_mix54k_ep2/train.log", 54000)],
 }
-# 2026-10-31: only the mmBERTs trained once on all 54k rows mixed are kept (the sequential ones were deleted). The dashed
-# line is the Qwen slice trained the same way, from scratch, against the solid slice that saw the benchmark rows first
-# 2026-11-02: the first 54k mixed Qwen slice (lr 3e-4) diverged at ~16k; its retrain from scratch at lr 1.5e-4 replaces it
-REFS = {"10% Qwen3-1.7B, 54k mixed": (1, [(f"{KP}/w10_q17_mix54k_lr15/train.log", 0)]),   # name: (colour index, logs)
-        "20% MiniCPM3-4B (MLA), 54k mixed": (3, [(f"{MLA}/mla20_mix54k/train.log", 0),   # 2nd epoch (lr 5e-5, seed 1) continues at 54k
-                                                     (f"{MLA}/mla20_mix54k_ep2/train.log", 54000)])}
+# 2026-11-02 (user: "remove … use non-dashed lines everywhere"): only the four 54k-mixed choppers, all solid; the
+# sequential Qwen slice and the 10% MiniCPM3 slice (stopped at 4.5k) are dropped. REFS (dashed) is kept empty.
+REFS = {}   # name: (colour index, logs)
 ANSWERER = ("Qwen3-1.7B answerer", [(f"{MM}/qans17/train.log", 0), (f"{MM}/qans17_27k/train.log", 9000)])
 DS = ("musique", "hotpot", "triviaqa")
 num = lambda pat, s: float(m.group(1)) if (m := re.search(pat, s)) else None
@@ -100,7 +97,7 @@ for suf, T in THEMES.items():
     ax = axs.flatten().reshape(2, 4)                                     # keep the ax[r, c] panel names
     for a in ax.flat:
         a.set_facecolor(T["bg"]); a.grid(True, color=T["grid"], lw=0.6); a.spines[["top", "right"]].set_visible(False)
-        a.axvline(9000, color=T["fg2"], lw=0.8, ls=":"); a.axvline(27000, color=T["fg2"], lw=0.8, ls=":"); a.axvline(54000, color=T["fg2"], lw=0.8, ls=":")
+        a.axvline(54000, color=T["fg2"], lw=0.8, ls=":")
         a.set_xlabel("training rows seen"); a.set_xlim(0, XMAX)
     P = [("loss", "Chopper · train KEEP loss", ax[0, 0], "train"),
          ("f1", "Chopper · train KEEP F1 (p>0.5)", ax[0, 1], "train"),
@@ -137,7 +134,7 @@ for suf, T in THEMES.items():
         if not any(p.get("f1") for r in D["choppers"].values() for p in r["train"]):
             a.text(0.5, 0.5, "logged from the next runs on", transform=a.transAxes, ha="center", color=T["fg2"])
     fig.suptitle("Training curves — train lines are 500-row rolling means; val points = mean of MuSiQue, HotpotQA, TriviaQA\n"
-                 "mmBERTs and MiniCPM3 MLA slice: one epoch over all 54k rows mixed; solid Qwen slice: 9k, then 18k more, then Wikipedia (dotted lines); dashed: Qwen slice 54k mixed (stopped), MiniCPM3 20% slice",
+                 "all four choppers: one epoch over all 54k rows mixed; the MiniCPM3 20% slice continues with a second epoch after 54k (dotted line)",
                  x=0.01, ha="left", color=T["fg2"], fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.965))
     fig.savefig(f"{OUT}/training_curves{suf}.png", dpi=110, facecolor=T["bg"]); plt.close(fig)

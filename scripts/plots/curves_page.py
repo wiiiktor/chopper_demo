@@ -40,13 +40,13 @@ svg text{font:12px "IBM Plex Mono",monospace;fill:var(--fg3)}
 <h1>Chopper training curves</h1>
 <p class="sub">The choppers learn which tokens of 16 retrieved passages to keep; the Qwen3-1.7B answerer learns to answer
 or ask a follow-up question. The two mmBERTs and the MiniCPM3-4B slice (MLA, multi-head latent attention: every slice head reads the
-full model's whole conversation cache) are trained once on all 54k rows mixed (benchmark + Wikipedia). The solid Qwen slice saw 9,000
-benchmark rows, then the other 18,000, then Wikipedia rows after 27k; dashed lines: the Qwen slice on all 54k mixed (stopped at 18k) and the MiniCPM3 20% slice (8 heads + 960 neurons per layer; the 10% run stopped at 4.5k for it).
+full model's whole conversation cache) are trained once on all 54k rows mixed (benchmark + Wikipedia), and so is the 10% Qwen3-1.7B slice. The MiniCPM3 20% slice
+(8 of 40 heads + 960 of 6,400 neurons per layer) runs a second epoch after 54k (lr 5e-5, new order; dotted line).
 Train lines are 500-row rolling means; validation points are the mean over MuSiQue, HotpotQA and TriviaQA (300 questions), read at p&nbsp;&gt;&nbsp;0.5.</p>
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
 <div class="legend" id="legend"></div>
 <div class="zoombar" id="zoombar">Zoom:
-<button data-r="0,999999">all</button><button data-r="0,9000">0–9k</button><button data-r="9000,27000">9k–27k</button><button data-r="27000,55000">27k–54k</button><button data-r="54000,999999">epoch 2</button>
+<button data-r="0,999999">all</button><button data-r="0,27000">0–27k</button><button data-r="27000,55000">27k–54k</button><button data-r="54000,999999">epoch 2</button>
 <label><input type="checkbox" id="fity" checked> fit y to the view</label>
 <span class="hint">· or drag across any chart; double-click a chart to reset</span></div>
 <h2>Chopper</h2><div class="grid" id="g1"></div>
@@ -94,7 +94,7 @@ function panel(host, title, note, series, yr, fmt) {
   for (let i = 0; i <= 4; i++) { const v = y0 + (y1 - y0) * i / 4; g += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css("--grid")}"/><text x="${M.l - 4}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`; }
   for (const x of xticks()) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">${+(x / 1000).toFixed(2)}k</text>`;
   g += `<defs><clipPath id="${cid}"><rect x="${M.l}" y="${M.t - 6}" width="${PW}" height="${H - M.t - M.b + 12}"/></clipPath></defs><g clip-path="url(#${cid})">`;
-  for (const x of [9000, 27000, 54000].filter(x => x > ZX[0] && x < ZX[1])) g += `<line x1="${X(x)}" x2="${X(x)}" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg3")}" stroke-dasharray="2 3"/>`;
+  for (const x of [54000].filter(x => x > ZX[0] && x < ZX[1])) g += `<line x1="${X(x)}" x2="${X(x)}" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg3")}" stroke-dasharray="2 3"/>`;
   if (!all.length) g += `<text class="empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">logged from the next runs on</text>`;
   // a run that logged this metric only from a later point: hatch the unlogged span, open circle where logging starts
   const gaps = series.filter(s => s.pts.length && s.from != null && s.pts[0].x - s.from > 1000);
