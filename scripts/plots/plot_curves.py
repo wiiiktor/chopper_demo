@@ -21,7 +21,8 @@ CHOPPERS = {
 # 2026-10-31: only the mmBERTs trained once on all 54k rows mixed are kept (the sequential ones were deleted). The dashed
 # line is the Qwen slice trained the same way, from scratch, against the solid slice that saw the benchmark rows first
 REFS = {"10% Qwen3-1.7B, 54k mixed": (1, [(f"{KP}/w10_q17_mix54k/train.log", 0)]),   # name: (colour index, logs)
-        "20% MiniCPM3-4B (MLA), 54k mixed": (3, [(f"{MLA}/mla20_mix54k/train.log", 0)])}
+        "20% MiniCPM3-4B (MLA), 54k mixed": (3, [(f"{MLA}/mla20_mix54k/train.log", 0),   # 2nd epoch (lr 5e-5, seed 1) continues at 54k
+                                                     (f"{MLA}/mla20_mix54k_ep2/train.log", 54000)])}
 ANSWERER = ("Qwen3-1.7B answerer", [(f"{MM}/qans17/train.log", 0), (f"{MM}/qans17_27k/train.log", 9000)])
 DS = ("musique", "hotpot", "triviaqa")
 num = lambda pat, s: float(m.group(1)) if (m := re.search(pat, s)) else None
