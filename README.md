@@ -77,7 +77,7 @@ conversation tail + question
 
 Three versions of the chopper:
 
-| | 🟧 **universal chopper** (mmBERT) ✅ | 🟪 **integrated chopper** (a rewired slice) ✅ | **chopper trained with the model** 🤝 |
+| | 🟧 **universal chopper** (mmBERT) ✅ | 🟪 **integrated chopper** (a rewired slice) ✅ | 🟪 **chopper trained with the model** 🤝 |
 |---|---|---|---|
 | what it is | a separate encoder, fine-tuned: `jhu-clsp/mmBERT-base` (0.31B) or `jhu-clsp/mmBERT-small` (0.14B); 8k context, bidirectional | a ~20% **slice of an existing model's own weights**, cut out after training (rewired), + a small LoRA + KEEP head: MiniCPM3-4B, 8 of 40 heads + 960 of 6,400 MLP neurons per layer | a ~10% slice **trained together with the full model** from the start, with chopping as one of its training tasks |
 | extra memory | 0.31B / 0.14B weights | 44.9M parameters (LoRA + KEEP head; no copy of the base weights) | ~15M: the slice is part of the model |
