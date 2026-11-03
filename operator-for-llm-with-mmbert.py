@@ -7,13 +7,13 @@ context grows only by the few fragments that matter, never by whole retrieved pa
   [search] <follow-up question>, which starts the next round (up to --max-rounds)
 
 The mmBERT chopper is independent of the answering model (text in, text out), so --model can be any Hugging Face
-decoder-only causal LM (see scripts/operator_common.py for the assumptions). Default: Qwen/Qwen3-1.7B with our
-answer-or-search LoRA; any other model gets a short instruction instead of the LoRA.
+decoder-only causal LM (see scripts/operator_common.py for the assumptions). It answers from a short instruction, or
+from your own answer-or-search LoRA (--answerer-lora <PEFT dir>, trained with scripts/answer/mm_qwen_answer.py).
 
 usage:
   python operator-for-llm-with-mmbert.py --docs <folder of .txt/.md | file.jsonl> [--ask "question" ...]
-         [--model Qwen/Qwen3-1.7B] [--answerer-lora auto|none|<dir>] [--chopper base|small]
-         [--weights wiiiktor/chopper_mmbert] [--answerer-weights wiiiktor/chopper_qwen3] [--max-rounds 3] [--threshold 0.8] [--device auto]
+         --model <hf model id> [--answerer-lora none|<dir>] [--chopper base|small]
+         [--weights wiiiktor/chopper_mmbert] [--max-rounds 3] [--threshold 0.8] [--device auto]
 Without --ask it opens an interactive prompt (empty line or "exit" ends the session)."""
 import argparse, os, sys
 import numpy as np
@@ -24,11 +24,10 @@ from operator_common import Retriever, Session, device, fetch, kept_text, load_c
 ap = argparse.ArgumentParser()
 ap.add_argument("--docs", required=True)
 ap.add_argument("--ask", action="append")
-ap.add_argument("--model", default="Qwen/Qwen3-1.7B")
-ap.add_argument("--answerer-lora", default="auto", help="auto = ours when --model is Qwen/Qwen3-1.7B; none; or a PEFT dir")
+ap.add_argument("--model", required=True, help="the answering model: any Hugging Face decoder-only causal LM")
+ap.add_argument("--answerer-lora", default="none", help="none (answer from an instruction) or a PEFT dir trained for --model")
 ap.add_argument("--chopper", default="base", choices=["base", "small"])
 ap.add_argument("--weights", default="wiiiktor/chopper_mmbert", help="HF repo id or a local copy of it (mmbert-base/, mmbert-small/)")
-ap.add_argument("--answerer-weights", default="wiiiktor/chopper_qwen3", help="HF repo id or a local copy with answerer-qwen3-1.7b-lora/")
 ap.add_argument("--max-rounds", type=int, default=3)
 ap.add_argument("--threshold", type=float, default=0.8)
 ap.add_argument("--device", default="auto")
@@ -72,8 +71,6 @@ def chop(question, passages):
 mtk = AutoTokenizer.from_pretrained(A.model)
 M = AutoModelForCausalLM.from_pretrained(A.model, dtype=dt).to(dev).eval()
 lora = A.answerer_lora
-if lora == "auto":
-    lora = fetch(A.answerer_weights, "answerer-qwen3-1.7b-lora") if A.model == "Qwen/Qwen3-1.7B" else "none"
 if lora != "none":
     from peft import PeftModel
     M = PeftModel.from_pretrained(M, lora).eval()

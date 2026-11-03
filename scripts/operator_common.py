@@ -1,4 +1,4 @@
-"""Shared parts of the two operators (operator-for-llm-with-mmbert.py, operator-for-llm-slice.py), 2026-10-31.
+"""Shared parts of the operator (operator-for-llm-with-mmbert.py), 2026-10-31.
 
   Corpus     your documents → chunks ("Title\\nparagraph…", ≤ ~1,000 characters, like the training passages)
   Retriever  Qwen3-Embedding-0.6B top-100 → bge-reranker-v2-m3 → top 16 (the pipeline the choppers were trained on);
@@ -7,8 +7,8 @@
   answer()   the loop: retrieve → chop → roll back → prefill only the notes → answer, or [search] <question> → again
 
 Assumptions about the answering model ("any transformer"): a Hugging Face decoder-only causal LM whose cache is a
-DynamicCache that supports crop() (Llama, Qwen, Mistral, Gemma-2-style full-attention models; not sliding-window-only or
-recurrent caches). Our answerer LoRA exists only for Qwen/Qwen3-1.7B; other models follow a short instruction instead.
+DynamicCache that supports crop() (Llama, Mistral, Gemma-2-style full-attention models; not sliding-window-only or
+recurrent caches). Without an answerer LoRA the model follows a short instruction.
 """
 import glob, hashlib, json, os, re, time
 import torch
@@ -27,7 +27,7 @@ def device(arg):
 
 
 def fetch(weights, folder, files=("*",)):
-    """a folder of the weights: a local directory, or downloaded from a Hugging Face repo (wiiiktor/chopper_mmbert or wiiiktor/chopper_qwen3)"""
+    """a folder of the weights: a local directory, or downloaded from a Hugging Face repo (e.g. wiiiktor/chopper_mmbert)"""
     if os.path.isdir(os.path.join(weights, folder)):
         return os.path.join(weights, folder)
     from huggingface_hub import snapshot_download

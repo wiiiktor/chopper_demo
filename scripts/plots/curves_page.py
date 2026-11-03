@@ -38,9 +38,9 @@ svg text{font:12px "IBM Plex Mono",monospace;fill:var(--fg3)}
 .empty{font-size:12px;fill:var(--fg3)}
 </style></head><body><main>
 <h1>Chopper training curves</h1>
-<p class="sub">The choppers learn which tokens of 16 retrieved passages to keep; the Qwen3-1.7B answerer learns to answer
+<p class="sub">The choppers learn which tokens of 16 retrieved passages to keep; the answerer (MiniCPM3-4B, queued) learns to answer
 or ask a follow-up question. The two mmBERTs and the MiniCPM3-4B slice (MLA, multi-head latent attention: every slice head reads the
-full model's whole conversation cache) are trained once on all 54k rows mixed (benchmark + Wikipedia), and so is the 10% Qwen3-1.7B slice. The MiniCPM3 20% slice
+full model's whole conversation cache) are trained once on all 54k rows mixed (benchmark + Wikipedia). The MiniCPM3 20% slice
 (8 of 40 heads + 960 of 6,400 neurons per layer) runs a second epoch after 54k (lr 5e-5, new order; dotted line).
 Train lines are 500-row rolling means; validation points are the mean over MuSiQue, HotpotQA and TriviaQA (300 questions), read at p&nbsp;&gt;&nbsp;0.5.</p>
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
@@ -67,7 +67,7 @@ const lg = document.getElementById("legend");
 const LORDER = NAMES.map((n, i) => i).sort((a, b) => (/mmBERT-base/.test(NAMES[b]) - /mmBERT-base/.test(NAMES[a])) || (/mmBERT/.test(NAMES[b]) - /mmBERT/.test(NAMES[a])));   // legend: mmBERT-base, mmBERT-small, then the slices
 LORDER.forEach(i => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${COLS[i]})"></i>${NAMES[i]}</span>`));
 REFS.forEach(n => { if ((DATA.reference[n].train || []).length) lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash" style="border-color:var(${COLS[DATA.reference[n].ci]})"></i>${n}</span>`); });
-lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(--ca)"></i>Qwen3-1.7B answerer</span>`);
+lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(--ca)"></i>MiniCPM3-4B answerer (queued)</span>`);
 const W = 600, H = 330, M = { l: 50, r: 16, t: 10, b: 30 }, XMAX = Math.max(55000, Math.ceil(Math.max(...[DATA.choppers, DATA.reference].flatMap(o => Object.values(o)).flatMap(r => [...(r.train || []), ...(r.val || [])]).map(p => p.rows)) / 9000) * 9000);   // past 54k = a second epoch
 let ZX = [0, XMAX];                                      // shared x zoom, rows seen
 function setZoom(a, b) { ZX = [Math.max(0, a), Math.min(XMAX, b)]; render(); }
