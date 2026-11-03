@@ -2,6 +2,11 @@
 
 *70-second video: [youtu.be/KMvmdXCEOJU](https://youtu.be/KMvmdXCEOJU) · also in this repo as [media/chopper.mp4](media/chopper.mp4)*
 
+<p align="center">
+  <a href="#quick-start"><img src="media/choice_universal.png" width="49%" alt="Option 1, universal chopper: a small separate model (mmBERT-base 0.31B or mmBERT-small 0.14B), text in and text out, works with any answering model; best quality measured so far. Links to the quick start."></a>
+  <a href="#a-host-with-latent-attention-minicpm3-4b"><img src="media/choice_integrated.png" width="49%" alt="Option 2, integrated chopper: a 20% slice of MiniCPM3-4B itself, no second model, reads the model's own cache of the whole session; ties mmBERT-small. Links to how it works."></a>
+</p>
+
 # Chopper: cut retrieved text down to the fragments that answer the question
 
 > **DRAFT 2026-11-03.** Sections marked ⏳ describe parts that are planned or still training. Every number in
