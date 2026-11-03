@@ -252,7 +252,7 @@ Planned later: 3-hop chains (A → B → C).
 | 🟧 **universal chopper: mmBERT-base and mmBERT-small** (small = the size-matched control) | `jhu-clsp/mmBERT-base` (0.31B) / `jhu-clsp/mmBERT-small` (0.14B) | all weights + KEEP head + decision head | all 54,000 rows: datasets A and B shuffled together, one epoch | ✅ on HF (base 2 h 50 min, small 2 h, 3090) |
 | 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
-| **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A | ⏳ training (started 3 Nov 16:05) |
+| **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A, notes = the integrated chopper's own fragments (epoch-1 weights) | ⏳ the chopper is chopping the 27k rows, then training starts |
 
 **Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
 
@@ -337,7 +337,8 @@ written as `a / b / c` are MuSiQue / HotpotQA / TriviaQA.
 ### 1. Answer quality ⏳
 
 The answering model's results (exact match from the fragments, and when it chooses to search again) are being
-measured with the answerer for the integrated chopper, a LoRA on MiniCPM3-4B. It is training now.
+measured with the answerer for the integrated chopper, a LoRA on MiniCPM3-4B. It trains on the integrated chopper's own fragments, so it sees at
+training time the same notes it gets at test time.
 
 ### 2. The chopper
 
