@@ -1,4 +1,4 @@
-[![LLMs need a Chopper: watch the video](media/youtube_cover_v13.jpg)](https://youtu.be/KMvmdXCEOJU)
+[![LLMs need a Chopper: watch the video](media/youtube_cover_v14.jpg)](https://youtu.be/KMvmdXCEOJU)
 
 *70-second video: [youtu.be/KMvmdXCEOJU](https://youtu.be/KMvmdXCEOJU) · also in this repo as [media/chopper.mp4](media/chopper.mp4)*
 
