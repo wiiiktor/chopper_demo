@@ -22,6 +22,7 @@ h1{font-size:24px;margin:0 0 4px;text-wrap:balance}h2{font-size:15px;margin:28px
 .legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 4px;font-size:13px;color:var(--fg2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}.sw{width:18px;height:3px;border-radius:2px;display:inline-block}
 .sw.dash{background:none!important;border-top:2px dashed;height:0}
+#g3{display:grid;gap:16px;margin-top:16px}#g3 .card{max-width:760px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,600px),1fr));gap:16px}
 .zoombar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:10px 0 4px;font-size:13px;color:var(--fg2)}
 .zoombar button{font:13px "IBM Plex Mono",monospace;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:3px 10px;cursor:pointer}
@@ -51,7 +52,7 @@ Train lines are 500-row rolling means; validation points are the mean over MuSiQ
 <label><input type="checkbox" id="fity" checked> fit y to the view</label>
 <span class="hint">· or drag across any chart; double-click a chart to reset</span></div>
 <h2>Chopper</h2><div class="grid" id="g1"></div>
-<h2>Answerer</h2><div class="grid" id="g2"></div>
+<h2>Answerer</h2><div class="grid" id="g2"></div><div id="g3"></div>
 </main>
 <script>
 const DATA = __DATA__;
@@ -71,21 +72,22 @@ REFS.forEach(n => { if ((DATA.reference[n].train || []).length) lg.insertAdjacen
 const ANS = Object.keys(DATA.answerer), ACOL = ["--ca", "--c3"];
 ANS.forEach((n, i) => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${ACOL[i]})"></i>MiniCPM3-4B ${n}${(DATA.answerer[n].train || []).length ? "" : " (queued)"}</span>`));
 const W = 600, H = 330, M = { l: 50, r: 16, t: 10, b: 30 }, XMAX = Math.max(55000, Math.ceil(Math.max(...[DATA.choppers, DATA.reference].flatMap(o => Object.values(o)).flatMap(r => [...(r.train || []), ...(r.val || [])]).map(p => p.rows)) / 9000) * 9000);   // past 54k = a second epoch
-let ZX = [0, XMAX];                                      // shared x zoom, rows seen
-function setZoom(a, b) { ZX = [Math.max(0, a), Math.min(XMAX, b)]; render(); }
+window.ZXG = [0, XMAX];                                   // shared x zoom, rows seen
+function setZoom(a, b) { window.ZXG = [Math.max(0, a), Math.min(XMAX, b)]; render(); }
 document.querySelectorAll("#zoombar button").forEach(b => b.addEventListener("click", () => setZoom(...b.dataset.r.split(",").map(Number))));
 document.getElementById("fity").addEventListener("change", () => render());
-function xticks() {
+function xticks(ZX) {
   const span = ZX[1] - ZX[0], step = [250, 500, 1000, 2000, 2500, 5000, 9000, 18000].find(s => span / s <= 7) || 18000, out = [];
   for (let x = Math.ceil(ZX[0] / step) * step; x <= ZX[1]; x += step) out.push(x);
   return out;
 }
-function panel(host, title, note, series, yr, fmt) {
+function panel(host, title, note, series, yr, fmt, xr) {
+  const ZX = xr || window.ZXG, wide = !!xr;              // xr: a fixed x range (no zoom), drawn full width
   const card = document.createElement("div"); card.className = "card";
   card.innerHTML = `<h3>${title}</h3><p>${note}</p><div class="tip"></div>`; host.appendChild(card);
   const ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", title); card.insertBefore(svg, card.querySelector(".tip"));
-  const all = series.flatMap(s => s.pts.map(p => p.y)), zoomed = ZX[0] > 0 || ZX[1] < XMAX;
+  const all = series.flatMap(s => s.pts.map(p => p.y)), zoomed = !wide && (ZX[0] > 0 || ZX[1] < XMAX);
   const vis = series.flatMap(s => s.pts.filter(p => p.x >= ZX[0] && p.x <= ZX[1]).map(p => p.y));
   const fit = zoomed && document.getElementById("fity").checked && vis.length;
   let [y0, y1] = fit ? [Math.min(...vis), Math.max(...vis)] : yr || [Math.min(...all), Math.max(...all)];
@@ -94,7 +96,7 @@ function panel(host, title, note, series, yr, fmt) {
   const cid = "c" + Math.random().toString(36).slice(2);
   let g = "";
   for (let i = 0; i <= 4; i++) { const v = y0 + (y1 - y0) * i / 4; g += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css("--grid")}"/><text x="${M.l - 4}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`; }
-  for (const x of xticks()) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">${+(x / 1000).toFixed(2)}k</text>`;
+  for (const x of xticks(ZX)) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">${+(x / 1000).toFixed(2)}k</text>`;
   g += `<defs><clipPath id="${cid}"><rect x="${M.l}" y="${M.t - 6}" width="${PW}" height="${H - M.t - M.b + 12}"/></clipPath></defs><g clip-path="url(#${cid})">`;
   if (!all.length) g += `<text class="empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">logged from the next runs on</text>`;
   // a run that logged this metric only from a later point: hatch the unlogged span, open circle where logging starts
@@ -109,7 +111,8 @@ function panel(host, title, note, series, yr, fmt) {
   for (const s of series) {
     if (!s.pts.length) continue;
     const d = s.pts.map((p, i) => `${i ? "L" : "M"}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join("");
-    g += `<path d="${d}" fill="none" stroke="${s.col}" stroke-width="${s.dash ? 1.3 : 2}" ${s.dash ? 'stroke-dasharray="4 3"' : ""} stroke-linejoin="round"/>`;
+    g += `<path d="${d}" fill="none" stroke="${s.col}" stroke-width="${s.lw || (s.dash ? 1.3 : 2)}" ${s.dash ? `stroke-dasharray="${typeof s.dash === "string" ? s.dash : "4 3"}"` : ""} stroke-linejoin="round"/>`;
+    if (s.end) g += `<text x="${X(s.pts.at(-1).x) + 6}" y="${Y(s.pts.at(-1).y) + 4}" style="fill:var(--fg2)">${s.end}</text>`;
     if (s.dots) for (const p of s.pts) g += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="4" fill="${s.col}" stroke="${css("--panel")}" stroke-width="2"/>`;
     if (gaps.includes(s)) g += `<circle cx="${X(s.pts[0].x)}" cy="${Y(s.pts[0].y)}" r="4" fill="${css("--panel")}" stroke="${s.col}" stroke-width="2"/>`;
   }
@@ -128,6 +131,7 @@ function panel(host, title, note, series, yr, fmt) {
     if (drag == null) return; const a = drag, b = Math.min(Math.max(toX(e), M.l), W - M.r); drag = null; br.setAttribute("visibility", "hidden");
     if (Math.abs(b - a) > 8) setZoom(Math.round(toRows(Math.min(a, b))), Math.round(toRows(Math.max(a, b))));
   });
+  if (wide) { card.classList.add("wide"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); }
   svg.addEventListener("dblclick", () => setZoom(0, XMAX));
   svg.addEventListener("pointermove", e => {
     if (drag != null) { const b = Math.min(Math.max(toX(e), M.l), W - M.r); br.setAttribute("x", Math.min(drag, b)); br.setAttribute("width", Math.abs(b - drag)); br.setAttribute("visibility", "visible"); }
@@ -152,7 +156,7 @@ function panel(host, title, note, series, yr, fmt) {
   svg.addEventListener("mouseleave", () => { tip.style.display = "none"; xh.setAttribute("visibility", "hidden"); });
 }
 function render() {
-  document.querySelectorAll("#zoombar button").forEach(b => { const [a, c] = b.dataset.r.split(",").map(Number); b.setAttribute("aria-pressed", a === ZX[0] && Math.min(c, XMAX) === ZX[1]); });
+  document.querySelectorAll("#zoombar button").forEach(b => { const [a, c] = b.dataset.r.split(",").map(Number); b.setAttribute("aria-pressed", a === ZXG[0] && Math.min(c, XMAX) === ZXG[1]); });
   document.getElementById("g1").innerHTML = ""; document.getElementById("g2").innerHTML = "";
   const f2 = v => v.toFixed(2), f3 = v => v.toFixed(3), pc = v => (v * 100).toFixed(0) + "%";
   const P = [["loss", "Train KEEP loss", "balanced BCE (binary cross-entropy), lower is better", "train", null, f2],
@@ -170,6 +174,23 @@ function render() {
   panel(document.getElementById("g2"), "Train CE", "cross-entropy on the answer / follow-up tokens", AS("train", "ce"), null, f3);
   panel(document.getElementById("g2"), "Train token accuracy", "share of target tokens predicted exactly", AS("train", "tok"), null, f3);
   panel(document.getElementById("g2"), "Val exact (chopper notes)", "per dataset M / H / T in the tooltip", AS("val", "exact"), [0, 1], f2);
+  // 2026-11-04 (user: "all numbers from table on one chart, with all lines as growing, so convert CE to sth that grows"):
+  // per arm, every val number on the chopper's notes; CE shown as exp(−CE) = the mean per-token probability of the target
+  const g3 = document.getElementById("g3"); g3.innerHTML = "";
+  const MET = [["exact", "exact", "--ca", v => v], ["tok", "tok", "--c0", v => v], ["ce", "exp(−CE)", "--c2", v => Math.exp(-v)], ["search", "follow-up asked when needed", "--c1", v => v]];
+  const DSN = [["musique", "MuSiQue", null], ["hotpot", "HotpotQA", "7 4"], ["triviaqa", "TriviaQA", "2 3"]];
+  ANS.forEach(n => {
+    const V = (DATA.answerer[n].val || []).filter(p => p.m), S = [];
+    if (!V.length) { g3.insertAdjacentHTML("beforeend", `<p class="sub">${n}: every val number on one chart — queued</p>`); return; }
+    for (const [k, lab, col, f] of MET) for (const [d, dl, dash] of DSN) {
+      if (k === "search" && d !== "musique") continue;     // HotpotQA / TriviaQA have 4 and 2 such questions
+      const pts = V.filter(p => p.m[d] && p.m[d][k] != null).map(p => ({ x: p.rows, y: f(p.m[d][k]) }));
+      S.push({ name: `${lab} · ${dl}`, col: css(col), dash, lw: 2, dots: false, pts });
+    }
+    const leg = MET.map(([, lab, col]) => `<span style="white-space:nowrap"><i class="sw" style="background:var(${col});display:inline-block;width:14px;height:3px;vertical-align:middle"></i> ${lab}</span>`).join(" · ");
+    panel(g3, `${n}: every val number, all higher-is-better`, `on the integrated chopper's val fragments · colour = metric: ${leg} · line = dataset: solid MuSiQue, dashed HotpotQA, dotted TriviaQA (follow-up: MuSiQue only, 38 questions)`,
+          S, [0, 1], f2, [0, 27000]);
+  });
 }
 render();
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);

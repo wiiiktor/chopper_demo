@@ -10561,6 +10561,16 @@
 "rows": 18200,
 "ce": 0.321,
 "tok": 0.933
+},
+{
+"rows": 18400,
+"ce": 0.374,
+"tok": 0.901
+},
+{
+"rows": 18600,
+"ce": 0.401,
+"tok": 0.895
 }
 ],
 "val": [
@@ -10571,6 +10581,26 @@
 "musique": 0.113,
 "hotpot": 0.26,
 "triviaqa": 0.408
+},
+"m": {
+"musique": {
+"exact": 0.113,
+"tok": 0.649,
+"ce": 1.482,
+"search": 0.0
+},
+"hotpot": {
+"exact": 0.26,
+"tok": 0.655,
+"ce": 1.511,
+"search": 0.0
+},
+"triviaqa": {
+"exact": 0.408,
+"tok": 0.72,
+"ce": 1.275,
+"search": 0.0
+}
 }
 },
 {
@@ -10580,6 +10610,26 @@
 "musique": 0.403,
 "hotpot": 0.583,
 "triviaqa": 0.592
+},
+"m": {
+"musique": {
+"exact": 0.403,
+"tok": 0.812,
+"ce": 0.904,
+"search": 0.26
+},
+"hotpot": {
+"exact": 0.583,
+"tok": 0.881,
+"ce": 0.469,
+"search": 0.0
+},
+"triviaqa": {
+"exact": 0.592,
+"tok": 0.815,
+"ce": 0.961,
+"search": 0.0
+}
 }
 },
 {
@@ -10589,6 +10639,26 @@
 "musique": 0.419,
 "hotpot": 0.604,
 "triviaqa": 0.602
+},
+"m": {
+"musique": {
+"exact": 0.419,
+"tok": 0.818,
+"ce": 0.9,
+"search": 0.61
+},
+"hotpot": {
+"exact": 0.604,
+"tok": 0.877,
+"ce": 0.498,
+"search": 0.0
+},
+"triviaqa": {
+"exact": 0.602,
+"tok": 0.823,
+"ce": 0.984,
+"search": 0.0
+}
 }
 },
 {
@@ -10598,6 +10668,26 @@
 "musique": 0.452,
 "hotpot": 0.646,
 "triviaqa": 0.612
+},
+"m": {
+"musique": {
+"exact": 0.452,
+"tok": 0.826,
+"ce": 0.928,
+"search": 0.42
+},
+"hotpot": {
+"exact": 0.646,
+"tok": 0.894,
+"ce": 0.435,
+"search": 0.0
+},
+"triviaqa": {
+"exact": 0.612,
+"tok": 0.83,
+"ce": 0.912,
+"search": 0.0
+}
 }
 },
 {
@@ -10607,6 +10697,26 @@
 "musique": 0.452,
 "hotpot": 0.646,
 "triviaqa": 0.612
+},
+"m": {
+"musique": {
+"exact": 0.452,
+"tok": 0.838,
+"ce": 0.899,
+"search": 0.66
+},
+"hotpot": {
+"exact": 0.646,
+"tok": 0.895,
+"ce": 0.424,
+"search": 0.0
+},
+"triviaqa": {
+"exact": 0.612,
+"tok": 0.839,
+"ce": 0.894,
+"search": 0.0
+}
 }
 }
 ]

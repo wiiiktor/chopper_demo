@@ -66,8 +66,10 @@ def answerer(parts):
             elif "EVAL step" in l and ("notes=reader" in l or "notes=chopper" in l):   # step 0 = the untrained base model (2026-11-03)
                 st = int(re.search(r"EVAL step (\d+)", l).group(1)) + off
                 ds = next((d for d in DS if f"| {d}" in l), None)
-                va.setdefault(st, {})[ds] = num(r"exact ([\d.]+)", l)
-    val = [{"rows": r, "exact": float(np.mean([v[d] for d in DS])), "per": v} for r, v in sorted(va.items()) if all(d in v for d in DS)]
+                va.setdefault(st, {})[ds] = {"exact": num(r"exact ([\d.]+)", l), "tok": num(r" tok ([\d.]+)", l), "ce": num(r"CE ([\d.]+)", l),
+                                             "search": num(r"SEARCH recall ([\d.]+)", l)}
+    val = [{"rows": r, "exact": float(np.mean([v[d]["exact"] for d in DS])), "per": {d: v[d]["exact"] for d in DS}, "m": v}
+           for r, v in sorted(va.items()) if all(d in v for d in DS)]
     return tr, val
 
 
