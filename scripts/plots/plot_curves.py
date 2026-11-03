@@ -63,7 +63,7 @@ def answerer(parts):
             if re.search(r" step \d+/\d+ \| CE", l):
                 st = int(re.search(r"step (\d+)/", l).group(1)) + off
                 tr.append({"rows": st, "ce": num(r"CE ([\d.]+)", l), "tok": num(r"tok ([\d.]+)", l)})
-            elif "EVAL step" in l and ("notes=reader" in l or "notes=chopper" in l) and "base model" not in l:
+            elif "EVAL step" in l and ("notes=reader" in l or "notes=chopper" in l):   # step 0 = the untrained base model (2026-11-03)
                 st = int(re.search(r"EVAL step (\d+)", l).group(1)) + off
                 ds = next((d for d in DS if f"| {d}" in l), None)
                 va.setdefault(st, {})[ds] = num(r"exact ([\d.]+)", l)

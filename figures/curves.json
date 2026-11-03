@@ -10107,7 +10107,17 @@
 },
 "answerer trained on Qwen3-14B fragments": {
 "train": [],
-"val": []
+"val": [
+{
+"rows": 0,
+"exact": 0.2603333333333333,
+"per": {
+"musique": 0.113,
+"hotpot": 0.26,
+"triviaqa": 0.408
+}
+}
+]
 }
 }
 }
