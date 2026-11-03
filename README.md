@@ -252,7 +252,7 @@ Planned later: 3-hop chains (A → B → C).
 | 🟧 **universal chopper: mmBERT-base and mmBERT-small** (small = the size-matched control) | `jhu-clsp/mmBERT-base` (0.31B) / `jhu-clsp/mmBERT-small` (0.14B) | all weights + KEEP head + decision head | all 54,000 rows: datasets A and B shuffled together, one epoch | ✅ on HF (base 2 h 50 min, small 2 h, 3090) |
 | 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
-| **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A, notes = the integrated chopper's own fragments (epoch-1 weights) | ⏳ the chopper is chopping the 27k rows, then training starts |
+| **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ⏳ the chopper is chopping the 27k rows; then arm 1, then arm 2 |
 
 **Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
 
@@ -274,10 +274,10 @@ Software: PyTorch 2.12, transformers 5.10, peft, vLLM (MiniCPM3-4B's own model c
 
 ### Training curves
 
-<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, mmBERT-small and the 20% MiniCPM3-4B slice (all 54k mixed, MiniCPM3 with a second epoch); answerer CE, token accuracy and val exact (MiniCPM3-4B answerer, queued), against training rows seen" src="figures/training_curves.png">
+<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, mmBERT-small and the 20% MiniCPM3-4B slice (all 54k mixed); answerer CE, token accuracy and val exact (MiniCPM3-4B answerer, two arms, queued), against training rows seen" src="figures/training_curves.png">
 
 - The x axis is training rows seen. All three choppers were trained once on all 54,000 rows mixed (benchmark +
-  Wikipedia). The 20% MiniCPM3-4B slice continues with a second epoch after 54,000 (dotted line).
+  Wikipedia).
 - The answerer panels fill in when the MiniCPM3-4B answerer trains ⏳.
 - Train lines are 500-row rolling means.
 - Validation points are the mean over MuSiQue, HotpotQA and TriviaQA, at p > 0.5 with no span shaping, which is the
@@ -337,8 +337,9 @@ written as `a / b / c` are MuSiQue / HotpotQA / TriviaQA.
 ### 1. Answer quality ⏳
 
 The answering model's results (exact match from the fragments, and when it chooses to search again) are being
-measured with the answerer for the integrated chopper, a LoRA on MiniCPM3-4B. It trains on the integrated chopper's own fragments, so it sees at
-training time the same notes it gets at test time.
+measured with the answerer for the integrated chopper, a LoRA on MiniCPM3-4B, in two arms with the same targets: trained on the integrated chopper's own fragments (the
+notes it gets at test time) or on the Qwen3-14B labeller's (cleaner, but not what it will read). Both are scored on the
+chopper's validation fragments.
 
 ### 2. The chopper
 

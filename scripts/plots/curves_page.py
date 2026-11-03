@@ -38,15 +38,16 @@ svg text{font:12px "IBM Plex Mono",monospace;fill:var(--fg3)}
 .empty{font-size:12px;fill:var(--fg3)}
 </style></head><body><main>
 <h1>Chopper training curves</h1>
-<p class="sub">The choppers learn which tokens of 16 retrieved passages to keep; the answerer (MiniCPM3-4B, queued) learns to answer
+<p class="sub">The choppers learn which tokens of 16 retrieved passages to keep; the answerer (MiniCPM3-4B LoRA) learns to answer
 or ask a follow-up question. The two mmBERTs and the MiniCPM3-4B slice (MLA, multi-head latent attention: every slice head reads the
-full model's whole conversation cache) are trained once on all 54k rows mixed (benchmark + Wikipedia). The MiniCPM3 20% slice
-(8 of 40 heads + 960 of 6,400 neurons per layer) runs a second epoch after 54k (lr 5e-5, new order; dotted line).
+full model's whole conversation cache) are trained once on all 54k rows mixed (benchmark + Wikipedia). The answerer has two arms
+with the same targets, trained on the integrated chopper's fragments or on the Qwen3-14B labeller's; both are scored on the chopper's
+validation fragments.
 Train lines are 500-row rolling means; validation points are the mean over MuSiQue, HotpotQA and TriviaQA (300 questions), read at p&nbsp;&gt;&nbsp;0.5.</p>
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
 <div class="legend" id="legend"></div>
 <div class="zoombar" id="zoombar">Zoom:
-<button data-r="0,999999">all</button><button data-r="0,27000">0–27k</button><button data-r="27000,55000">27k–54k</button><button data-r="54000,999999">epoch 2</button>
+<button data-r="0,999999">all</button><button data-r="0,27000">0–27k</button><button data-r="27000,55000">27k–54k</button>
 <label><input type="checkbox" id="fity" checked> fit y to the view</label>
 <span class="hint">· or drag across any chart; double-click a chart to reset</span></div>
 <h2>Chopper</h2><div class="grid" id="g1"></div>
@@ -67,7 +68,8 @@ const lg = document.getElementById("legend");
 const LORDER = NAMES.map((n, i) => i).sort((a, b) => (/mmBERT-base/.test(NAMES[b]) - /mmBERT-base/.test(NAMES[a])) || (/mmBERT/.test(NAMES[b]) - /mmBERT/.test(NAMES[a])));   // legend: mmBERT-base, mmBERT-small, then the slices
 LORDER.forEach(i => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${COLS[i]})"></i>${NAMES[i]}</span>`));
 REFS.forEach(n => { if ((DATA.reference[n].train || []).length) lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash" style="border-color:var(${COLS[DATA.reference[n].ci]})"></i>${n}</span>`); });
-lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(--ca)"></i>MiniCPM3-4B answerer (queued)</span>`);
+const ANS = Object.keys(DATA.answerer), ACOL = ["--ca", "--c3"];
+ANS.forEach((n, i) => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${ACOL[i]})"></i>MiniCPM3-4B ${n}${(DATA.answerer[n].train || []).length ? "" : " (queued)"}</span>`));
 const W = 600, H = 330, M = { l: 50, r: 16, t: 10, b: 30 }, XMAX = Math.max(55000, Math.ceil(Math.max(...[DATA.choppers, DATA.reference].flatMap(o => Object.values(o)).flatMap(r => [...(r.train || []), ...(r.val || [])]).map(p => p.rows)) / 9000) * 9000);   // past 54k = a second epoch
 let ZX = [0, XMAX];                                      // shared x zoom, rows seen
 function setZoom(a, b) { ZX = [Math.max(0, a), Math.min(XMAX, b)]; render(); }
@@ -94,7 +96,6 @@ function panel(host, title, note, series, yr, fmt) {
   for (let i = 0; i <= 4; i++) { const v = y0 + (y1 - y0) * i / 4; g += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css("--grid")}"/><text x="${M.l - 4}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`; }
   for (const x of xticks()) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">${+(x / 1000).toFixed(2)}k</text>`;
   g += `<defs><clipPath id="${cid}"><rect x="${M.l}" y="${M.t - 6}" width="${PW}" height="${H - M.t - M.b + 12}"/></clipPath></defs><g clip-path="url(#${cid})">`;
-  for (const x of [54000].filter(x => x > ZX[0] && x < ZX[1])) g += `<line x1="${X(x)}" x2="${X(x)}" y1="${M.t}" y2="${H - M.b}" stroke="${css("--fg3")}" stroke-dasharray="2 3"/>`;
   if (!all.length) g += `<text class="empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">logged from the next runs on</text>`;
   // a run that logged this metric only from a later point: hatch the unlogged span, open circle where logging starts
   const gaps = series.filter(s => s.pts.length && s.from != null && s.pts[0].x - s.from > 1000);
@@ -165,10 +166,10 @@ function render() {
     REFS.forEach(n => S.push({ name: n, col: css(COLS[DATA.reference[n].ci]), dash: true, dots: part === "val", from: part === "train" ? from(DATA.reference[n]) : null, pts: seriesFor(DATA.reference[n], part, key) }));
     panel(document.getElementById("g1"), t, note, S, yr, fmt);
   }
-  const A = DATA.answerer, ca = css("--ca");
-  panel(document.getElementById("g2"), "Train CE", "cross-entropy on the answer / follow-up tokens", [{ name: "answerer", col: ca, pts: seriesFor(A, "train", "ce") }], null, f3);
-  panel(document.getElementById("g2"), "Train token accuracy", "share of target tokens predicted exactly", [{ name: "answerer", col: ca, pts: seriesFor(A, "train", "tok") }], null, f3);
-  panel(document.getElementById("g2"), "Val exact (chopper notes)", "per dataset M / H / T in the tooltip", [{ name: "answerer", col: ca, dots: true, pts: seriesFor(A, "val", "exact") }], [0, 1], f2);
+  const AS = (part, key) => ANS.map((n, i) => ({ name: n, col: css(ACOL[i]), dots: part === "val", pts: seriesFor(DATA.answerer[n], part, key) }));
+  panel(document.getElementById("g2"), "Train CE", "cross-entropy on the answer / follow-up tokens", AS("train", "ce"), null, f3);
+  panel(document.getElementById("g2"), "Train token accuracy", "share of target tokens predicted exactly", AS("train", "tok"), null, f3);
+  panel(document.getElementById("g2"), "Val exact (chopper notes)", "per dataset M / H / T in the tooltip", AS("val", "exact"), [0, 1], f2);
 }
 render();
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);

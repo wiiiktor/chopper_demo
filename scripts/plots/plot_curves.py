@@ -14,15 +14,17 @@ MLA = os.environ.get("MLA_DIR", "mla")
 CHOPPERS = {
     "mmBERT-base (0.31B), 54k mixed": [(f"{MM}/chopper_basemix54k/train.log", 0)],
     "mmBERT-small (0.14B), 54k mixed": [(f"{MM}/chopper_smallmix54k/train.log", 0)],
-    "20% MiniCPM3-4B (MLA), 54k mixed": [(f"{MLA}/mla20_mix54k/train.log", 0),       # 2nd epoch (lr 5e-5, seed 1) continues at 54k
-                                         (f"{MLA}/mla20_mix54k_ep2/train.log", 54000)],
+    "20% MiniCPM3-4B (MLA), 54k mixed": [(f"{MLA}/mla20_mix54k/train.log", 0)],   # 2026-11-03: its 2nd epoch tied the 1st → dropped
 }
 # 2026-11-02 (user: "remove … use non-dashed lines everywhere"): only the four 54k-mixed choppers, all solid; the
 # sequential Qwen slice and the 10% MiniCPM3 slice (stopped at 4.5k) are dropped. REFS (dashed) is kept empty.
 REFS = {}   # name: (colour index, logs)
 # 2026-11-03 (user: "remove qwen from both repos completely"): the Qwen slice and the Qwen answerer are gone; the
 # answerer panels show the MiniCPM3-4B answerer once it trains.
-ANSWERER = ("MiniCPM3-4B answerer", [(f"{MLA}/cpmans27k/train.log", 0)])
+# 2026-11-03 (user: "maybe it is better to train with qwen fragments? we can try both"): two arms, same targets and val
+# (the epoch-1 integrated chopper's fragments): trained on that chopper's fragments / on the Qwen3-14B labeller's spans
+ANSWERERS = {"answerer trained on chopper fragments": [(f"{MLA}/cpmans27k/train.log", 0)],
+             "answerer trained on Qwen3-14B fragments": [(f"{MLA}/cpmans27k_lab/train.log", 0)]}
 DS = ("musique", "hotpot", "triviaqa")
 num = lambda pat, s: float(m.group(1)) if (m := re.search(pat, s)) else None
 
@@ -71,7 +73,7 @@ def answerer(parts):
 
 D = {"choppers": {k: dict(zip(("train", "val"), chopper(v))) for k, v in CHOPPERS.items()},
      "reference": {k: {**dict(zip(("train", "val"), chopper(v))), "ci": ci} for k, (ci, v) in REFS.items()},
-     "answerer": dict(zip(("train", "val"), answerer(ANSWERER[1])))}
+     "answerer": {k: dict(zip(("train", "val"), answerer(v))) for k, v in ANSWERERS.items()}}
 os.makedirs(OUT, exist_ok=True)
 json.dump(D, open(f"{OUT}/curves.json", "w"), indent=0)
 
@@ -98,7 +100,6 @@ for suf, T in THEMES.items():
     ax = axs.flatten().reshape(2, 4)                                     # keep the ax[r, c] panel names
     for a in ax.flat:
         a.set_facecolor(T["bg"]); a.grid(True, color=T["grid"], lw=0.6); a.spines[["top", "right"]].set_visible(False)
-        a.axvline(54000, color=T["fg2"], lw=0.8, ls=":")
         a.set_xlabel("training rows seen"); a.set_xlim(0, XMAX)
     P = [("loss", "Chopper · train KEEP loss", ax[0, 0], "train"),
          ("f1", "Chopper · train KEEP F1 (p>0.5)", ax[0, 1], "train"),
@@ -125,20 +126,24 @@ for suf, T in THEMES.items():
     for key, title, a, part in (("ce", "Answerer · train CE", ax[1, 1], "train"),
                                 ("tok", "Answerer · train token accuracy", ax[1, 2], "train"),
                                 ("exact", "Answerer · val exact (chopper notes)", ax[1, 3], "val")):
-        a.set_title(title); pts = D["answerer"][part]
-        if pts:
-            a.plot([p["rows"] for p in pts], smooth([p[key] for p in pts]) if part == "train" else [p[key] for p in pts],
-                   color=T["a"], lw=2, marker=None if part == "train" else "o", ms=4)
+        a.set_title(title)
+        for (name, run), col in zip(D["answerer"].items(), (T["a"], T["c"][3])):
+            pts = run[part]
+            if pts:
+                a.plot([p["rows"] for p in pts], smooth([p[key] for p in pts]) if part == "train" else [p[key] for p in pts],
+                       color=col, lw=2, marker=None if part == "train" else "o", ms=4, label=name)
+        if any(r[part] for r in D["answerer"].values()):
+            a.legend(frameon=False, fontsize=11, labelcolor=T["fg2"])
     ax[1, 3].set_ylim(0, 1)
     ax[0, 2].set_ylim(0.5, 1); ax[1, 0].set_ylim(0, 0.25); ax[0, 1].set_ylim(0, 1); ax[0, 3].set_ylim(0.5, 1)
     for a in (ax[0, 1], ax[0, 3]):
         if not any(p.get("f1") for r in D["choppers"].values() for p in r["train"]):
             a.text(0.5, 0.5, "logged from the next runs on", transform=a.transAxes, ha="center", color=T["fg2"])
     fig.suptitle("Training curves — train lines are 500-row rolling means; val points = mean of MuSiQue, HotpotQA, TriviaQA\n"
-                 "all three choppers: one epoch over all 54k rows mixed; the MiniCPM3 20% slice continues with a second epoch after 54k (dotted line)",
+                 "all three choppers: one epoch over all 54k rows mixed; answerer = MiniCPM3-4B LoRA, two arms (training notes from the chopper / from Qwen3-14B)",
                  x=0.01, ha="left", color=T["fg2"], fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.965))
     fig.savefig(f"{OUT}/training_curves{suf}.png", dpi=110, facecolor=T["bg"]); plt.close(fig)
-print("CURVES", {k: (len(v["train"]), len(v["val"])) for k, v in D["choppers"].items()}, "answerer", len(D["answerer"]["train"]))
+print("CURVES", {k: (len(v["train"]), len(v["val"])) for k, v in D["choppers"].items()}, "answerer", {k: len(v["train"]) for k, v in D["answerer"].items()})
 import subprocess, sys as _sys                       # the HTML artifact page from the same curves.json
 subprocess.run([_sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "curves_page.py"), f"{OUT}/curves.html"], check=False)
