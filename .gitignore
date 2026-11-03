@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 *.pt
 *.safetensors
+media/youtube_cover.png
