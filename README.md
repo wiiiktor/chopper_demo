@@ -250,9 +250,9 @@ Planned later: 3-hop chains (A → B → C).
 | model | base | trainable | trained on | status |
 |---|---|---|---|---|
 | 🟧 **universal chopper: mmBERT-base and mmBERT-small** (small = the size-matched control) | `jhu-clsp/mmBERT-base` (0.31B) / `jhu-clsp/mmBERT-small` (0.14B) | all weights + KEEP head + decision head | all 54,000 rows: datasets A and B shuffled together, one epoch | ✅ on HF (base 2 h 50 min, small 2 h, 3090) |
-| 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ⏳ |
+| 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
-| **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A | ⏳ queued after the second epoch |
+| **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A | ⏳ training (started 3 Nov 16:05) |
 
 **Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
 
@@ -277,7 +277,7 @@ Software: PyTorch 2.12, transformers 5.10, peft, vLLM (MiniCPM3-4B's own model c
 <img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, mmBERT-small and the 20% MiniCPM3-4B slice (all 54k mixed, MiniCPM3 with a second epoch); answerer CE, token accuracy and val exact (MiniCPM3-4B answerer, queued), against training rows seen" src="figures/training_curves.png">
 
 - The x axis is training rows seen. All three choppers were trained once on all 54,000 rows mixed (benchmark +
-  Wikipedia). The 20% MiniCPM3-4B slice continues with a second epoch after 54,000 (dotted line) ⏳.
+  Wikipedia). The 20% MiniCPM3-4B slice continues with a second epoch after 54,000 (dotted line).
 - The answerer panels fill in when the MiniCPM3-4B answerer trains ⏳.
 - Train lines are 500-row rolling means.
 - Validation points are the mean over MuSiQue, HotpotQA and TriviaQA, at p > 0.5 with no span shaping, which is the
@@ -337,8 +337,7 @@ written as `a / b / c` are MuSiQue / HotpotQA / TriviaQA.
 ### 1. Answer quality ⏳
 
 The answering model's results (exact match from the fragments, and when it chooses to search again) are being
-measured with the answerer for the integrated chopper, a LoRA on MiniCPM3-4B. It is queued after the chopper's
-second epoch.
+measured with the answerer for the integrated chopper, a LoRA on MiniCPM3-4B. It is training now.
 
 ### 2. The chopper
 
@@ -508,8 +507,9 @@ and original model, and the full-width slice agree to rounding (max logit differ
 A 10% slice (4 of 40 heads + 320 of 6,400 MLP neurons per layer) was stopped early in favour of a **20% slice** (8
 heads + 960 neurons, LoRA r32), trained for one epoch over all 54k rows mixed. It is **the integrated chopper**: it
 **ties mmBERT-small** ([section 2](#2-the-chopper)); its speed is in
-[Chopping speed](#chopping-speed). A second epoch is running; so far it moves around the first epoch's numbers
-without beating them.
+[Chopping speed](#chopping-speed). A second epoch (lr 5e-5, new order) finished on 3 Nov and ties
+the first: answer kept .46 / .77 / .71 vs .47 / .80 / .69, F1 .54 / .60 / .34 vs .52 / .58 / .35, so the first-epoch
+weights stay on Hugging Face.
 
 **10% should be enough if the slice is trained together with the full model** (see above): a slice shaped for the
 job during pretraining does not need extra width to make up for a frozen 80%. 20% is the fallback for a slice added
