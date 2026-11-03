@@ -22,7 +22,7 @@ h1{font-size:24px;margin:0 0 4px;text-wrap:balance}h2{font-size:15px;margin:28px
 .legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 4px;font-size:13px;color:var(--fg2)}
 .legend span{display:inline-flex;align-items:center;gap:6px}.sw{width:18px;height:3px;border-radius:2px;display:inline-block}
 .sw.dash{background:none!important;border-top:2px dashed;height:0}
-#g3{display:grid;gap:16px;margin-top:16px}#g3 .card{max-width:760px}
+#g3{display:grid;gap:16px}#g3 .card{max-width:760px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,600px),1fr));gap:16px}
 .zoombar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:10px 0 4px;font-size:13px;color:var(--fg2)}
 .zoombar button{font:13px "IBM Plex Mono",monospace;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:3px 10px;cursor:pointer}
@@ -52,7 +52,7 @@ Train lines are 500-row rolling means; validation points are the mean over MuSiQ
 <label><input type="checkbox" id="fity" checked> fit y to the view</label>
 <span class="hint">· or drag across any chart; double-click a chart to reset</span></div>
 <h2>Chopper</h2><div class="grid" id="g1"></div>
-<h2>Answerer</h2><div class="grid" id="g2"></div><div id="g3"></div>
+<h2>Answerer</h2><div id="g3"></div>
 </main>
 <script>
 const DATA = __DATA__;
@@ -69,8 +69,7 @@ const lg = document.getElementById("legend");
 const LORDER = NAMES.map((n, i) => i).sort((a, b) => (/mmBERT-base/.test(NAMES[b]) - /mmBERT-base/.test(NAMES[a])) || (/mmBERT/.test(NAMES[b]) - /mmBERT/.test(NAMES[a])));   // legend: mmBERT-base, mmBERT-small, then the slices
 LORDER.forEach(i => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${COLS[i]})"></i>${NAMES[i]}</span>`));
 REFS.forEach(n => { if ((DATA.reference[n].train || []).length) lg.insertAdjacentHTML("beforeend", `<span><i class="sw dash" style="border-color:var(${COLS[DATA.reference[n].ci]})"></i>${n}</span>`); });
-const ANS = Object.keys(DATA.answerer), ACOL = ["--ca", "--c3"];
-ANS.forEach((n, i) => lg.insertAdjacentHTML("beforeend", `<span><i class="sw" style="background:var(${ACOL[i]})"></i>MiniCPM3-4B ${n}${(DATA.answerer[n].train || []).length ? "" : " (queued)"}</span>`));
+const ANS = Object.keys(DATA.answerer);
 const W = 600, H = 330, M = { l: 50, r: 16, t: 10, b: 30 }, XMAX = Math.max(55000, Math.ceil(Math.max(...[DATA.choppers, DATA.reference].flatMap(o => Object.values(o)).flatMap(r => [...(r.train || []), ...(r.val || [])]).map(p => p.rows)) / 9000) * 9000);   // past 54k = a second epoch
 window.ZXG = [0, XMAX];                                   // shared x zoom, rows seen
 function setZoom(a, b) { window.ZXG = [Math.max(0, a), Math.min(XMAX, b)]; render(); }
@@ -157,7 +156,7 @@ function panel(host, title, note, series, yr, fmt, xr) {
 }
 function render() {
   document.querySelectorAll("#zoombar button").forEach(b => { const [a, c] = b.dataset.r.split(",").map(Number); b.setAttribute("aria-pressed", a === ZXG[0] && Math.min(c, XMAX) === ZXG[1]); });
-  document.getElementById("g1").innerHTML = ""; document.getElementById("g2").innerHTML = "";
+  document.getElementById("g1").innerHTML = "";
   const f2 = v => v.toFixed(2), f3 = v => v.toFixed(3), pc = v => (v * 100).toFixed(0) + "%";
   const P = [["loss", "Train KEEP loss", "balanced BCE (binary cross-entropy), lower is better", "train", null, f2],
              ["f1", "Train KEEP F1", "at p > 0.5, against the Qwen3-14B spans", "train", [0, 1], f2],
@@ -170,10 +169,6 @@ function render() {
     REFS.forEach(n => S.push({ name: n, col: css(COLS[DATA.reference[n].ci]), dash: true, dots: part === "val", from: part === "train" ? from(DATA.reference[n]) : null, pts: seriesFor(DATA.reference[n], part, key) }));
     panel(document.getElementById("g1"), t, note, S, yr, fmt);
   }
-  const AS = (part, key) => ANS.map((n, i) => ({ name: n, col: css(ACOL[i]), dots: part === "val", pts: seriesFor(DATA.answerer[n], part, key) }));
-  panel(document.getElementById("g2"), "Train CE", "cross-entropy on the answer / follow-up tokens", AS("train", "ce"), null, f3);
-  panel(document.getElementById("g2"), "Train token accuracy", "share of target tokens predicted exactly", AS("train", "tok"), null, f3);
-  panel(document.getElementById("g2"), "Val exact (chopper notes)", "per dataset M / H / T in the tooltip", AS("val", "exact"), [0, 1], f2);
   // 2026-11-04 (user: "all numbers from table on one chart, with all lines as growing, so convert CE to sth that grows"):
   // per arm, every val number on the chopper's notes; CE shown as exp(−CE) = the mean per-token probability of the target
   const g3 = document.getElementById("g3"); g3.innerHTML = "";

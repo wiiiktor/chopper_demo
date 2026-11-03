@@ -125,24 +125,33 @@ for suf, T in THEMES.items():
                 y = [p[key] for p in pts]
                 a.plot([p["rows"] for p in pts], smooth(y) if part == "train" else y, color=col, lw=1.3, ls="--", label=name)
         a.legend(frameon=False, fontsize=11, labelcolor=T["fg2"])
-    for key, title, a, part in (("ce", "Answerer · train CE", ax[1, 1], "train"),
-                                ("tok", "Answerer · train token accuracy", ax[1, 2], "train"),
-                                ("exact", "Answerer · val exact (chopper notes)", ax[1, 3], "val")):
-        a.set_title(title)
-        for (name, run), col in zip(D["answerer"].items(), (T["a"], T["c"][3])):
-            pts = run[part]
-            if pts:
-                a.plot([p["rows"] for p in pts], smooth([p[key] for p in pts]) if part == "train" else [p[key] for p in pts],
-                       color=col, lw=2, marker=None if part == "train" else "o", ms=4, label=name)
-        if any(r[part] for r in D["answerer"].values()):
-            a.legend(frameon=False, fontsize=11, labelcolor=T["fg2"])
-    ax[1, 3].set_ylim(0, 1)
+    # 2026-11-04 (user: "all numbers from table on one chart … remove separate panels"): one panel per answerer arm, every
+    # val number on the chopper's notes, all higher-is-better (CE as exp(−CE)); colour = metric, line style = dataset
+    MET = (("exact", "exact", T["a"], lambda v: v), ("tok", "tok", T["c"][0], lambda v: v),
+           ("ce", "exp(−CE)", T["c"][2], lambda v: float(np.exp(-v))), ("search", "follow-up asked when needed", T["c"][1], lambda v: v))
+    LS = {"musique": "-", "hotpot": "--", "triviaqa": ":"}
+    for (name, run), a in zip(D["answerer"].items(), (ax[1, 1], ax[1, 2])):
+        a.set_title(f"Answerer · {name.replace('answerer ', '')}"); a.set_xlim(0, 27000); a.set_ylim(0, 1)
+        V = [p for p in run["val"] if p.get("m")]
+        for key, lab, col, f in MET:
+            for d, ls in LS.items():
+                if key == "search" and d != "musique":
+                    continue
+                pts = [(p["rows"], f(p["m"][d][key])) for p in V if p["m"][d].get(key) is not None]
+                if pts:
+                    a.plot(*zip(*pts), color=col, lw=2, ls=ls)
+        if not V:
+            a.text(0.5, 0.5, "queued", transform=a.transAxes, ha="center", color=T["fg2"])
+        from matplotlib.lines import Line2D
+        a.legend([Line2D([], [], color=c, lw=2) for _, _, c, _ in MET] + [Line2D([], [], color=T["fg2"], lw=1.5, ls=l) for l in LS.values()],
+                 [l for _, l, _, _ in MET] + ["MuSiQue", "HotpotQA", "TriviaQA"], frameon=False, fontsize=10, labelcolor=T["fg2"], ncol=2, loc="lower right")
+    ax[1, 3].remove()
     ax[0, 2].set_ylim(0.5, 1); ax[1, 0].set_ylim(0, 0.25); ax[0, 1].set_ylim(0, 1); ax[0, 3].set_ylim(0.5, 1)
     for a in (ax[0, 1], ax[0, 3]):
         if not any(p.get("f1") for r in D["choppers"].values() for p in r["train"]):
             a.text(0.5, 0.5, "logged from the next runs on", transform=a.transAxes, ha="center", color=T["fg2"])
-    fig.suptitle("Training curves — train lines are 500-row rolling means; val points = mean of MuSiQue, HotpotQA, TriviaQA\n"
-                 "all three choppers: one epoch over all 54k rows mixed; answerer = MiniCPM3-4B LoRA, two arms (training notes from the chopper / from Qwen3-14B)",
+    fig.suptitle("Training curves — train lines are 500-row rolling means; chopper val points = mean of MuSiQue, HotpotQA, TriviaQA\n"
+                 "all three choppers: one epoch over all 54k rows mixed; answerer (MiniCPM3-4B LoRA): every val number per arm, CE as exp(−CE)",
                  x=0.01, ha="left", color=T["fg2"], fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.965))
     fig.savefig(f"{OUT}/training_curves{suf}.png", dpi=110, facecolor=T["bg"]); plt.close(fig)

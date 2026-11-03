@@ -274,11 +274,12 @@ Software: PyTorch 2.12, transformers 5.10, peft, vLLM (MiniCPM3-4B's own model c
 
 ### Training curves
 
-<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, mmBERT-small and the 20% MiniCPM3-4B slice (all 54k mixed); answerer CE, token accuracy and val exact (MiniCPM3-4B answerer, two arms, queued), against training rows seen" src="figures/training_curves.png">
+<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, mmBERT-small and the 20% MiniCPM3-4B slice (all 54k mixed); MiniCPM3-4B answerer val exact, tok, exp(−CE) and follow-up recall, one panel per training arm, against training rows seen" src="figures/training_curves.png">
 
 - The x axis is training rows seen. All three choppers were trained once on all 54,000 rows mixed (benchmark +
   Wikipedia).
-- The answerer panels fill in when the MiniCPM3-4B answerer trains ⏳.
+- The two answerer panels (one per training arm) put every validation number on one chart, all higher-is-better: exact,
+  tok, exp(−CE) (CE turned into the mean per-token probability) and, on MuSiQue, how often it asks a follow-up when one is needed ⏳.
 - Train lines are 500-row rolling means.
 - Validation points are the mean over MuSiQue, HotpotQA and TriviaQA, at p > 0.5 with no span shaping, which is the
   setting every chopper logs during training.
