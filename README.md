@@ -4,7 +4,7 @@
 
 # Chopper: cut retrieved text down to the fragments that answer the question
 
-> **DRAFT 2026-10-31.** Sections marked ⏳ describe parts that are planned or still training. Every number in
+> **DRAFT 2026-11-03.** Sections marked ⏳ describe parts that are planned or still training. Every number in
 > **Results** was measured; nothing in it is projected.
 
 > 💡 **Affordable technology.** Everything in this repository was built and trained on **one 24 GB GPU** (an RTX 3090
@@ -49,7 +49,7 @@ Why it matters:
 6. [Training: hardware, time, memory](#training-hardware-time-memory)
 7. [Results](#results)
 8. [The operator: double prefill, chopping, rollback, answer or search](#the-operator)
-9. [Rewiring a Qwen-like model into its own chopper](#rewiring)
+9. [Rewiring a model into its own chopper](#rewiring)
 10. [Further development](#further-development)
 11. [Credits and licenses](#credits-and-licenses)
 12. [For AI assistants: machine-readable summary](#for-ai-assistants)
@@ -76,21 +76,23 @@ Three versions of the chopper:
 
 | | **mmBERT chopper** ✅ | **rewired chopper** ✅ | **chopper trained with the model** 🤝 |
 |---|---|---|---|
-| what it is | a separate encoder, fine-tuned: `jhu-clsp/mmBERT-base` (0.31B) or `jhu-clsp/mmBERT-small` (0.14B); 8k context, bidirectional | a ~10% **slice of an existing model's own weights**, cut out after training (rewired), + a small LoRA + KEEP head | a ~10% slice **trained together with the full model** from the start, with chopping as one of its training tasks |
-| extra memory | 0.31B / 0.14B weights | ~15M parameters (no copy of the base weights) | ~15M: the slice is part of the model |
+| what it is | a separate encoder, fine-tuned: `jhu-clsp/mmBERT-base` (0.31B) or `jhu-clsp/mmBERT-small` (0.14B); 8k context, bidirectional | a ~20% **slice of an existing model's own weights**, cut out after training (rewired), + a small LoRA + KEEP head: MiniCPM3-4B, 8 of 40 heads + 960 of 6,400 MLP neurons per layer | a ~10% slice **trained together with the full model** from the start, with chopping as one of its training tasks |
+| extra memory | 0.31B / 0.14B weights | 44.9M parameters (LoRA + KEEP head; no copy of the base weights) | ~15M: the slice is part of the model |
 | reads the conversation | re-encodes what fits in its window | reads the model's **own cached keys/values**, so nothing is recomputed | the same: the model's own cache |
 | works with | any answering model (text in, text out) | the model it was carved from | the model it was trained with |
-| quality today | the better of the two measured | below mmBERT (see [Results 2](#2-the-chopper)) | not built yet: contact the repo owner ([wiiiktor](https://github.com/wiiiktor)) for cooperation |
+| quality today | mmBERT-base is the best measured | **ties mmBERT-small** (see [Results 2](#2-the-chopper)); an earlier 10% slice of Qwen3-1.7B was well below it | not built yet: contact the repo owner ([wiiiktor](https://github.com/wiiiktor)) for cooperation |
 
 > [!IMPORTANT]
 > ## 🤝 Why the third one: a chopper trained with the model
 >
-> A 10% slice cut out of a finished model has to work with features that were never trained for cutting, and a LoRA
-> cannot fully fix that: **our rewired slice loses to mmBERT-small**, an encoder of the same size trained end to end.
+> A slice cut out of a finished model has to work with features that were never trained for cutting, and a LoRA
+> cannot fully fix that. **Our 10% slice of Qwen3-1.7B loses clearly to mmBERT-small**, an encoder of the same size
+> trained end to end. A **20% slice of MiniCPM3-4B ties mmBERT-small**, but it runs 0.76B weights per token where
+> mmBERT-small has 0.14B: the extra width makes up for features that were never shaped for the job.
 >
 > A slice trained **together with the full model** would have its own features shaped for the job and would still
 > read the full model's cache. It should come **almost for free** (about 10% of the model's compute, no second
-> model) and at a **much higher quality** than either version here.
+> model, no extra width) and at a **much higher quality** than either version here.
 >
 > It needs a pretraining run, which is beyond one GPU.
 > **If you train models and want to build this, contact the repository owner
@@ -114,12 +116,12 @@ Code lives here; weights and data live on Hugging Face (public): one model repo 
 | `figures/` | the charts |
 | 🤗 [`chopper_mmbert/mmbert-base/`](https://huggingface.co/wiiiktor/chopper_mmbert/tree/main/mmbert-base) | mmBERT-base chopper, trained once on all 54,000 rows (datasets A and B mixed): `encoder/` (a normal Transformers model) + `heads.safetensors` (KEEP + ANSWER/SEARCH) |
 | 🤗 [`chopper_mmbert/mmbert-small/`](https://huggingface.co/wiiiktor/chopper_mmbert/tree/main/mmbert-small) | the size-matched mmBERT-small chopper, same layout and data |
-| 🤗 [`chopper_qwen3/qwen3-1.7b-w10/`](https://huggingface.co/wiiiktor/chopper_qwen3/tree/main/qwen3-1.7b-w10) | `rewired/` Qwen3-1.7B (exact permutation, same outputs), `permutation.safetensors`, `chopper_lora.safetensors`, `keep_head.safetensors` |
+| 🤗 [`chopper_qwen3/qwen3-1.7b-w10/`](https://huggingface.co/wiiiktor/chopper_qwen3/tree/main/qwen3-1.7b-w10) | the earlier 10% slice chopper of Qwen3-1.7B (below mmBERT-small; the slice operator below runs it): `rewired/` Qwen3-1.7B (exact permutation, same outputs), `permutation.safetensors`, `chopper_lora.safetensors`, `keep_head.safetensors` |
 | 🤗 [`chopper_qwen3/answerer-qwen3-1.7b-lora/`](https://huggingface.co/wiiiktor/chopper_qwen3/tree/main/answerer-qwen3-1.7b-lora) | the answer-or-`[search]` PEFT LoRA for the **plain** Qwen3-1.7B (it reads any chopper's fragments) |
-| 🤗 [`chopper_minicpm3`](https://huggingface.co/wiiiktor/chopper_minicpm3) | the 20% slice chopper of MiniCPM3-4B (8 of 40 heads + 960 of 6,400 MLP neurons per layer), first epoch over all 54k rows: `permutation.safetensors`, `chopper_lora.safetensors`, `keep_head.safetensors` (+ the `.pt` files `scripts/mla/` reads). The base model is the unmodified `openbmb/MiniCPM3-4B`: the permutation is applied at load |
+| 🤗 [`chopper_minicpm3`](https://huggingface.co/wiiiktor/chopper_minicpm3) | **the rewired chopper**: the 20% slice of MiniCPM3-4B (8 of 40 heads + 960 of 6,400 MLP neurons per layer), first epoch over all 54k rows: `permutation.safetensors`, `chopper_lora.safetensors`, `keep_head.safetensors` (+ the `.pt` files `scripts/mla/` reads). The base model is the unmodified `openbmb/MiniCPM3-4B`: the permutation is applied at load |
 | 🤗 [`wiiiktor/chopper_demo` (dataset)](https://huggingface.co/datasets/wiiiktor/chopper_demo) | dataset A (benchmark chains) and dataset B (Wikipedia chains) |
 | `operator-for-llm-with-mmbert.py` | the full loop over **your documents** with the mmBERT chopper and **any** Hugging Face causal LM (default Qwen3-1.7B + our answerer LoRA): retrieve → chop → roll back → answer or search |
-| `operator-for-llm-slice.py` | the same loop with the 10% slice chopper inside the rewired Qwen3-1.7B (no second model; the slice reads the session from the model's own cache) |
+| `operator-for-llm-slice.py` | the same loop with a slice chopper inside the answering model (no second model; the slice reads the session from the model's own cache). It runs the 10% Qwen3-1.7B slice; the 20% MiniCPM3-4B slice is evaluated and timed by `scripts/mla/` but has no operator yet ⏳ |
 | `scripts/operator_common.py` | what both operators share: corpus chunking, retrieval, the session cache with rollback, the answer loop |
 | `requirements.txt` | Python packages for the operators |
 
@@ -139,7 +141,7 @@ pip install -r requirements.txt
 # mmBERT chopper + Qwen3-1.7B with the answerer LoRA (any other model: --model <hf id>)
 python operator-for-llm-with-mmbert.py --docs my_docs/ --ask "Who founded the company that distributed the film UHF?"
 
-# the 10% slice chopper inside the rewired Qwen3-1.7B
+# a slice chopper inside the answering model (for now the 10% Qwen3-1.7B slice; the 20% MiniCPM3-4B one is ⏳)
 python operator-for-llm-slice.py --docs my_docs/
 
 # without --ask: an interactive session; after each answer it prints how many tokens the session holds
@@ -153,16 +155,19 @@ The research scripts behind every number in this README:
 python scripts/chopper/mm_train.py <data dir> <out dir> --eval-only chopper.pt \
        --pred-thr 0.8 --merge-gap 5 --min-run 4
 
-# 2. rewire a model and check that its outputs are unchanged
-python scripts/rewire/keeper_rewire.py Qwen/Qwen3-1.7B <contexts.jsonl> perms.pt --n 128
+# 2. rewire MiniCPM3-4B (checks that its outputs are unchanged) and train its 20% chopper on all 54k rows
+python scripts/mla/mla_rewire.py <MiniCPM3-4B dir> <calib contexts.jsonl> <probe contexts.jsonl> perms_minicpm3.pt
+python scripts/mla/mla_keeper_train.py <data dir> perms_minicpm3.pt <out dir> --frac 0.2 --lr 1.5e-4 \
+       --train-splits train,train2,train3,wtrain --eval-every 4500
 
-# 3. train its 10% chopper
-python scripts/rewire/keeper_train.py <data dir> perms.pt <out dir> --frac 0.1
-
-# 4. the MiniCPM3-4B 20% slice (files from wiiiktor/chopper_minicpm3): evaluate at several thresholds, time the read paths
+# 3. or use the trained one (files from wiiiktor/chopper_minicpm3): evaluate at several thresholds, time the read paths
 python scripts/mla/mla_keeper_train.py <data dir> perms_minicpm3.pt <out dir> --frac 0.2 --eval-only keeper.pt \
        --sweep 0.7,0.85
 python scripts/mla/mla_speed.py perms_minicpm3.pt keeper.pt <contexts.jsonl> --n 40
+
+# 4. the same for a Qwen / Llama-layout model (grouped-query attention), e.g. the 10% Qwen3-1.7B slice
+python scripts/rewire/keeper_rewire.py Qwen/Qwen3-1.7B <contexts.jsonl> perms.pt --n 128
+python scripts/rewire/keeper_train.py <data dir> perms.pt <out dir> --frac 0.1
 ```
 
 ---
@@ -247,11 +252,11 @@ Planned later: 3-hop chains (A → B → C).
 | model | base | trainable | trained on | status |
 |---|---|---|---|---|
 | **answerer** (answer or `[search] <question>`) | `Qwen/Qwen3-1.7B` | LoRA r32 on all projections (35M) | 9,000 rows of dataset A, then continued on the other 18,000 | ✅ (continuation: 2 h 40 min, 4.0 GiB) |
-| **rewired chopper, 10% width** | `Qwen/Qwen3-1.7B`: 1 of 8 KV groups + 512 of 6,144 MLP neurons per layer | LoRA r32 + KEEP head (14.9M) | first 9,000 rows of dataset A, then continued on the other 18,000; now replaced by the 54k-mixed run below | ✅ (continuation 3 h 35 min at ~0.85 s/step, 4.9 GiB) |
-| rewired choppers, other sizes | any Qwen / Llama-layout model (e.g. Qwen3-4B / 8B / 14B) | LoRA + KEEP head | datasets from this repo and/or your data, on a small GPU card | 🛠️ anyone can make one: `scripts/rewire/keeper_rewire.py` rewires the model, `scripts/rewire/keeper_train.py` trains its chopper |
+| **rewired chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ⏳ |
+| earlier rewired chopper, 10% width | `Qwen/Qwen3-1.7B`: 1 of 8 KV groups + 512 of 6,144 MLP neurons per layer | LoRA r32 + KEEP head (14.9M) | first 9,000 rows of dataset A, then continued on the other 18,000; now replaced by the 54k-mixed run below | ✅ (continuation 3 h 35 min at ~0.85 s/step, 4.9 GiB) |
+| rewired choppers, other models | any Qwen / Llama-layout model (e.g. Qwen3-4B / 8B / 14B) or another MLA model | LoRA + KEEP head | datasets from this repo and/or your data, on a small GPU card | 🛠️ anyone can make one: `scripts/rewire/` (grouped-query attention) or `scripts/mla/` (latent attention) rewires the model and trains its chopper |
 | **mmBERT-base and mmBERT-small choppers** (small = the size-matched control) | `jhu-clsp/mmBERT-base` (0.31B) / `jhu-clsp/mmBERT-small` (0.14B, about the size of the 1.7B's 10% slice) | all weights + KEEP head + decision head | all 54,000 rows: datasets A and B shuffled together, one epoch | ✅ (base 2 h 50 min, small 2 h, 3090)
 | 10% Qwen3-1.7B slice, all 54k mixed | the rewired `Qwen/Qwen3-1.7B`, fresh LoRA | LoRA r32 + KEEP head | datasets A and B shuffled together, one epoch | ✅ on HF (`qwen3-1.7b-w10/`): from scratch at lr 1.5e-4, 12 h at 0.79 s/step sharing the GPU, 4.9 GiB (the first run, at lr 3e-4, diverged at step ~16k) |
-| **20% MiniCPM3-4B slice** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ⏳ |
 
 **Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
 
@@ -269,23 +274,26 @@ Everything was built and trained on **one NVIDIA RTX 3090 (24 GB)**. No cloud.
 | mmBERT chopper | mmBERT-base, full fine-tune, 1 epoch, accum 4 | 0.18 s / step → 54k ≈ 2 h 45 min | 3.4 GiB |
 | answerer | Qwen3-1.7B + LoRA, 1 epoch, accum 8 | 0.41 s / step → 9k ≈ 62 min | 3.9 GiB |
 | rewiring | Qwen3-1.7B, activation scores on 128 contexts + permutation + checks | 25 s scoring, < 1 min in total | ~5 GB |
-| rewired chopper | 10% slice + LoRA, 1 epoch, passages ~2.9k tokens read twice | 0.8 s / step → 9k ≈ 2 h | 4.9 GiB |
+| rewired chopper | MiniCPM3-4B 20% slice + LoRA, 1 epoch, passages read twice | 1.8 s / step → 54k ≈ 27 h | 11.7 GiB |
+| earlier rewired chopper | Qwen3-1.7B 10% slice + LoRA, 1 epoch, passages ~2.9k tokens read twice | 0.8 s / step → 9k ≈ 2 h | 4.9 GiB |
 
-Software: PyTorch 2.12, transformers 5.10, peft, vLLM.
+Software: PyTorch 2.12, transformers 5.10, peft, vLLM (MiniCPM3-4B's own model code needs transformers 4.47; `scripts/mla/` runs it in plain PyTorch).
 
 ### Training curves
 
-<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base and mmBERT-small (54k mixed) and the 10% Qwen3-1.7B slice; answerer CE, token accuracy and val exact, against training rows seen (0–54,000)" src="figures/training_curves.png">
+<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, mmBERT-small, the 10% Qwen3-1.7B slice and the 20% MiniCPM3-4B slice (all 54k mixed, MiniCPM3 with a second epoch); answerer CE, token accuracy and val exact, against training rows seen" src="figures/training_curves.png">
 
-- The x axis is training rows seen. Both mmBERTs were trained once on all 54,000 rows mixed (benchmark + Wikipedia).
-  The solid Qwen slice saw 9,000 benchmark rows, then the other 18,000, then Wikipedia rows after 27,000 (dotted
-  lines); the dashed slice is trained once on all 54,000 rows mixed, from scratch (⏳).
+- The x axis is training rows seen. All four choppers were trained once on all 54,000 rows mixed (benchmark +
+  Wikipedia). The 20% MiniCPM3-4B slice continues with a second epoch after 54,000 (dotted line) ⏳.
 - Train lines are 500-row rolling means.
 - Validation points are the mean over MuSiQue, HotpotQA and TriviaQA, at p > 0.5 with no span shaping, which is the
   setting every chopper logs during training.
-- Regenerate with `scripts/plot_curves.py`; the plotted numbers are also in `figures/curves.json`.
+- Regenerate with `scripts/plots/plot_curves.py`; the plotted numbers are also in `figures/curves.json`.
 
 ### Chopping speed: 4,000 passage tokens, read twice (8,000 tokens)
+
+The measured speed of the 20% MiniCPM3-4B slice (277–437 ms per read on the RTX 3090) is in
+[Further development](#a-host-with-latent-attention-minicpm3-4b). This section estimates 10% slices of Qwen3 models.
 
 > ⚠️ **Estimates from FLOP counts** (floating-point operations, matmuls + attention). They are calibrated on one
 > measurement, the mmBERT-base 8k-token forward of 155 ms on the RTX 3090. Expect ±2×. On big GPUs the small slices
@@ -397,7 +405,15 @@ On the 300 Wikipedia validation questions (2-hop / 1-hop), the same decode:
 | 10% Qwen3-1.7B slice (character F1) | 54k mixed | .34 / .39 | .63 / .99 | 3.3 / 1.4 |
 
 
-**The 10% Qwen3-1.7B slice is clearly behind mmBERT-small, an encoder of the same 0.14B size.** When allowed to keep
+**The rewired chopper, the 20% MiniCPM3-4B slice, ties mmBERT-small.** At the same share of text kept (4–5%), it keeps the answer as often
+(.47 / .80 / .69 against .47 / .81 / .74), and its F1 is within .03 except on Wikipedia 2-hop (.55 against .60): its
+fragments are longer, ~36 tokens against ~23. No threshold beats mmBERT-small on both numbers at once. It reads the
+whole conversation through the full model's latent cache (MLA, see
+[Further development](#a-host-with-latent-attention-minicpm3-4b)), which these one-question benchmarks do not test.
+Read by the answerer, its fragments give the same exact match as both mmBERTs, and the answerer writes `[search]`
+more often when a hop is missing (.68 against .45–.55, section 3).
+
+**The earlier 10% Qwen3-1.7B slice is clearly behind mmBERT-small, an encoder of the same 0.14B size.** When allowed to keep
 more text (p > 0.5), it keeps the answer about as often on HotpotQA and TriviaQA, but it needs ~16% of the text to do
 so, and it is much weaker on MuSiQue. Its training loss levels off near 0.40, against ~0.15–0.20 for the mmBERTs (see the
 curves). A small encoder trained end to end beats a 10% slice of a decoder whose other 90% stays frozen.
@@ -412,14 +428,6 @@ KV cache, at no extra cost, while mmBERT only sees what fits in its 8,192-token 
 the "conversation" is just the question, so a test with long real sessions is still to do. To make the slice the
 better chopper, the base model itself most likely has to be trained with the chopper from the start (see Further
 development).
-
-**The 20% MiniCPM3-4B slice ties mmBERT-small.** At the same share of text kept (4–5%), it keeps the answer as often
-(.47 / .80 / .69 against .47 / .81 / .74), and its F1 is within .03 except on Wikipedia 2-hop (.55 against .60): its
-fragments are longer, ~36 tokens against ~23. No threshold beats mmBERT-small on both numbers at once. It reads the
-whole conversation through the full model's latent cache (MLA, see
-[Further development](#a-host-with-latent-attention-minicpm3-4b)), which these one-question benchmarks do not test.
-Read by the answerer, its fragments give the same exact match as both mmBERTs, and the answerer writes `[search]`
-more often when a hop is missing (.68 against .45–.55, section 3).
 
 **Decision head:** mmBERT's own answer/search head never predicts *search*. That decision has to come from the
 answering model, which does learn it (next table).
@@ -472,8 +480,12 @@ The rewiring is **exact**. Checked at fp32 on Qwen3-1.7B:
 - **Cache sharing correct:** the chopper at 100% width, reading the full model's cached conversation, reproduces
   the full model's hidden states to 1.4e-4 (scale 82).
 
-Chopping quality against the mmBERT chopper is in [section 2](#2-the-chopper) (the "10% Qwen3-1.7B" rows): it is below
-mmBERT-small at the same size, which is why a slice trained with the model is the next step.
+The same checks pass for MiniCPM3-4B (fp32: cached and uncached passes, rewired and original model, and the
+full-width slice agree to rounding, max logit difference ≤ 1.2e-4).
+
+Chopping quality against the mmBERT chopper is in [section 2](#2-the-chopper): the 20% MiniCPM3-4B slice ties
+mmBERT-small, the 10% Qwen3-1.7B slice is well below it. Matching a 0.14B encoder takes a 0.76B slice, which is why a
+slice trained with the model is the next step.
 
 ---
 
@@ -484,7 +496,7 @@ Two scripts implement it: `operator-for-llm-with-mmbert.py` and `operator-for-ll
 
 | | with mmBERT | slice |
 |---|---|---|
-| chopper | mmBERT-base or -small, a separate 0.31B / 0.14B encoder | the 10% slice of the answering model + its LoRA and KEEP head |
+| chopper | mmBERT-base or -small, a separate 0.31B / 0.14B encoder | a slice of the answering model + its LoRA and KEEP head (today the 10% Qwen3-1.7B slice; the 20% MiniCPM3-4B slice ⏳) |
 | answering model | **any** Hugging Face decoder-only causal LM; default Qwen3-1.7B + our answerer LoRA, other models get a short instruction | the rewired Qwen3-1.7B (or another model you rewired and trained with `scripts/rewire/`) |
 | answerer LoRA | used as trained | permuted into the rewired layout: same outputs as on the plain model (max logit difference 3e-5, fp32) |
 | what the chopper reads | the question + 16 passages (8k-token window) | the **whole session** from the model's own cache + the 16 passages, twice |
@@ -515,8 +527,8 @@ loop (max N searches):
        → [search] <follow-up question> : query ← follow-up question; keep the notes; go to 1
 ```
 
-With the **rewired chopper**, step 2 runs on ~10% of M's weights and reads M's cached conversation directly. The
-only extra cost of a retrieval step is a ~10% model reading ~6k tokens.
+With the **rewired chopper**, step 2 runs on a slice of M's weights (10–20%) and reads M's cached conversation
+directly. The only extra cost of a retrieval step is that slice reading the passages twice.
 
 **Why the rollback is the point.**
 - With plain RAG, the session keeps everything it was ever shown: after 20 lookups that is ~60,000 tokens of passages,
@@ -529,10 +541,11 @@ only extra cost of a retrieval step is a ~10% model reading ~6k tokens.
 
 ## Rewiring
 
-Rewiring turns any decoder with the Llama/Qwen layout (q/k/v/o + gate/up/down, grouped-query attention) into its own
-chopper:
+Rewiring turns a decoder into its own chopper. Two layouts are supported: `scripts/rewire/` for the Llama/Qwen layout
+(q/k/v/o + gate/up/down, grouped-query attention) and `scripts/mla/` for latent attention (MiniCPM3-4B, the rewired
+chopper on HF). The steps are the same:
 
-1. **Score.** Each KV group is scored by the norm of its heads' outputs, and each MLP neuron by its mean |activation|,
+1. **Score.** Each KV group (with MLA: each head) is scored by the norm of its heads' outputs, and each MLP neuron by its mean |activation|,
    on calibration text that looks like the task (question + passages). This is Minitron-style activation importance.
 2. **Permute.** Every layer is reordered so the most important groups and neurons come first. This changes nothing:
    the full model's output is identical up to floating-point summation order (checked by the script).
@@ -542,8 +555,9 @@ chopper:
    - The base weights stay frozen, so the full model is never changed.
 4. **Train.** The KEEP head + LoRA are trained on the fragment labels (balanced binary cross-entropy, one epoch).
 
-`--frac` is a parameter: 0.1 gives 1 of 8 KV groups + 512 of 6,144 neurons per layer in Qwen3-1.7B (9.4% of layer
-parameters).
+`--frac` is a parameter: 0.2 gives 8 of 40 heads + 960 of 6,400 neurons per layer in MiniCPM3-4B (19.5% of layer
+parameters, plus the two compressions kept whole); 0.1 gives 1 of 8 KV groups + 512 of 6,144 neurons per layer in
+Qwen3-1.7B (9.4%).
 
 **Prior work:**
 - Minitron, Flextron and Sheared-LLaMA prune or nest a trained model into a smaller **standalone language model** and
@@ -564,7 +578,7 @@ plus a KEEP objective on retrieval-shaped data mixed into pretraining) would hav
 - no per-model rewiring step would be needed.
 
 This is the third version of the chopper in [How it works](#how-it-works): almost free at inference and expected to
-be much better than a rewired slice. It needs a pretraining run; **contact the repository owner
+be much better than a rewired slice, at half its width. It needs a pretraining run; **contact the repository owner
 ([wiiiktor](https://github.com/wiiiktor)) to cooperate on it.**
 
 ### A host with latent attention: MiniCPM3-4B
@@ -576,9 +590,10 @@ groups. Rewiring was checked in fp32: cached and uncached passes, rewired and or
 slice agree to rounding (max logit difference ≤ 1.2e-4).
 
 A 10% slice (4 of 40 heads + 320 of 6,400 MLP neurons per layer) was stopped early in favour of a **20% slice** (8
-heads + 960 neurons, LoRA r32), trained for one epoch over all 54k rows mixed. It **ties mmBERT-small** as a chopper
-and as a source of notes for the answerer ([section 2](#2-the-chopper), [section 3](#3-answer-or-search)). A
-second epoch is running.
+heads + 960 neurons, LoRA r32), trained for one epoch over all 54k rows mixed. It is now **the rewired chopper**: it
+**ties mmBERT-small** as a chopper and as a source of notes for the answerer ([section 2](#2-the-chopper),
+[section 3](#3-answer-or-search)). A second epoch is running; so far it moves around the first epoch's numbers
+without beating them.
 
 **Chopping speed**, one read = the cached question + 16 passages read twice, RTX 3090:
 
@@ -631,8 +646,8 @@ after the fact.
 | component | author | license | used for |
 |---|---|---|---|
 | mmBERT-base | JHU CLSP | MIT | mmBERT chopper |
-| Qwen3-1.7B / 4B / 14B, Qwen3-14B-AWQ | Qwen team, Alibaba | Apache 2.0 | answerer, rewired chopper, labeller, follow-up questions |
-| MiniCPM3-4B | OpenBMB / ModelBest | code Apache 2.0; weights [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md) | MLA slice chopper |
+| Qwen3-1.7B / 4B / 14B, Qwen3-14B-AWQ | Qwen team, Alibaba | Apache 2.0 | answerer, earlier 10% rewired chopper, labeller, follow-up questions |
+| MiniCPM3-4B | OpenBMB / ModelBest | code Apache 2.0; weights [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md) | rewired chopper (20% slice) |
 | Qwen3-Embedding-0.6B | Qwen team, Alibaba | Apache 2.0 | first-stage retrieval |
 | bge-reranker-v2-m3 | BAAI | Apache 2.0 | reranking |
 | MuSiQue | Trivedi et al., 2022 | CC BY 4.0 | dataset A |
@@ -666,11 +681,12 @@ retrieve: {embedder: Qwen/Qwen3-Embedding-0.6B, top: 100, reranker: BAAI/bge-rer
 chop:
   mmbert: {base: jhu-clsp/mmBERT-base, input: "Question: <q> [SEP] p1 [SEP] … p16", max_tokens: 8192,
            output: per-token p(KEEP), decode: {threshold: 0.8, merge_gap_tokens: 5, min_run_tokens: 4}}
-  rewired: {base: Qwen/Qwen3-1.7B, frac: 0.1, kept_per_layer: {kv_groups: 1, mlp_neurons: 512},
-            reads: "host KV cache of the conversation + passages twice", keep_from: second_copy, status: trained (loses to mmBERT)}
-  mla_slice: {base: openbmb/MiniCPM3-4B, frac: 0.2, kept_per_layer: {heads: 8, mlp_neurons: 960}, lora_rank: 32,
-              reads: "host LATENT cache (whole conversation) + passages twice", read_ms_rtx3090: {as_trained: 437, compiled: 277},
-              status: "trained 1 epoch on 54k mixed; ties mmBERT-small"}
+  rewired:   # the rewired chopper
+    {base: openbmb/MiniCPM3-4B, frac: 0.2, kept_per_layer: {heads: 8, mlp_neurons: 960}, lora_rank: 32, trainable: 44.9M,
+     reads: "host LATENT cache (whole conversation) + passages twice", keep_from: second_copy,
+     read_ms_rtx3090: {as_trained: 437, compiled: 277}, status: "trained 1 epoch on 54k mixed; ties mmBERT-small", operator: "not yet"}
+  rewired_earlier: {base: Qwen/Qwen3-1.7B, frac: 0.1, kept_per_layer: {kv_groups: 1, mlp_neurons: 512},
+            reads: "host KV cache of the conversation + passages twice", keep_from: second_copy, status: "trained; loses to mmBERT-small", operator: operator-for-llm-slice.py}
 fragment_format: [passage_index, char_start, char_end, text]   # character offsets into the ORIGINAL passage text
 answerer:
   base: Qwen/Qwen3-1.7B
