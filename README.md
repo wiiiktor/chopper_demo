@@ -252,7 +252,7 @@ Planned later: 3-hop chains (A → B → C).
 | 🟧 **universal chopper: mmBERT-base and mmBERT-small** (small = the size-matched control) | `jhu-clsp/mmBERT-base` (0.31B) / `jhu-clsp/mmBERT-small` (0.14B) | all weights + KEEP head + decision head | all 54,000 rows: datasets A and B shuffled together, one epoch | ✅ on HF (base 2 h 50 min, small 2 h, 3090) |
 | 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
-| **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ⏳ the chopper is chopping the 27k rows; then arm 1, then arm 2 |
+| **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ✅ Qwen3-14B arm done; chopper arm finishing (4 Nov) |
 
 **Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
 
@@ -274,12 +274,12 @@ Software: PyTorch 2.12, transformers 5.10, peft, vLLM (MiniCPM3-4B's own model c
 
 ### Training curves
 
-<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, mmBERT-small and the 20% MiniCPM3-4B slice (all 54k mixed); MiniCPM3-4B answerer val exact, tok, exp(−CE) and follow-up recall, one panel per training arm, against training rows seen" src="figures/training_curves.png">
+<img alt="Training curves: chopper KEEP loss, train F1 and balanced accuracy, val answer-in-kept and kept share for mmBERT-base, mmBERT-small and the 20% MiniCPM3-4B slice (all 54k mixed); MiniCPM3-4B answerer val luna-judged correct, tok, exp(−CE) and follow-up recall, one panel per training arm, against training rows seen" src="figures/training_curves.png">
 
 - The x axis is training rows seen. All three choppers were trained once on all 54,000 rows mixed (benchmark +
   Wikipedia).
-- The two answerer panels (one per training arm) put every validation number on one chart, all higher-is-better: exact,
-  tok, exp(−CE) (CE turned into the mean per-token probability) and, on MuSiQue, how often it asks a follow-up when one is needed ⏳.
+- The two answerer panels (one per training arm) put every validation number on one chart, all higher-is-better: correct
+  as judged by gpt-5.6-luna (exact match is not shown, see Answer quality), tok, exp(−CE) (CE turned into the mean per-token probability) and, on MuSiQue, how often it asks a follow-up when one is needed ⏳.
 - Train lines are 500-row rolling means.
 - Validation points are the mean over MuSiQue, HotpotQA and TriviaQA, at p > 0.5 with no span shaping, which is the
   setting every chopper logs during training.
@@ -335,12 +335,29 @@ written as `a / b / c` are MuSiQue / HotpotQA / TriviaQA.
   - **8 + 8** = the top 8 of each, 16 in total: the same budget as no second search. It checks that a gain is not
     just from reading more passages.
 
-### 1. Answer quality ⏳
+### 1. Answer quality
 
-The answering model's results (exact match from the fragments, and when it chooses to search again) are being
-measured with the answerer for the integrated chopper, a LoRA on MiniCPM3-4B, in two arms with the same targets: trained on the integrated chopper's own fragments (the
-notes it gets at test time) or on the Qwen3-14B labeller's (cleaner, but not what it will read). Both are scored on the
-chopper's validation fragments.
+**The answerer is limited by the chops, not by itself.** The validation questions used here are the ones whose gold
+passages are all among the 16 (MuSiQue 62, HotpotQA 96, TriviaQA 98). Each answer is graded by gpt-5.6-luna against
+the reference. Exact match is not reported: it marks correct answers in other wording as wrong. The untrained model
+scores .11 / .26 / .41 exact but .53 / .74 / .68 judged.
+
+| notes = the integrated chopper's val fragments | MuSiQue | HotpotQA | TriviaQA | MuSiQue: follow-up asked when needed |
+|---|---|---|---|---|
+| answer string is in the fragments (the ceiling) | .74 | .83 | .72 | |
+| untrained MiniCPM3-4B | .53 | .74 | .68 | 0% |
+| answerer trained on the Qwen3-14B labeller's fragments (27k rows) | .55 | .79 | .75 | 71% |
+| answerer trained on the chopper's own fragments (22.5k of 27k rows ⏳) | .56 | .77 | .74 | 79% |
+
+- **Fine-tuning taught the format and when to search.** Exact match rose from .11 to .42 on MuSiQue and asking a
+  follow-up from 0% to 71–79%, but judged correctness rose only 2–7 points.
+- **The answers it can see, it mostly gets.** HotpotQA is at about 95% of the ceiling; TriviaQA is above it, because
+  the model also knows many of the answers. MuSiQue is at .55 of .74: combining two or more facts is the part left to the answerer.
+- **Both training arms tie.** Cleaner Qwen3-14B training notes did not help, because at test time it still reads the
+  chopper's notes. Training on the chopper's own notes gives lower CE and more follow-up questions.
+- **What will move it is a better chopper.** The fragments drop the answer in 17–28% of these questions, and no
+  answerer can recover that. A chopper trained from scratch for chopping should keep more of what matters, and the
+  answerer should then do very well. A run with the Qwen3-14B labeller's spans as near-perfect notes measures how well ⏳.
 
 ### 2. The chopper
 
@@ -589,7 +606,7 @@ answering_model:
   any: "any Hugging Face causal LM with a croppable DynamicCache; a short instruction, or your own answerer LoRA"
   prompt: "Notes:\n- <fragment>\n…\n\nQuestion: <q>\nAnswer:"
   output: "<answer>  |  [search] <follow-up question>"
-  answerer_lora: {base: openbmb/MiniCPM3-4B, status: queued}
+  answerer_lora: {base: openbmb/MiniCPM3-4B, status: trained}
 training_data:
   benchmark_chains: {rows: 27000, sources: [MuSiQue, HotpotQA, TriviaQA], splits: train, eval_rows: 300}
   wikipedia_chains: {status: done, rows: 27000, eval_rows: 300, mix: "18000 2-hop + 9000 1-hop", scripts: [wk_chains.py, wk_gen.py, wk_judge.py, wk_pools.py]}

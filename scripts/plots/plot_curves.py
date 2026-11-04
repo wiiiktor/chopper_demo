@@ -68,6 +68,10 @@ def answerer(parts):
                 ds = next((d for d in DS if f"| {d}" in l), None)
                 va.setdefault(st, {})[ds] = {"exact": num(r"exact ([\d.]+)", l), "tok": num(r" tok ([\d.]+)", l), "ce": num(r"CE ([\d.]+)", l),
                                              "search": num(r"SEARCH recall ([\d.]+)", l)}
+        J = os.path.join(os.path.dirname(path), "judged.jsonl")   # 2026-11-04: gpt-5.6-luna verdicts replace exact match
+        for x in (map(json.loads, open(J)) if os.path.exists(J) else []):
+            if x["notes"] == "chopper" and x["step"] + off in va and x["dataset"] in va[x["step"] + off]:
+                va[x["step"] + off][x["dataset"]]["judged"] = x["judged"]
     val = [{"rows": r, "exact": float(np.mean([v[d]["exact"] for d in DS])), "per": {d: v[d]["exact"] for d in DS}, "m": v}
            for r, v in sorted(va.items()) if all(d in v for d in DS)]
     return tr, val
@@ -127,7 +131,7 @@ for suf, T in THEMES.items():
         a.legend(frameon=False, fontsize=11, labelcolor=T["fg2"])
     # 2026-11-04 (user: "all numbers from table on one chart … remove separate panels"): one panel per answerer arm, every
     # val number on the chopper's notes, all higher-is-better (CE as exp(−CE)); colour = metric, line style = dataset
-    MET = (("exact", "exact", T["a"], lambda v: v), ("tok", "tok", T["c"][0], lambda v: v),
+    MET = (("judged", "luna-judged correct", T["a"], lambda v: v), ("tok", "tok", T["c"][0], lambda v: v),
            ("ce", "exp(−CE)", T["c"][2], lambda v: float(np.exp(-v))), ("search", "follow-up asked when needed", T["c"][1], lambda v: v))
     LS = {"musique": "-", "hotpot": "--", "triviaqa": ":"}
     for (name, run), a in zip(D["answerer"].items(), (ax[1, 1], ax[1, 2])):

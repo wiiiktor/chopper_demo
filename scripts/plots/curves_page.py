@@ -170,9 +170,10 @@ function render() {
     panel(document.getElementById("g1"), t, note, S, yr, fmt);
   }
   // 2026-11-04 (user: "all numbers from table on one chart, with all lines as growing, so convert CE to sth that grows"):
-  // per arm, every val number on the chopper's notes; CE shown as exp(−CE) = the mean per-token probability of the target
+  // per arm, every val number on the chopper's notes; 2026-11-04 (user: "run luna verification instead of exact that is
+  // misleading (remove it from charts)"): exact match is replaced by the gpt-5.6-luna verdict; CE shown as exp(−CE) = the mean per-token probability of the target
   const g3 = document.getElementById("g3"); g3.innerHTML = "";
-  const MET = [["exact", "exact", "--ca", v => v], ["tok", "tok", "--c0", v => v], ["ce", "exp(−CE)", "--c2", v => Math.exp(-v)], ["search", "follow-up asked when needed", "--c1", v => v]];
+  const MET = [["judged", "luna-judged correct", "--ca", v => v], ["tok", "tok", "--c0", v => v], ["ce", "exp(−CE)", "--c2", v => Math.exp(-v)], ["search", "follow-up asked when needed", "--c1", v => v]];
   const DSN = [["musique", "MuSiQue", null], ["hotpot", "HotpotQA", "7 4"], ["triviaqa", "TriviaQA", "2 3"]];
   ANS.forEach(n => {
     const V = (DATA.answerer[n].val || []).filter(p => p.m), S = [];
