@@ -371,7 +371,21 @@ scores .11 / .26 / .41 exact but .53 / .74 / .68 judged.
   chopper's notes. Training on the chopper's own notes gives lower CE and more follow-up questions.
 - **What will move it is a better chopper.** The fragments drop the answer in 17–28% of these questions, and no
   answerer can recover that. A chopper trained from scratch for chopping should keep more of what matters, and the
-  answerer should then do very well. A run with the Qwen3-14B labeller's spans as near-perfect notes measures how well ⏳.
+  answerer should then do very well.
+
+**With near-perfect notes it does.** The same questions, with the Qwen3-14B labeller's spans as the notes (about 260
+characters per question; the answer string is in them for .94 / .84 / .87):
+
+| notes = the Qwen3-14B labeller's val spans | MuSiQue | HotpotQA | TriviaQA | MuSiQue: follow-up asked when needed |
+|---|---|---|---|---|
+| untrained MiniCPM3-4B | .65 | .72 | .84 | 0% |
+| answerer trained on the Qwen3-14B labeller's fragments | **.84** | **.84** | **.88** | 79% |
+| answerer trained on the chopper's own fragments | .73 | .81 | .80 | 95% |
+
+- MuSiQue goes from .55 to **.84** with the same answerer; only the notes changed. HotpotQA reaches its ceiling (.84).
+- Each answerer is best on the notes it was trained on. Trained on the chopper's fragments, it scores lower on clean
+  notes (.73 on MuSiQue), so a better chopper should be paired with an answerer trained on clean notes.
+- Both LoRAs are kept; the one to ship depends on the chopper it reads.
 
 ### 2. The chopper
 
