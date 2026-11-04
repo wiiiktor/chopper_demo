@@ -37,6 +37,7 @@ svg text{font:12px "IBM Plex Mono",monospace;fill:var(--fg3)}
  font:12px "IBM Plex Mono",monospace;color:var(--fg);white-space:nowrap;display:none;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
 .empty{font-size:12px;fill:var(--fg3)}
+.desc{margin:10px 0 0;max-width:72ch;color:var(--fg2);line-height:1.5}
 </style></head><body><main>
 <h1>Chopper training curves</h1>
 <p class="sub">The choppers learn which tokens of 16 retrieved passages to keep; the answerer (MiniCPM3-4B LoRA) learns to answer
@@ -174,19 +175,35 @@ function render() {
   // misleading (remove it from charts)"): exact match is replaced by the gpt-5.6-luna verdict; CE shown as exp(−CE) = the mean per-token probability of the target
   const g3 = document.getElementById("g3"); g3.innerHTML = "";
   const MET = [["judged", "luna-judged correct", "--ca", v => v], ["tok", "tok", "--c0", v => v], ["ce", "exp(−CE)", "--c2", v => Math.exp(-v)], ["search", "follow-up asked when needed", "--c1", v => v]];
-  const DSN = [["musique", "MuSiQue", null], ["hotpot", "HotpotQA", "7 4"], ["triviaqa", "TriviaQA", "2 3"]];
-  ANS.forEach(n => {
-    const V = (DATA.answerer[n].val || []).filter(p => p.m), S = [];
-    if (!V.length) { g3.insertAdjacentHTML("beforeend", `<p class="sub">${n}: every val number on one chart — queued</p>`); return; }
-    for (const [k, lab, col, f] of MET) for (const [d, dl, dash] of DSN) {
-      if (k === "search" && d !== "musique") continue;     // HotpotQA / TriviaQA have 4 and 2 such questions
-      const pts = V.filter(p => p.m[d] && p.m[d][k] != null).map(p => ({ x: p.rows, y: f(p.m[d][k]) }));
-      S.push({ name: `${lab} · ${dl}`, col: css(col), dash, lw: 2, dots: false, pts });
+  // 2026-11-04 (user: "put m h t benchmarks on separate charts, chopper fragments and qwen fragments together … describe each
+  // benchmark specifics below the chart"): one chart per benchmark; colour = metric, line style = training arm
+  const ARMS = [[ANS.find(n => /chopper/.test(n)), "trained on chopper fragments", null], [ANS.find(n => /Qwen/.test(n)), "trained on Qwen3-14B fragments", "7 4"]];
+  const DSN = [["musique", "MuSiQue", `<b>MuSiQue</b> — multi-hop questions built by chaining 2–4 single-hop Wikipedia questions
+    (“Who is the spouse of the Green performer?”), composed so that no hop can be skipped. Of the 100 validation questions, 62 have
+    every needed paragraph among the 16 passages and are graded on the answer; the other 38 miss a hop, so the right move is a
+    <code>[search]</code> follow-up — the orange line is shown only here. The hardest set: the answer string is in the chopper's
+    fragments for .74 of the 62, and the answerer still has to combine the facts.`],
+    ["hotpot", "HotpotQA", `<b>HotpotQA</b> — two-hop questions written by crowdworkers over two linked Wikipedia paragraphs: either a
+    bridge (find an entity, then a fact about it) or a comparison of two entities (which is older, are both …). 96 of the 100 have both
+    paragraphs among the 16. The answer string is in the chopper's fragments for .83 of them; the answerer gets about 95% of those.`],
+    ["triviaqa", "TriviaQA", `<b>TriviaQA</b> — quiz questions written independently of any text, with evidence matched to them later:
+    one fact, but asked with indirect quiz-style clues, and many answers have several valid names (where exact match was most wrong).
+    98 of the 100 are graded. The answer string is in the chopper's fragments for .72 of them; the answerer scores slightly above that,
+    because MiniCPM3-4B already knows some answers.`]];
+  const leg = MET.map(([, lab, col]) => `<span style="white-space:nowrap"><i class="sw" style="background:var(${col});display:inline-block;width:14px;height:3px;vertical-align:middle"></i> ${lab}</span>`).join(" · ");
+  for (const [d, dl, desc] of DSN) {
+    const S = [];
+    for (const [n, al, dash] of ARMS) {
+      const V = ((n && DATA.answerer[n].val) || []).filter(p => p.m && p.m[d]);
+      for (const [k, lab, col, f] of MET) {
+        if (k === "search" && d !== "musique") continue;     // HotpotQA / TriviaQA have 4 and 2 such questions
+        S.push({ name: `${lab} · ${al}`, col: css(col), dash, lw: 2, dots: false, pts: V.filter(p => p.m[d][k] != null).map(p => ({ x: p.rows, y: f(p.m[d][k]) })) });
+      }
     }
-    const leg = MET.map(([, lab, col]) => `<span style="white-space:nowrap"><i class="sw" style="background:var(${col});display:inline-block;width:14px;height:3px;vertical-align:middle"></i> ${lab}</span>`).join(" · ");
-    panel(g3, `${n}: every val number, all higher-is-better`, `on the integrated chopper's val fragments · colour = metric: ${leg} · line = dataset: solid MuSiQue, dashed HotpotQA, dotted TriviaQA (follow-up: MuSiQue only, 38 questions)`,
+    panel(g3, `${dl}: answerer on the chopper's val fragments`, `colour = metric: ${leg} · line = training arm: solid = chopper fragments, dashed = Qwen3-14B fragments · all higher-is-better`,
           S, [0, 1], f2, [0, 27000]);
-  });
+    g3.lastChild.insertAdjacentHTML("beforeend", `<p class="desc">${desc}</p>`);
+  }
 }
 render();
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
