@@ -190,7 +190,7 @@ function render() {
     one fact, but asked with indirect quiz-style clues, and many answers have several valid names (where exact match was most wrong).
     98 of the 100 are graded. The answer string is in the chopper's fragments for .72 of them; the answerer scores slightly above that,
     because MiniCPM3-4B already knows some answers.`]];
-  const leg = MET.map(([, lab, col]) => `<span style="white-space:nowrap"><i class="sw" style="background:var(${col});display:inline-block;width:14px;height:3px;vertical-align:middle"></i> ${lab}</span>`).join(" · ");
+  const leg = d => MET.filter(([k]) => k !== "search" || d === "musique").map(([, lab, col]) => `<span style="white-space:nowrap"><i class="sw" style="background:var(${col});display:inline-block;width:14px;height:3px;vertical-align:middle"></i> ${lab}</span>`).join(" · ");
   for (const [d, dl, desc] of DSN) {
     const S = [];
     for (const [n, al, dash] of ARMS) {
@@ -200,7 +200,7 @@ function render() {
         S.push({ name: `${lab} · ${al}`, col: css(col), dash, lw: 2, dots: false, pts: V.filter(p => p.m[d][k] != null).map(p => ({ x: p.rows, y: f(p.m[d][k]) })) });
       }
     }
-    panel(g3, `${dl}: answerer on the chopper's val fragments`, `colour = metric: ${leg} · line = training arm: solid = chopper fragments, dashed = Qwen3-14B fragments · all higher-is-better`,
+    panel(g3, `${dl}: answerer on the chopper's val fragments`, `colour = metric: ${leg(d)} · line = training arm: solid = chopper fragments, dashed = Qwen3-14B fragments · all higher-is-better`,
           S, [0, 1], f2, [0, 27000]);
     g3.lastChild.insertAdjacentHTML("beforeend", `<p class="desc">${desc}</p>`);
   }
