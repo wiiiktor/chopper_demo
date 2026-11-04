@@ -252,7 +252,7 @@ Planned later: 3-hop chains (A → B → C).
 | 🟧 **universal chopper: mmBERT-base and mmBERT-small** (small = the size-matched control) | `jhu-clsp/mmBERT-base` (0.31B) / `jhu-clsp/mmBERT-small` (0.14B) | all weights + KEEP head + decision head | all 54,000 rows: datasets A and B shuffled together, one epoch | ✅ on HF (base 2 h 50 min, small 2 h, 3090) |
 | 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
-| **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ✅ both arms trained (4 Nov) |
+| **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ✅ both on 🤗 [`chopper_minicpm3/answerer/`](https://huggingface.co/wiiiktor/chopper_minicpm3/tree/main/answerer): `chopper-notes/`, `clean-notes/` |
 
 **Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
 
@@ -385,7 +385,7 @@ characters per question; the answer string is in them for .94 / .84 / .87):
 - MuSiQue goes from .55 to **.84** with the same answerer; only the notes changed. HotpotQA reaches its ceiling (.84).
 - Each answerer is best on the notes it was trained on. Trained on the chopper's fragments, it scores lower on clean
   notes (.73 on MuSiQue), so a better chopper should be paired with an answerer trained on clean notes.
-- Both LoRAs are kept; the one to ship depends on the chopper it reads.
+- Both LoRAs are on 🤗 [`chopper_minicpm3/answerer/`](https://huggingface.co/wiiiktor/chopper_minicpm3/tree/main/answerer): `chopper-notes/` for this chopper, `clean-notes/` for a better one.
 
 ### 2. The chopper
 
@@ -634,7 +634,7 @@ answering_model:
   any: "any Hugging Face causal LM with a croppable DynamicCache; a short instruction, or your own answerer LoRA"
   prompt: "Notes:\n- <fragment>\n…\n\nQuestion: <q>\nAnswer:"
   output: "<answer>  |  [search] <follow-up question>"
-  answerer_lora: {base: openbmb/MiniCPM3-4B, status: trained}
+  answerer_lora: {base: openbmb/MiniCPM3-4B, status: on HF, chopper_minicpm3/answerer/{chopper-notes,clean-notes}}
 training_data:
   benchmark_chains: {rows: 27000, sources: [MuSiQue, HotpotQA, TriviaQA], splits: train, eval_rows: 300}
   wikipedia_chains: {status: done, rows: 27000, eval_rows: 300, mix: "18000 2-hop + 9000 1-hop", scripts: [wk_chains.py, wk_gen.py, wk_judge.py, wk_pools.py]}
