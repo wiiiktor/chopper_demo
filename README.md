@@ -1,9 +1,11 @@
 <p align="center">
-  <a href="https://youtu.be/KMvmdXCEOJU"><img src="media/youtube_cover_v15.jpg" width="100%" alt="LLMs need a Chopper: watch the video"></a>
+  <a href="https://youtu.be/KMvmdXCEOJU"><img src="media/youtube_cover_v15.jpg" width="100%" alt="LLMs need a Chopper: watch the video"></a><br>
+  <a href="#quick-start"><img src="media/choice_universal_v6.png" width="49%" alt="Option 1, universal chopper: a small separate model (mmBERT-base 0.31B or mmBERT-small 0.14B), text in and text out, works with any answering model. Links to the quick start."></a>
+  <a href="docs/DETAILS.md#a-host-with-latent-attention-minicpm3-4b"><img src="media/choice_integrated_v6.png" width="49%" alt="Option 2, integrated chopper: a 20% slice of MiniCPM3-4B itself, no second model, reads the model's own cache of the whole session. Links to how it works."></a>
 </p>
 <p align="center"><em>70-second video: <a href="https://youtu.be/KMvmdXCEOJU">youtu.be/KMvmdXCEOJU</a></em></p>
 
-# Chopper ✂️ keep only the part of RAG that answers the question
+# Chopper 🔪 keep only the part of RAG that answers the question
 
 Standard RAG (retrieval-augmented generation) pastes whole passages into your model's context, and they stay there.
 **About 95% of those tokens don't help.** After a few lookups, a long session is mostly retrieval spam.
@@ -12,10 +14,10 @@ Standard RAG (retrieval-augmented generation) pastes whole passages into your mo
 model then sees ~100 tokens instead of ~3,000 per lookup, and a session can carry dozens of lookups.
 
 ```
-question ─► retrieve 16 passages ─► ✂️ chop to ~3 fragments ─► model answers, or asks one follow-up search
+question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► model answers, or asks one follow-up search
 ```
 
-- 🧹 **Clean context:** only useful fragments enter the session; the raw passages never stay.
+- 🎯 **Clean context:** only useful fragments enter the session; the raw passages never stay.
 - ⚡ **Less compute:** the main model reads 3–5% of the retrieved text.
 - 🔗 **Multi-hop works:** the model writes a follow-up question when a fact is missing, and searches again.
 - 🏠 **Built on one home GPU:** every dataset, label and model here was trained on a single RTX 3090.
