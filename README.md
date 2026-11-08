@@ -443,9 +443,25 @@ HotpotQA and TriviaQA are already at .96–1.00 after the first search.
 The follow-up questions here are written by Qwen3-14B-AWQ (`mm_subq.py`), without seeing the answer. Writing them
 is also the answerer's job; its own numbers come with the answerer run ⏳.
 
-**End to end, every validation question counted** (search → chop the new 8 + 8 pool → answer; luna-judged; rerank-pilot
-chopper, MiniCPM3-4B answerer): MuSiQue **.39 → .47**, HotpotQA .78 → .79, TriviaQA .73 → .71. Earlier tables count only
-questions whose gold passages were all among the first 16; here the questions the search is meant to rescue count too.
+**End to end, every validation question counted** (luna-judged; rerank-pilot chopper of §5; MiniCPM3-4B answerer). Earlier
+tables count only questions whose gold passages were all among the first 16; here the questions the search is meant to
+rescue count too.
+
+| reading → searching | MuSiQue | HotpotQA | TriviaQA |
+|---|---|---|---|
+| first 16 only | .39 | .78 | .73 |
+| one search, query = question + kept fragments, chop the 8 + 8 pool | .47 | .79 | .71 |
+| same, the second round must answer | .50 | .79 | .72 |
+| one search, follow-up question written by Qwen3-14B | .47 | .80 | .74 |
+| **native tool calls: the answerer writes one self-contained question per missing hop (up to 3)** | **.56** | .78 | .71 |
+
+The last row uses MiniCPM3-4B's own trained tool-call format (`<|tool_call_start|>` … `search(query="…")` …
+`<|tool_call_end|>`; the untrained model never called the tool on our questions). A LoRA was trained on 18,086 chats
+(`scripts/tool/`): MuSiQue's published per-hop sub-questions with the earlier hop's answer filled in, every search
+answered by the chopper cutting the retrieved passages **with the hop question as its query**, plus chats that need no
+search. On validation it searched on 43 MuSiQue questions and on no HotpotQA or TriviaQA question. Some of its questions
+copy the training data's knowledge-base wording ("What is the award of Shaun Tan?"); rewriting all training questions
+into natural English is the next step.
 
 ### 4. Integrated chopper: exactness
 

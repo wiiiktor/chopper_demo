@@ -11,6 +11,11 @@ for _w in ("old", "new", "full", "fullc"):
     _f = f"/media/wii/bigdata/rr/ans_{_w}/judged.jsonl"
     if os.path.exists(_f):
         D["answers"][_w] = {x["dataset"]: x["judged"] for x in map(json.loads, open(_f))}
+D["loops"] = {}
+for _w in ("fullc", "loopc", "loopf", "loopq", "tool"):
+    _f = f"/media/wii/bigdata/rr/ans_{_w}/judged_all.jsonl"
+    if os.path.exists(_f):
+        D["loops"][_w] = {x["dataset"]: x["judged"] for x in map(json.loads, open(_f))}
 now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 html = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Chopper Training Curves</title>
@@ -236,6 +241,11 @@ function renderPilot() {
   if (DATA.answers && DATA.answers.fullc) {
     const WA = [["old", "old 54k", c0], ["new", "pilot", c1], ["full", "fresh retrain", c2], ["fullc", "continued retrain", c3]];
     bars(g4, "What matters: correct answers", "MiniCPM3-4B answerer reading each chopper's fragments · judged by gpt-5.6-luna · 62 / 96 / 98 questions, so differences under about .08 are noise", ["MuSiQue", "HotpotQA", "TriviaQA"], WA.map(w => ({ name: w[1], col: w[2], vals: ["musique", "hotpot", "triviaqa"].map(k => DATA.answers[w[0]][k]) })), 1, "The continued retrain ties the old chopper on answers while keeping 10-23% less text, and it adds no-answer handling. The fresh retrain loses MuSiQue.");
+  }
+  if (DATA.loops && DATA.loops.tool) {
+    const LV = [["fullc", "first pool only"], ["loopc", "one search, query = question + kept text"], ["loopf", "same, round 2 must answer"], ["loopq", "one search, follow-up question by Qwen3-14B"], ["tool", "native tool calls, own hop questions (up to 3)"]];
+    const LC = [c0, c1, c2, c3, css("--ca")];
+    bars(g4, "Reading → searching: correct answers, every question counted", "MiniCPM3-4B answerer, continued chopper, judged by gpt-5.6-luna · 100 questions each", ["MuSiQue", "HotpotQA", "TriviaQA"], LV.filter(v => DATA.loops[v[0]]).map((v, i) => ({ name: v[1], col: LC[LV.indexOf(v)], vals: ["musique", "hotpot", "triviaqa"].map(k => DATA.loops[v[0]][k]) })), 1, "MuSiQue, the benchmark that needs a second hop: .39 → .56 once the answerer calls search itself with a rewritten question per hop. HotpotQA and TriviaQA rarely need it and stay level.");
   }
   const AR = [["full", "full memory, 32K"], ["w16k", "window 16K"], ["w8k", "window 8K"], ["w4k", "window 4K"], ["w8k_nopin", "window 8K, no pin"], ["tiers8k", "averaged tiers, 8K memory"]];
   const C = [["single_age1000", "1K"], ["single_age3000", "3K"], ["single_age6000", "6K"], ["single_age12000", "12K"], ["single_age24000", "24K"], ["multivalue", "4 scattered facts"], ["vt", "5-hop chain"]];
