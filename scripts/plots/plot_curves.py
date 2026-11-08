@@ -15,6 +15,8 @@ CHOPPERS = {
     "mmBERT-base (0.31B), 54k mixed": [(f"{MM}/chopper_basemix54k/train.log", 0)],
     "mmBERT-small (0.14B), 54k mixed": [(f"{MM}/chopper_smallmix54k/train.log", 0)],
     "20% MiniCPM3-4B (MLA), 54k mixed": [(f"{MLA}/mla20_mix54k/train.log", 0)],   # 2026-11-03: its 2nd epoch tied the 1st → dropped
+    # 2026-11-06: continues mmBERT-base from its 54k rows on the 8-language rerank pilot (29k new + 20% of the old rows)
+    "mmBERT-base, continued on the rerank pilot": [(f"{os.environ.get('RR_DIR', 'rr')}/chopper_rr/train.log", 54000)],
 }
 # 2026-11-02 (user: "remove … use non-dashed lines everywhere"): only the four 54k-mixed choppers, all solid; the
 # sequential Qwen slice and the 10% MiniCPM3 slice (stopped at 4.5k) are dropped. REFS (dashed) is kept empty.

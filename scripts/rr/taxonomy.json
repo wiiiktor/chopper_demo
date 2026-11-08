@@ -1,0 +1,104 @@
+{
+ "_doc": "Step 0 of the rerank-oriented chopper dataset (2026-11-04, user: 'design a process of using qwen to generate a dataset to continue training mmbert … few most popular languages … topics important for reranking companies'; 'start the pilot'). Pilot = 8 languages x 5k rows; full-run shares in full_share.",
+ "languages": {
+  "en": {
+   "source": "HuggingFaceFW/fineweb:sample/10BT",
+   "full_share": 0.35
+  },
+  "zh": {
+   "source": "HuggingFaceFW/fineweb-2:cmn_Hani",
+   "full_share": 0.11
+  },
+  "es": {
+   "source": "HuggingFaceFW/fineweb-2:spa_Latn",
+   "full_share": 0.11
+  },
+  "de": {
+   "source": "HuggingFaceFW/fineweb-2:deu_Latn",
+   "full_share": 0.11
+  },
+  "fr": {
+   "source": "HuggingFaceFW/fineweb-2:fra_Latn",
+   "full_share": 0.1
+  },
+  "ja": {
+   "source": "HuggingFaceFW/fineweb-2:jpn_Jpan",
+   "full_share": 0.08
+  },
+  "pt": {
+   "source": "HuggingFaceFW/fineweb-2:por_Latn",
+   "full_share": 0.07
+  },
+  "pl": {
+   "source": "HuggingFaceFW/fineweb-2:pol_Latn",
+   "full_share": 0.07
+  }
+ },
+ "areas": {
+  "1": "customer support / help centre: how-to steps, troubleshooting, error messages, returns, refunds, account and billing rules",
+  "2": "internal company knowledge: HR and workplace policies, IT instructions, procedures, onboarding, benefits",
+  "3": "finance and compliance: company filings, financial figures, investing, banking, tax, insurance, regulation of finance",
+  "4": "legal: laws, regulations, contracts and their clauses, court decisions, terms and conditions, privacy policies",
+  "5": "e-commerce / products: a shop or catalogue page describing a specific product for sale, with specifications, prices, sizes, variants, shipping (NOT hotel, restaurant or travel reviews)",
+  "6": "technical documentation / software: APIs, configuration, programming, IT systems, developer Q&A",
+  "7": "healthcare / life sciences: medical conditions, treatments, drugs, clinical guidelines, research findings",
+  "8": "manuals / manufacturing: user manuals, installation and maintenance, parts, technical specifications of machines and devices",
+  "0": "none of these (news, opinion, entertainment, personal blogs, fiction, sports, travel, hotels and restaurants, reviews of experiences, forums chatting, etc.)"
+ },
+ "query_types": {
+  "keywords": 0.25,
+  "natural_question": 0.35,
+  "long_multi_condition": 0.15,
+  "compound": 0.15,
+  "no_answer": 0.1
+ },
+ "cross_lingual_share": 0.1,
+ "pilot": {
+  "rows_per_language": 5000,
+  "rows_per_language_area": 625,
+  "pool_docs_per_language": 120000,
+  "chunks_per_doc": 2,
+  "synthetic_share_areas_1_2": 0.5
+ },
+ "chunk": {
+  "words": [
+   100,
+   300
+  ],
+  "cjk_chars": [
+   200,
+   600
+  ]
+ },
+ "labels": {
+  "_doc": "2026-11-05 user: 'span should be longer, not just purely an answer, but a material for an answer, at least some full sentence, so that model is more aware of the source, which probably should also have a tag, but model should be trained with tags and without tags'. Applies to step 4 (labelling) onward; nothing generated before it changes.",
+  "span_unit": "whole sentences: the answer-bearing sentence(s) plus any neighbouring sentence the answer depends on (subject, conditions, units); never a sub-sentence fragment",
+  "span_sentences": [
+   1,
+   3
+  ],
+  "source_tag": "each passage starts with a metadata header from whatever exists: domain/url, title, date (FineWeb crawl date or a parsed publication date), author, section/breadcrumb, doc type, language. Fields are optional and vary per row; synthetic docs carry the full set",
+  "tag_dropout": 0.5,
+  "tag_dropout_doc": "half of training rows show the source tags, half show bare passages, so the chopper works whether or not a client sends metadata; eval reports both",
+  "selection_shape": "a selected fragment = the metadata header + an explicit gap marker '[…]' over the skipped sentences + the 1-3 material sentences (repeat gap + sentences when the material is in two places). The header is always kept when the passage is selected",
+  "_doc2": "2026-11-05 user: 'tags can have also a timestamp, title, author and/or various other metadata -> selected fragments should contain metadata, then usually skip a sentence or two, and contain the material-sentence/s'",
+  "todo_pool": "rr_pool.py keeps only url: add FineWeb 'date' + a title guess (first short line) before step 3; author only where the page text states it",
+  "tag_leak_audit": {
+   "_doc": "2026-11-05 user: 'leakage on tags has to be monitored by A/B test with no-tag snippets or some other way we used before'",
+   "build_rules": [
+    "positives and distractors in one pool come from the same source kind (synthetic seed -> synthetic distractors, web -> web)",
+    "each tag field is dropped independently with the same probability for every passage, so field presence says nothing about relevance",
+    "dates/authors drawn from one distribution for all passages (cf. the 2023-xx-15 collapse)"
+   ],
+   "pre_training": [
+    "tag-only probe: a small classifier (logistic regression on tag tokens + field presence) predicts 'has a span' from the tag alone; must be near the base rate (cf. the 0.911 length shortcut in reph v1)",
+    "body-blind probe: same, from tag + passage length + source kind"
+   ],
+   "after_training": [
+    "A/B: identical eval rows scored with tags vs without; the tags may help only modestly and must not help on the no-tag arm",
+    "tag swap: tags shuffled among the 16 passages of a pool; if KEEP F1 falls below the no-tag arm, the model reads relevance from tags",
+    "tag-only: bodies replaced by neutral filler; KEEP must be ~0"
+   ]
+  }
+ }
+}

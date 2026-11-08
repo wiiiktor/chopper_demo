@@ -24,8 +24,11 @@ ap.add_argument("--r", type=int, default=32); ap.add_argument("--smoke", type=in
 ap.add_argument("--max-notes", type=int, default=1500, help="max note tokens")
 ap.add_argument("--init", default="", help="LoRA dir (save_pretrained) to CONTINUE from; fresh optimiser and schedule")
 ap.add_argument("--eval-every", type=int, default=0, help="extra val evals every N rows (0 = only at the end)")
+ap.add_argument("--eval-only", action="store_true", help="with --init: one eval of that LoRA, then exit (no training)")
+ap.add_argument("--sources", default="qwen,chopper,none", help="which notes to evaluate (qwen, chopper, none)")
+ap.add_argument("--train-preds", default="", help="comma list of chopper preds on the TRAIN splits: train on those fragments (else the labeller's)")
 A = ap.parse_args()
-os.makedirs(A.out, exist_ok=True); dev = "cuda"; random.seed(0); torch.manual_seed(0)
+os.makedirs(A.out, exist_ok=True); dev = os.environ.get("DEV", "cuda"); random.seed(0); torch.manual_seed(0)
 LOG = open(os.path.join(A.out, "train.log"), "a")
 
 
@@ -35,11 +38,23 @@ def log(s):
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig, get_peft_model
-tk = AutoTokenizer.from_pretrained(A.model)
-base = AutoModelForCausalLM.from_pretrained(A.model, dtype=torch.bfloat16).to(dev)
+import inspect, transformers
+REMOTE = "minicpm" in A.model.lower()                # MiniCPM3 ships its own model code: needs transformers 4.x (.venv-cpm)
+tk = AutoTokenizer.from_pretrained(A.model, trust_remote_code=REMOTE)
+base = AutoModelForCausalLM.from_pretrained(A.model, trust_remote_code=REMOTE,
+                                            **{"dtype" if transformers.__version__ >= "5" else "torch_dtype": torch.bfloat16}).to(dev)
 base.gradient_checkpointing_enable(); base.enable_input_require_grads()
 M = get_peft_model(base, LoraConfig(r=A.r, lora_alpha=A.r, lora_dropout=0.0,
-                                    target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]))
+                                    target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"] if not REMOTE else
+                                    ["q_a_proj", "q_b_proj", "kv_a_proj_with_mqa", "kv_b_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]))
+KEEP_ARG = "logits_to_keep" in inspect.signature(base.forward).parameters   # MiniCPM3's forward has no logits_to_keep
+# a sentencepiece tokenizer with a dummy prefix (MiniCPM3) turns " x" into "▁▁", "x"; after "Answer:" the space is "▁x"
+DUMMY = len(tk.encode(" x", add_special_tokens=False)) > len(tk.encode("x", add_special_tokens=False))
+
+
+def cont(s):
+    """ids of s as it continues a prompt (no BOS; the leading space folded into the dummy prefix where there is one)"""
+    return tk.encode(s[1:] if DUMMY and s.startswith(" ") else s, add_special_tokens=False)
 if A.init:
     from peft import set_peft_model_state_dict
     from safetensors.torch import load_file
@@ -65,9 +80,9 @@ def prompt(q, notes):
 
 def target(c):
     if c["allin"] == 1.0:
-        return tk.encode(" " + c["answer"]) + [STOP]
+        return cont(" " + c["answer"]) + [STOP]
     sq = SUBQ.get((c["dataset"], c["row"]), "")
-    return tk.encode(" " + SEARCH + (" " + sq if sq else "")) + [STOP]
+    return cont(" " + SEARCH + (" " + sq if sq else "")) + [STOP]
 
 
 def load(split):
@@ -81,25 +96,36 @@ for sp_ in os.environ.get("TRAIN_SPLITS", "train,train2").split(","):
     c_, l_ = load(sp_); CT.update(c_); LT.update(l_)
 CV, LV = load("val")
 PRD = {(q["dataset"], q["row"]): q for q in map(json.loads, open(A.preds))} if os.path.exists(A.preds) else {}
-TR = [(CT[k], frags_of(CT[k], LT[k]["spans"])) for k in CT if k in LT]; random.shuffle(TR)
+TP = {(q["dataset"], q["row"]): q for f_ in filter(None, A.train_preds.split(",")) for q in map(json.loads, open(f_))}
+if TP:   # 2026-11-03 (user: "train Answerer on checkpoint 1"): the notes the answerer sees at test time = the chopper's
+    TR = [(CT[k], [f[3] for f in TP[k]["fragments"]]) for k in CT if k in TP]; random.shuffle(TR)
+else:
+    TR = [(CT[k], frags_of(CT[k], LT[k]["spans"])) for k in CT if k in LT]; random.shuffle(TR)
 if A.smoke:
     TR = TR[:A.smoke]
 params = [p for p in M.parameters() if p.requires_grad]
 opt = torch.optim.AdamW(params, lr=A.lr, weight_decay=0.0)
-log(f"answerer ({A.model}): {len(TR)} train rows | [search] share {np.mean([c['allin'] != 1.0 for c, _ in TR]):.2f} | "
+log(f"answerer ({A.model}): {len(TR)} train rows, notes = {'chopper preds' if TP else 'labeller spans'} | [search] share {np.mean([c['allin'] != 1.0 for c, _ in TR]):.2f} | "
     f"LoRA r {A.r}: {sum(p.numel() for p in params) / 1e6:.1f}M trainable | lr {A.lr} accum {A.accum}")
 
 
 def tf_loss(ids, y):
     x = torch.tensor([ids + y[:-1]], device=dev)
-    lg = M(input_ids=x, logits_to_keep=len(y)).logits[0].float(); yt = torch.tensor(y, device=dev)   # only the target logits
+    lg = (M(input_ids=x, logits_to_keep=len(y)) if KEEP_ARG else M(input_ids=x)).logits[0, -len(y):].float(); yt = torch.tensor(y, device=dev)   # only the target logits
     return F.cross_entropy(lg, yt), (lg.argmax(-1) == yt).float()
+
+
+BAN = sorted({x[0] for x in (tk.encode(" " + SEARCH, add_special_tokens=False), tk.encode(SEARCH, add_special_tokens=False)) if x}) \
+    if os.environ.get("FORCE_ANSWER") == "1" else []      # 2026-11-08: second round of the search loop must answer, not search again
 
 
 @torch.no_grad()
 def generate(ids, maxlen=40):
     o = M(input_ids=torch.tensor([ids], device=dev), use_cache=True); c = o.past_key_values; out = []
-    t_ = int(o.logits[0, -1].argmax())
+    lg0 = o.logits[0, -1].clone()
+    if BAN:
+        lg0[BAN] = float("-inf")
+    t_ = int(lg0.argmax())
     for _ in range(maxlen):
         if t_ == STOP:
             break
@@ -116,7 +142,7 @@ def norm(s):
 def evaluate(tag):
     M.eval(); res = {}
     PREDS = []
-    for src in ("qwen", "chopper", "none"):
+    for src in A.sources.split(","):
         R = {}
         for k, c in (list(CV.items())[::30] if A.smoke else CV.items()):
             if src == "qwen":
@@ -139,7 +165,7 @@ def evaluate(tag):
             else:
                 r["a"] += 1; r["aa"] += not said_search
                 r["ex"] += norm(pred) == norm(c["answer"]); r["sp"] += bool(norm(c["answer"])) and norm(c["answer"]) in norm(pred)
-                ce, hit = tf_loss(ids, tk.encode(" " + c["answer"]) + [STOP]); r["ce"].append(float(ce)); r["tok"].append(float(hit.mean()))
+                ce, hit = tf_loss(ids, cont(" " + c["answer"]) + [STOP]); r["ce"].append(float(ce)); r["tok"].append(float(hit.mean()))
         for ds, r in R.items():
             log(f"EVAL {tag} | notes={src:6s} | {ds:8s} ({r['n']} q) | decision: SEARCH recall {r['ss'] / max(1, r['s']):.2f} ({r['s']}) "
                 f"ANSWER recall {r['aa'] / max(1, r['a']):.2f} ({r['a']}) | answer-class: exact {r['ex'] / max(1, r['a']):.3f} "
@@ -154,6 +180,8 @@ def evaluate(tag):
 
 if not A.smoke:
     evaluate("step 0 (continued)" if A.init else "step 0 (base model)")
+if A.eval_only:
+    raise SystemExit
 M.train(); t0 = time.time(); win = []; upd = math.ceil(len(TR) / A.accum)
 for step, (c, notes) in enumerate(TR, 1):
     u = (step - 1) // A.accum
@@ -167,7 +195,7 @@ for step, (c, notes) in enumerate(TR, 1):
     if step % 200 == 0 or A.smoke:
         w = np.array(win, dtype=float); win.clear()
         log(f"step {step}/{len(TR)} | CE {w[:, 0].mean():.3f} tok {w[:, 1].mean():.3f} | {(time.time() - t0) / step:.2f}s/step | "
-            f"peak {torch.cuda.max_memory_allocated() / 2**30:.1f}GiB")
+            f"peak {torch.cuda.max_memory_allocated() / 2**30 if dev == "cuda" else 0:.1f}GiB")
     if A.eval_every and step % A.eval_every == 0 and step < len(TR):
         evaluate(f"step {step} (training)")
 M.save_pretrained(os.path.join(A.out, "lora"))

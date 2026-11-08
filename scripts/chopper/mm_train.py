@@ -24,9 +24,11 @@ ap.add_argument("--lr", type=float, default=3e-5); ap.add_argument("--head-lr", 
 ap.add_argument("--accum", type=int, default=4); ap.add_argument("--max-len", type=int, default=8192)
 ap.add_argument("--eval-every", type=int, default=1000); ap.add_argument("--smoke", type=int, default=0)
 ap.add_argument("--seed", type=int, default=0)
+ap.add_argument("--hop-w", type=float, default=1.0, help="weight of kept tokens in later-hop gold passages (group >= 1); 2026-11-08: MuSiQue keeps hop 1 98%% of the time but hop 2 only 58%%")
+ap.add_argument("--keep-w", type=float, default=0.5, help="KEEP loss share of the kept tokens (2026-11-06: 0.5 = balanced, which with ~5% kept tokens weighs a kept token ~19x and tells every row it holds an answer)")
 ap.add_argument("--train-splits", default="train", help="comma list of ctx_/qw_ file tags to train on (e.g. train,train2)")
-ap.add_argument("--eval-only", default="", help="chopper.pt (or an older reader.pt) to load; evaluate on val and dump preds, no training")
 ap.add_argument("--val-split", default="val", help="ctx_/qw_ tag to evaluate on (val, wval)")
+ap.add_argument("--eval-only", default="", help="chopper.pt (or an older reader.pt) to load; evaluate on val and dump preds, no training")
 ap.add_argument("--init", default="", help="chopper.pt (or an older reader.pt) to CONTINUE training from (fresh optimiser and schedule)")
 ap.add_argument("--merge-gap", type=int, default=0, help="decode: fill gaps of ≤ this many tokens between kept tokens")
 ap.add_argument("--min-run", type=int, default=1, help="decode: drop kept runs shorter than this many tokens")
@@ -64,8 +66,13 @@ def encode(c, lab):
         keepc[max(a_, 0):max(b_, 0)] = True
     e = tk(s, return_offsets_mapping=True, truncation=True, max_length=A.max_len)
     y = [float(keepc[a_:b_].any()) if b_ > a_ else 0.0 for a_, b_ in e["offset_mapping"]]
+    hopc = np.zeros(len(s) + 1, dtype=bool)
+    for k, c0, c1 in lab["spans"]:
+        if c["passages"][k].get("group", -1) >= 1:
+            hopc[max(p0[k] + c0 - lead[k], 0):max(p0[k] + c1 - lead[k], 0)] = True
+    h = [float(hopc[a_:b_].any()) if b_ > a_ else 0.0 for a_, b_ in e["offset_mapping"]]
     dec = 1 if c["allin"] == 1.0 else 0                   # 1 = ANSWER, 0 = SEARCH
-    return s, e, torch.tensor(y), dec
+    return s, e, torch.tensor(y), dec, torch.tensor(h)
 
 
 class Chopper(nn.Module):
@@ -116,7 +123,7 @@ def runs(m):
 def evaluate(step):
     M.eval(); TH = (0.3, 0.5, 0.7, 0.9); sw = {t: [0, 0, 0, 0] for t in TH}; R = {}; PRED = []
     for c, lab in VA:
-        s, e, y, dec = encode(c, lab)
+        s, e, y, dec, _ = encode(c, lab)
         with torch.autocast("cuda", dtype=torch.bfloat16):
             kl, dl = M(torch.tensor([e["input_ids"]], device=dev))
         p = torch.sigmoid(kl.float()).cpu().numpy(); t_ = y.numpy() > 0; body = np.array([a_ >= len(f"Question: {c['question']}") for a_, _ in e["offset_mapping"]])
@@ -181,12 +188,12 @@ for step, (c, lab) in enumerate(TR, 1):
     u = (step - 1) // A.accum
     f = min(1.0, (u + 1) / 50) * (0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * u / upd)))
     opt.param_groups[0]["lr"] = A.lr * f; opt.param_groups[1]["lr"] = A.head_lr * f
-    s, e, y, dec = encode(c, lab); y = y.to(dev)
+    s, e, y, dec, hw = encode(c, lab); y = y.to(dev); hw = 1 + (A.hop_w - 1) * hw.to(dev)
     with torch.autocast("cuda", dtype=torch.bfloat16):
         kl, dl = M(torch.tensor([e["input_ids"]], device=dev))
     kl, dl = kl.float(), dl.float()
     b = F.binary_cross_entropy_with_logits(kl, y, reduction="none")
-    lk = 0.5 * (b[y > 0].mean() + b[y == 0].mean()) if (y > 0).any() else b.mean()
+    lk = A.keep_w * (b * hw)[y > 0].sum() / hw[y > 0].sum() + (1 - A.keep_w) * b[y == 0].mean() if (y > 0).any() else b.mean()
     ld = F.cross_entropy(dl.unsqueeze(0), torch.tensor([dec], device=dev), weight=W)
     ((lk + ld) / A.accum).backward()
     with torch.no_grad():                              # train-window KEEP quality at p>0.5 (chart: does it flatten?)

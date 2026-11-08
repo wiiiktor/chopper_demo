@@ -436,11 +436,16 @@ MuSiQue, all gold hops present among the passages:
 | question + the gold hop-1 passage | .76 | .69 |
 | **follow-up question written from the chopper's fragments** | **.87** | **.81** |
 | follow-up question written from the gold hop-1 passage | .93 | .89 |
+| question + fragments of the **rerank-pilot chopper** (§5, continued run) | .81 | .74 |
 
 HotpotQA and TriviaQA are already at .96–1.00 after the first search.
 
 The follow-up questions here are written by Qwen3-14B-AWQ (`mm_subq.py`), without seeing the answer. Writing them
 is also the answerer's job; its own numbers come with the answerer run ⏳.
+
+**End to end, every validation question counted** (search → chop the new 8 + 8 pool → answer; luna-judged; rerank-pilot
+chopper, MiniCPM3-4B answerer): MuSiQue **.39 → .47**, HotpotQA .78 → .79, TriviaQA .73 → .71. Earlier tables count only
+questions whose gold passages were all among the first 16; here the questions the search is meant to rescue count too.
 
 ### 4. Integrated chopper: exactness
 
@@ -452,6 +457,35 @@ Chopping quality is in [section 2](#2-the-chopper): it ties mmBERT-small. Matchi
 slice of a model that was never trained to chop, which is why a slice trained with the model is the next step.
 
 ---
+
+### 5. Rerank pilot: 8 languages, business documents, "no answer here"
+
+A second training set for the universal chopper, aimed at what rerank customers search: support and help centres,
+internal knowledge, finance, legal, e-commerce, technical docs, health and manuals, in English, Chinese, Spanish, German,
+French, Japanese, Portuguese and Polish (`scripts/rr/`, design in `scripts/rr/taxonomy.json`).
+
+- **Rows:** a seed passage (FineWeb / FineWeb-2, or Qwen3-14B-written where the web is thin) + 15 near neighbours of
+  the same kind; one query per row (keywords, question, long, compound, no-answer), 70% naming the seed's organisation
+  or product; common-knowledge and vague queries filtered out.
+- **Labels:** yes/no per passage by gpt-5.6-luna with the passage's source shown, re-checked by GPT-6 Luna (which beat
+  luna 5.6 in blind adjudication by Claude Opus 5.5 and GPT-6.1 Sol); Qwen3-4B then picks the 1–3 whole sentences that
+  carry the answer. A selected passage keeps its metadata tag; tags are shown on half of the rows.
+- **No-answer rows:** 30% of training, made by deleting the answer sentences from otherwise intact pools (filler
+  passages from other rows taught a shortcut). Judging cost for the 40k-row pilot: about $44.
+- **Training:** mmBERT-base continued from the 54k chopper, 54,923 rows (new rows + 20% of the old ones + no-answer
+  rows), kept-token loss share 0.15, read at p > .5. Continuing beats a fresh start on everything measured.
+
+| | 54k chopper | pilot chopper |
+|---|---|---|
+| F1 on the 8-language holdout (2,000 rows) | .30 | **.465** |
+| says "search" on pools with the answer deleted / real no-answer queries | 0 / 0 | **.69 / .58** |
+| wrongly says "search" on rows that have an answer | 0 | .115 |
+| text kept on the benchmarks | 3.7 / 5.2 / 3.5% | **3.0 / 4.7 / 2.7%** |
+| luna-judged answers, MiniCPM3-4B answerer, first pool | .63 / .78 / .78 | .60 / .81 / .75 |
+
+Answers are tied (differences under about .08 are noise at 62–98 questions); the gains are less text and the ability
+to say "nothing here". MuSiQue keeps its hop-1 gold passage 98% of the time but hop 2 only 58%; weighting hop-2 tokens
+in training did not move it, the search step of §3 does. The pilot chopper is not on Hugging Face yet.
 
 ## The operator
 

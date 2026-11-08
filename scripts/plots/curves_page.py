@@ -4,6 +4,13 @@ Reads release/figures/curves.json (written by plot_curves.py) and writes a self-
 usage: python curves_page.py <out.html>"""
 import json, os, sys, datetime
 D = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "figures", "curves.json")))
+_rp = os.environ.get("RR_REPORT", "/media/wii/bigdata/rr/pilot_report.json")
+D["pilot"] = json.load(open(_rp)) if os.path.exists(_rp) else None
+D["answers"] = {}
+for _w in ("old", "new", "full", "fullc"):
+    _f = f"/media/wii/bigdata/rr/ans_{_w}/judged.jsonl"
+    if os.path.exists(_f):
+        D["answers"][_w] = {x["dataset"]: x["judged"] for x in map(json.loads, open(_f))}
 now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 html = r"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Chopper Training Curves</title>
@@ -37,22 +44,30 @@ svg text{font:12px "IBM Plex Mono",monospace;fill:var(--fg3)}
  font:12px "IBM Plex Mono",monospace;color:var(--fg);white-space:nowrap;display:none;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
 .empty{font-size:12px;fill:var(--fg3)}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 14px;min-width:190px;flex:1 1 190px}
+.stat b{display:block;font:600 24px "IBM Plex Mono",monospace;color:var(--fg)}.stat span{font-size:12px;color:var(--fg2)}
+.hw{overflow-x:auto}table.heat{border-collapse:separate;border-spacing:2px;font:13px "IBM Plex Mono",monospace;width:100%;min-width:560px}
+.heat th{font-weight:400;color:var(--fg2);text-align:center;padding:4px 6px}.heat th.r{text-align:left;white-space:nowrap}
+.heat td{text-align:center;padding:8px 6px;border-radius:3px}
+.lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--fg2);margin:0 0 4px}.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+.explain{max-width:78ch;color:var(--fg2);margin:0 0 12px}.explain b{color:var(--fg)}
 .desc{margin:10px 0 0;max-width:72ch;color:var(--fg2);line-height:1.5}
 </style></head><body><main>
 <h1>Chopper training curves</h1>
 <p class="sub">The choppers learn which tokens of 16 retrieved passages to keep; the answerer (MiniCPM3-4B LoRA) learns to answer
 or ask a follow-up question. The two mmBERTs and the MiniCPM3-4B slice (MLA, multi-head latent attention: every slice head reads the
-full model's whole conversation cache) are trained once on all 54k rows mixed (benchmark + Wikipedia). The answerer has two arms
+full model's whole conversation cache) are trained once on all 54k rows mixed (benchmark + Wikipedia); the fourth line continues mmBERT-base on the 8-language rerank pilot, whose labels are whole sentences, so its training numbers are not comparable with the short-span rows before it. The answerer has two arms
 with the same targets, trained on the integrated chopper's fragments or on the Qwen3-14B labeller's; both are scored on the chopper's
 validation fragments.
 Train lines are 500-row rolling means; validation points are the mean over MuSiQue, HotpotQA and TriviaQA (300 questions), read at p&nbsp;&gt;&nbsp;0.5.</p>
 <div class="meta">data from the train logs · regenerated __NOW__ Warsaw</div>
 <div class="legend" id="legend"></div>
 <div class="zoombar" id="zoombar">Zoom:
-<button data-r="0,999999">all</button><button data-r="0,27000">0–27k</button><button data-r="27000,55000">27k–54k</button>
+<button data-r="0,999999">all</button><button data-r="0,27000">0–27k</button><button data-r="27000,55000">27k–54k</button><button data-r="54000,94000">rerank pilot</button>
 <label><input type="checkbox" id="fity" checked> fit y to the view</label>
 <span class="hint">· or drag across any chart; double-click a chart to reset</span></div>
-<h2>Chopper</h2><div class="grid" id="g1"></div>
+<div id="pilot"></div>
+<h2>Chopper training curves</h2><div class="grid" id="g1"></div>
 <h2>Answerer</h2><div id="g3"></div>
 </main>
 <script>
@@ -155,7 +170,82 @@ function panel(host, title, note, series, yr, fmt, xr) {
   });
   svg.addEventListener("mouseleave", () => { tip.style.display = "none"; xh.setAttribute("visibility", "hidden"); });
 }
+function lgd(S) { return `<div class="lg">${S.map(x => `<span><i style="background:${x.col}"></i>${x.name}</span>`).join("")}</div>`; }
+function card(host, title, note, body, S, desc) {
+  host.insertAdjacentHTML("beforeend", `<div class="card"><h3>${title}</h3><p>${note}</p>${S ? lgd(S) : ""}${body}${desc ? `<p class="desc" style="font-size:13px;margin-bottom:6px">${desc}</p>` : ""}</div>`);
+}
+function bars(host, title, note, cats, S, yMax, desc) {
+  const W = 600, H = 230, L = 34, R = 8, T = 18, B = 34, y = v => T + (H - T - B) * (1 - v / yMax), gw = (W - L - R) / cats.length, bw = Math.min(26, (gw - 10 - 2 * (S.length - 1)) / S.length);
+  let g = "";
+  for (let t = 0; t <= 4; t++) { const v = yMax * t / 4; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v.toFixed(2).replace(/^0/, "")}</text>`; }
+  cats.forEach((c, i) => {
+    const x0 = L + gw * i + (gw - S.length * bw - 2 * (S.length - 1)) / 2;
+    S.forEach((s, j) => { const v = s.vals[i]; if (v == null) return; const x = x0 + j * (bw + 2), h = y(0) - y(v);
+      g += `<path d="M${x},${y(0)}v${-Math.max(h - 3, 0)}q0,-3 3,-3h${bw - 6}q3,0 3,3v${Math.max(h - 3, 0)}z" fill="${s.col}"><title>${c} · ${s.name}: ${v.toFixed(3)}</title></path>`;
+      if (cats.length <= 6 || s.lab) g += `<text x="${x + bw / 2}" y="${y(v) - 4}" text-anchor="middle" style="fill:var(--fg2);font-size:11px">${v.toFixed(2).replace(/^0/, "")}</text>`; });
+    g += `<text x="${L + gw * (i + .5)}" y="${H - 14}" text-anchor="middle" style="fill:var(--fg2)">${c}</text>`;
+  });
+  card(host, title, note, `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}" style="cursor:default">${g}</svg>`, S, desc);
+}
+function lines(host, title, note, S, xl, yl, xr, yr, desc) {
+  const W = 600, H = 276, L = 42, R = 14, T = 28, B = 40, X = v => L + (W - L - R) * (v - xr[0]) / (xr[1] - xr[0]), Y = v => T + (H - T - B) * (1 - (v - yr[0]) / (yr[1] - yr[0]));
+  let g = "";
+  for (let t = 0; t <= 4; t++) { const v = yr[0] + (yr[1] - yr[0]) * t / 4, u = xr[0] + (xr[1] - xr[0]) * t / 4;
+    g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(2).replace(/^0/, "")}</text><text x="${X(u)}" y="${H - 22}" text-anchor="middle">${xl.fmt(u)}</text>`; }
+  g += `<text x="${(L + W - R) / 2}" y="${H - 4}" text-anchor="middle" style="fill:var(--fg2)">${xl.t}</text><text x="${L}" y="14" style="fill:var(--fg2)">${yl}</text>`;
+  for (const s of S) { g += `<polyline fill="none" stroke="${s.col}" stroke-width="2" points="${s.pts.map(p => `${X(p[0])},${Y(p[1])}`).join(" ")}"/>`;
+    for (const p of s.pts) { g += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="4.5" fill="${s.col}" stroke="var(--panel)" stroke-width="2"><title>${s.name}: ${p[2] || ""} ${xl.fmt(p[0])} → ${p[1].toFixed(3)}</title></circle>`; if (p[2]) g += `<text x="${X(p[0]) + 7}" y="${Y(p[1]) - 7}" style="font-size:11px;fill:var(--fg2)">${p[2]}</text>`; } }
+  card(host, title, note, `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}" style="cursor:default">${g}</svg>`, S, desc);
+}
+function renderPilot() {
+  const P = DATA.pilot, root = document.getElementById("pilot"); root.innerHTML = ""; if (!P) return;
+  const c0 = css("--c0"), c1 = css("--c1"), c2 = css("--c2"), c3 = css("--c3"), OLD = "old 54k chopper", NEW = "pilot chopper";
+  const sec = (w, a, k) => P.holdout[w][a].sec[k], A = "rrval_notag", T = "rrval_tag";
+  root.insertAdjacentHTML("beforeend", `<h2>Rerank pilot: did the new data help?</h2>
+  <p class="explain">Both choppers cut 16 passages down to what answers the query. <b>Precision</b> = how much of what it keeps is really answer material. <b>Recall</b> = how much of the answer material it keeps. <b>F1</b> combines the two. Scored on 2,000 rows it never trained on, 250 per language, passage text only, at the release settings (p &gt; .8).</p>
+  <div class="stats">
+   <div class="stat"><b>${sec("old", A, "all")[0].toFixed(2).replace(/^0/, "")} → ${sec("new", A, "all")[0].toFixed(2).replace(/^0/, "")}</b><span>F1 on the new 8-language rows, no tags</span></div>
+   <div class="stat"><b>${sec("old", A, "all")[2].toFixed(2).replace(/^0/, "")} → ${sec("new", A, "all")[2].toFixed(2).replace(/^0/, "")}</b><span>recall: nearly all of the gain</span></div>
+   <div class="stat"><b>${P.holdout.new[A].noans[1]} of ${P.holdout.new[A].noans[0]}</b><span>no-answer rows where it still keeps text (problem)</span></div>
+   <div class="stat"><b>~$44</b><span>judging spend for the whole pilot</span></div></div><div class="grid" id="g4"></div>
+  <h2>Window test: can a normal transformer run on a fixed-size memory?</h2>
+  <p class="explain">A transformer normally remembers every token it has read, so its memory grows forever. The test cuts that memory: anything older than the window is deleted. We hide a fact (a 7-digit number) in 32,000 tokens of web text at a set distance from the end, then ask for it. <b>1.00 = found every time, 0 = never.</b> Qwen3-4B, no training.</p>
+  <div class="hw card" id="g5"></div>
+  <p class="explain" style="margin-top:10px"><b>How to read it.</b> Blue up to the window's size, then zero: a hard window is perfect for what it still holds and blind to the rest. "No pin" also deletes the very start of the prompt, and the model stops working entirely, so those first tokens must always stay. "Averaged tiers" keeps older text blurred instead of deleting it, using the same memory as the 8K window: it loses exact numbers much sooner and reaches no further, so plain averaging is not worth it. Training that blur is the next idea.</p>`);
+  const g4 = document.getElementById("g4");
+  bars(g4, "Precision, recall, F1", "new 8-language holdout, no tags", ["precision", "recall", "F1"], [{ name: OLD, col: c0, vals: [sec("old", A, "all")[1], sec("old", A, "all")[2], sec("old", A, "all")[0]] }, { name: NEW, col: c1, vals: [sec("new", A, "all")[1], sec("new", A, "all")[2], sec("new", A, "all")[0]] }], 1, "It finds far more of the answer material but is no more precise: about two-thirds of what it keeps is not labelled material.");
+  const L = ["pl", "de", "en", "fr", "ja", "pt", "es", "zh"];
+  bars(g4, "F1 by language", "no tags · worst to best", L, [{ name: OLD, col: c0, vals: L.map(l => sec("old", A, "rr_" + l)[0]) }, { name: NEW, col: c1, lab: true, vals: L.map(l => sec("new", A, "rr_" + l)[0]) }], .6, "Every language improves. Polish is weakest and German next.");
+  const Q = [["keywords", "keywords"], ["natural_question", "question"], ["long_multi_condition", "long"], ["compound", "compound"], ["kind web", "web text"], ["kind syn", "synthetic"]];
+  bars(g4, "F1 by query type and source", "no tags", Q.map(q => q[1]), [{ name: OLD, col: c0, vals: Q.map(q => sec("old", A, q[0])[0]) }, { name: NEW, col: c1, vals: Q.map(q => sec("new", A, q[0])[0]) }], .6, "No query type is failing, and synthetic documents score about the same as real web text.");
+  const G = [["rrval_tag", "with tags"], ["rrval_notag", "no tags"], ["rrval_swap", "tags swapped"]];
+  bars(g4, "Do the metadata tags matter?", "F1 on passage text only", G.map(g => g[1]), [{ name: OLD, col: c0, vals: G.map(g => sec("old", g[0], "all")[0]) }, { name: NEW, col: c1, vals: G.map(g => sec("new", g[0], "all")[0]) }], .6, "Tags neither help nor hurt. Deliberately wrong tags cost only .02, so the model is not relying on them.");
+  const B = [["musique", "MuSiQue"], ["hotpot", "HotpotQA"], ["triviaqa", "TriviaQA"], ["wiki2hop", "Wiki 2-hop"], ["wiki1hop", "Wiki 1-hop"]];
+  bars(g4, "Old benchmarks: answer kept", "share of questions whose answer survives the cut", B.map(b => b[1]), [{ name: OLD, col: c0, vals: B.map(b => P.bench.old[b[0]].ans) }, { name: NEW, col: c1, vals: B.map(b => P.bench.new[b[0]].ans) }], 1, "The independent check: on data it did not train on there is no real gain, and TriviaQA drops .06.");
+  bars(g4, "Old benchmarks: F1", "against the short Qwen3-14B spans", B.map(b => b[1]), [{ name: OLD, col: c0, vals: B.map(b => P.bench.old[b[0]].f1) }, { name: NEW, col: c1, vals: B.map(b => P.bench.new[b[0]].f1) }], 1, "Slightly better on four of five.");
+  const sw = (w, col, n) => ({ name: n, col, pts: P.sweep[w].map(x => [x[2], x[1], "p>" + String(x[0]).replace(/^0/, "")]) });
+  lines(g4, "Trade-off: what a stricter threshold buys", "no tags · token-level, each point is a keep threshold · further up and right is better", [sw("old", c0, OLD), sw("new", c1, NEW)], { t: "recall: share of the answer material kept", fmt: v => v.toFixed(2).replace(/^0/, "") }, "precision", [0, 1], [0, .6], "At any precision the pilot chopper keeps far more of the material, but it cannot get above about .4 precision without giving up recall. Averaged over the 8 languages.");
+  if (P.curve.length) lines(g4, "Does more data help?", "F1 on the same holdout vs new rows used · this decides the 2M run · points appear as runs finish", [{ name: "no tags", col: c2, pts: P.curve.map(x => [x.rows, x.notag]) }, { name: "with tags", col: c3, pts: P.curve.map(x => [x.rows, x.tag]) }], { t: "new training rows (0 = the old chopper)", fmt: v => (v / 1000).toFixed(0) + "k" }, "F1", [0, 30000], [.2, .6], "If this line flattens, buying 2M rows is not worth it. Old-chopper point is not fully comparable: it was never trained on this label style.");
+  if (P.holdout.full && P.noans) {
+    const WH = [["old", "old 54k", c0], ["new", "pilot", c1], ["full", "fresh retrain", c2]].concat(P.holdout.fullc ? [["fullc", "continued retrain", c3]] : []);
+    const ser = f => WH.map(w => ({ name: w[1], col: w[2], vals: f(w[0]) }));
+    bars(g4, "Retrain: rows with an answer", "new 8-language holdout, no tags", ["precision", "recall", "F1"], ser(w => { const a = sec(w, A, "all"); return [a[1], a[2], a[0]]; }), 1, "The retrain gives up recall to stop keeping text when there is no answer.");
+    bars(g4, "Retrain: says &quot;search&quot; when there is no answer", "higher is better · deleted = the hard test · last group: wrongly says search on rows with an answer, lower is better", ["deleted", "made", "real", "wrong"], ser(w => { const n = P.noans[w]; return [n.del.search, n.made.search, n.notag.search, n.wrong]; }), 1, "From never to about two-thirds on the hard test, at the cost of wrongly searching on one row in eight.");
+    bars(g4, "Retrain: old benchmarks, answer kept", "pilot and old at p &gt; .8, retrain at p &gt; .5 for its new score scale", ["MuSiQue", "HotpotQA", "TriviaQA", "Wiki 2-hop", "Wiki 1-hop"], ser(w => ["musique", "hotpot", "triviaqa", "wiki2hop", "wiki1hop"].map(k => P.bench[w] && P.bench[w][k] ? P.bench[w][k].ans : null)), 1, "MuSiQue is what the retrain has to win back.");
+  }
+  if (DATA.answers && DATA.answers.fullc) {
+    const WA = [["old", "old 54k", c0], ["new", "pilot", c1], ["full", "fresh retrain", c2], ["fullc", "continued retrain", c3]];
+    bars(g4, "What matters: correct answers", "MiniCPM3-4B answerer reading each chopper's fragments · judged by gpt-5.6-luna · 62 / 96 / 98 questions, so differences under about .08 are noise", ["MuSiQue", "HotpotQA", "TriviaQA"], WA.map(w => ({ name: w[1], col: w[2], vals: ["musique", "hotpot", "triviaqa"].map(k => DATA.answers[w[0]][k]) })), 1, "The continued retrain ties the old chopper on answers while keeping 10-23% less text, and it adds no-answer handling. The fresh retrain loses MuSiQue.");
+  }
+  const AR = [["full", "full memory, 32K"], ["w16k", "window 16K"], ["w8k", "window 8K"], ["w4k", "window 4K"], ["w8k_nopin", "window 8K, no pin"], ["tiers8k", "averaged tiers, 8K memory"]];
+  const C = [["single_age1000", "1K"], ["single_age3000", "3K"], ["single_age6000", "6K"], ["single_age12000", "12K"], ["single_age24000", "24K"], ["multivalue", "4 scattered facts"], ["vt", "5-hop chain"]];
+  let t = `<h3>Share found, by how far back the fact sits (in tokens)</h3><p>darker = found more often · hard windows go from 1.00 to 0 at their size</p><table class="heat"><tr><th class="r">memory</th>${C.map(c => `<th>${c[1]}</th>`).join("")}</tr>`;
+  for (const [a, n] of AR) { const R = P.window[a]; if (!R) continue; t += `<tr><th class="r">${n}</th>${C.map(c => { const v = R[c[0]]; const pct = Math.round(v * 100);
+      return `<td style="background:color-mix(in srgb,var(--c0) ${pct}%,var(--panel));color:${pct > 55 ? "#fff" : "var(--fg)"}" title="${n} · ${c[1]}: ${v.toFixed(3)}">${v === 1 ? "1.00" : v === 0 ? "0" : v.toFixed(2).replace(/^0/, "")}</td>`; }).join("")}</tr>`; }
+  document.getElementById("g5").innerHTML = t + "</table>";
+}
 function render() {
+  renderPilot();
   document.querySelectorAll("#zoombar button").forEach(b => { const [a, c] = b.dataset.r.split(",").map(Number); b.setAttribute("aria-pressed", a === ZXG[0] && Math.min(c, XMAX) === ZXG[1]); });
   document.getElementById("g1").innerHTML = "";
   const f2 = v => v.toFixed(2), f3 = v => v.toFixed(3), pc = v => (v * 100).toFixed(0) + "%";

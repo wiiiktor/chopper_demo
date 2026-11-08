@@ -68,6 +68,9 @@ def allhops(p, S):
     return float(all(any(i in S for i in g) for g in G)) if G else float("nan")
 
 
+DUMP = sys.argv[sys.argv.index("--dump") + 1] if "--dump" in sys.argv else ""   # 2026-11-08: write the chopper's 8+8 pools for the end-to-end test
+DF = open(DUMP, "w") if DUMP else None
+DSRC = sys.argv[sys.argv.index("--dump-src") + 1] if "--dump-src" in sys.argv else "chopper"   # e.g. subq-chopper
 R = {}; t0 = time.time()
 for n, (key, c) in enumerate(CTX.items()):
     p = POOL[key]; first = [x["pos"] for x in c["passages"]]
@@ -89,6 +92,11 @@ for n, (key, c) in enumerate(CTX.items()):
         new = search(p, frag if name.startswith("subq") else c["question"] + " " + frag)
         row[f"{name} 16∪16"] = allhops(p, set(first) | set(new))
         row[f"{name} 8+8"] = allhops(p, set(first[:8]) | set([i for i in new if i not in first[:8]][:8]))
+        if DF and name == DSRC:
+            S = first[:8] + [i for i in new if i not in first[:8]][:8]
+            grp = {i: gi for gi, g in enumerate(p["groups"]) for i in g}
+            DF.write(json.dumps({**{k: c[k] for k in ("dataset", "split", "row", "question", "answer")}, "groups": p["groups"], "allin": row[f"{name} 8+8"],
+                                 "passages": [{"pos": i, "cid": p["chunks"][i], "text": T[p["chunks"][i]], "group": grp.get(i, -1)} for i in S]}, ensure_ascii=False) + "\n")
     R.setdefault(c["dataset"], []).append(row)
     if (n + 1) % 50 == 0:
         log(f"{n + 1}/{len(CTX)} | {(time.time() - t0) / (n + 1):.2f}s/q")
