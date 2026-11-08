@@ -505,6 +505,93 @@ Answers are tied (differences under about .08 are noise at 62–98 questions); t
 to say "nothing here". MuSiQue keeps its hop-1 gold passage 98% of the time but hop 2 only 58%; weighting hop-2 tokens
 in training did not move it, the search step of §3 does. The pilot chopper is not on Hugging Face yet.
 
+### 6. Long-conversation memory: LoCoMo and LongMemEval ⏳
+
+Does the chopper still work when the "documents" are a user's own past conversations? This is the long-session use
+case: what someone said weeks ago, what changed since, and what was never said. Two public benchmarks:
+- **LoCoMo** ([Maharana et al., 2024](https://arxiv.org/abs/2402.17753)): 10 long two-person conversations with
+  dated sessions. Question categories: single-hop, multi-hop, temporal, open-domain, and adversarial (never said).
+- **LongMemEval-s** ([Wu et al., 2025](https://arxiv.org/abs/2410.10813)): 500 questions, each over its own history
+  of about 50 user–assistant sessions (~115k tokens). Question types: single-session, multi-session, temporal
+  reasoning, knowledge updates (the latest fact wins) and abstention.
+
+**Setup** (`scripts/memb/`):
+- **Passages:** every session is cut into passages of consecutive turns (~110 words, never across sessions), each
+  tagged with its session date (`<src>2023/05/28 (Sun) 21:04 | chat …</src>`).
+- **Searching and chopping:** a question searches only its own history, with the same retriever as above. The chopper
+  cuts the first 16 passages, then the MiniCPM3-4B answerer runs the native tool-call loop of §3 (up to 3 searches),
+  and luna judges.
+- **Sample:** 300 questions per benchmark, stratified by category. The totals are reweighted to each benchmark's real
+  category mix; LoCoMo leaves out the adversarial category in the total, as the papers below do.
+- **The reference arms follow [Memory Tax](https://arxiv.org/abs/2610.34073)** (see below):
+  - **naive RAG:** the 10 best raw passages, no chopper;
+  - **gold:** only the passages that hold the evidence;
+  - every answer compared with RAG, question by question: the chopper's wins (benefit) and losses (tax).
+
+| luna-judged, MiniCPM3-4B answerer | LoCoMo (cat. 1–4) | LoCoMo adversarial | LongMemEval-s |
+|---|---|---|---|
+| naive RAG, top 10 raw passages | ⏳ | ⏳ | ⏳ |
+| mmBERT chopper, first 16 only | ⏳ | ⏳ | ⏳ |
+| mmBERT chopper + tool-call loop | ⏳ | ⏳ | ⏳ |
+| MiniCPM3 slice chopper (grouped-piece retrain, step 9,000), first 16 only | ⏳ | ⏳ | ⏳ |
+| MiniCPM3 slice chopper + tool-call loop | ⏳ | ⏳ | ⏳ |
+| gold evidence passages only (ceiling) | ⏳ | — | ⏳ |
+
+| diagnostics | LoCoMo | LongMemEval-s |
+|---|---|---|
+| any evidence passage in the first 16 (search) | ⏳ | ⏳ |
+| evidence kept in the chopper's notes (first 16 + searches) | ⏳ | ⏳ |
+| notes length vs history length | ⏳ | ⏳ |
+| searches per question | ⏳ | ⏳ |
+| chopper wins / losses against naive RAG (questions) | ⏳ | ⏳ |
+
+**Published numbers to compare with** (their setups, judges and answerers, not ours):
+
+| source | system | LoCoMo | LongMemEval-s |
+|---|---|---|---|
+| Memory Tax, Table 1 (Qwen3.5-4B answerer) | naive RAG, one round / two rounds | — | 70.2 / 72.2 |
+| | gold evidence only | — | 73.4 |
+| | best memory system (Mem-T / A-Mem) | — | 71.0 / 70.4 |
+| Memory Tax, Table 16 (Qwen3.6-27B answerer) | RAG, hybrid search | 75.3 | 77.6 |
+| | two-keyword search (IDF) | 58.8 | 46.2 |
+| MemT-1.0 | memory inside the model, no history in context | in its 11-benchmark average | — |
+
+The Memory Tax RAG is close to ours: BM25 + Qwen3-Embedding-0.6B, a 0.6B reranker, turn-based chunks with session-date
+headers, top 10. Their 4B row is therefore the nearest comparison for a 4B answerer. Their judge is Qwen3.6-27B
+(95% agreement with human labels); ours is gpt-5.6-luna.
+
+**Planned next** ⏳:
+- **Robustness:** padding each history with unrelated sessions (the answers should not change) and planting hostile
+  instructions in passages (the chopper should drop them, the answerer should never repeat them).
+- **Harder memory benchmark:** MINT-Eval, value tracking under many conflicting versions; naive RAG scores only 28.6
+  there in Memory Tax.
+- **New training rows:** facts that change over a conversation (dated tags decide), questions across several sessions,
+  temporal questions, and never-mentioned facts as no-answer rows.
+
+#### Related work we build on
+- **Memory Tax: Dissecting the Net Value of Agent Memory** (He, Zhoubian, Yang, Wen, Wang, Hu, Yang, Zhang, Nie, Han,
+  Zhai, 2026; [arXiv 2610.34073](https://arxiv.org/abs/2610.34073)).
+  - **Finding:** across 11 memory systems, 3 benchmarks and 3 answerers, naive RAG over the raw history beats most
+    memory systems.
+  - **Diagnosis:** memory helps on some questions and loses others. The losses ("tax") come from evidence lost while
+    building memory, evidence made harder to find, and fragility when the answerer changes.
+  - **Fixes:** keep a path back to the raw history (Mem-T on LongMemEval-s 75.0 → 80.0), and write past queries and
+    their evidence back into memory.
+  - **What we take from it:** our evaluation protocol (RAG and gold references, per-question benefit and tax) and the
+    headroom argument: popular benchmarks are retrieval-friendly, MINT-Eval, RealMem and KnowMe-Bench are not.
+
+  The chopper is a question-time memory over raw text that stays searchable, the design their "recoverable
+  deviations" and "just-in-time" sections point to.
+- **MemT-1.0: Towards Memory-Native Evolution** (MemTensor, 2026; [arXiv 2610.26825](https://arxiv.org/abs/2610.26825)).
+  - **What it is:** memory written into the model's own state, token by token (gated delta-rule updates, a
+    mixture-of-storage), trained on 34B tokens.
+  - **Results:** MemT-1.0-Flash averages 50.6 on 11 memory benchmarks, against 38.1 for the best in-weights baseline.
+    Nano cuts per-conversation storage 66× against a full cache at 128K.
+  - **Its own caveat:** text memory still scores higher overall, notably on LoCoMo and MemoryAgentBench.
+  - **What we take from it:** this matches what we saw before switching to text: a fact injected into a recurrent
+    model's state was recalled about 18× worse than the same fact read as text. It is why this project compresses
+    text instead of state, and its benchmark list is where we take our memory tests from.
+
 ## The operator
 
 `operator-for-llm-with-mmbert.py` implements it with the universal chopper (shared code in `scripts/operator_common.py`).
@@ -648,6 +735,8 @@ after the fact.
 | HotpotQA | Yang et al., 2018 | CC BY-SA 4.0 | dataset A |
 | TriviaQA | Joshi et al., 2017 | Apache 2.0 *(verify per release)* | dataset A |
 | Wikipedia | Wikipedia contributors | CC BY-SA 4.0 | dataset B |
+| LoCoMo | Maharana et al., 2024 (Snap Research) | CC BY-NC 4.0 | memory benchmark, §6 (evaluation only) |
+| LongMemEval | Wu et al., 2025 | MIT | memory benchmark, §6 (evaluation only) |
 | PyTorch, transformers, peft, vLLM | Meta / PyTorch Foundation, Hugging Face, vLLM project | BSD-3, Apache 2.0 | training and inference |
 
 **Licenses of what is released here:**
@@ -659,7 +748,7 @@ after the fact.
   academic research; commercial use is free after registering with OpenBMB / ModelBest (questionnaire linked from the
   [MiniCPM3-4B model card](https://huggingface.co/openbmb/MiniCPM3-4B)).
 
-**Citations:** ⏳ (BibTeX for mmBERT, MiniCPM3, Qwen3, BGE-M3 / bge-reranker, MuSiQue, HotpotQA, TriviaQA, Minitron, MatFormer).
+**Citations:** ⏳ (BibTeX for mmBERT, MiniCPM3, Qwen3, BGE-M3 / bge-reranker, MuSiQue, HotpotQA, TriviaQA, Minitron, MatFormer, LoCoMo, LongMemEval, Memory Tax, MemT-1.0).
 
 ---
 
@@ -699,6 +788,8 @@ weights_and_data:   # Hugging Face, public
 key_results:
   answer_in_kept: {mmbert_base: [0.48, 0.80, 0.80], mmbert_small: [0.47, 0.81, 0.74], minicpm3_slice: [0.47, 0.80, 0.69]}   # MuSiQue, HotpotQA, TriviaQA
   musique_all_hops: {first_16: 0.62, plus_followup_question_search: 0.87}
+  tool_call_loop_luna: {musique: 0.61, hotpotqa: 0.76, triviaqa: 0.74, first_16_only: [0.39, 0.78, 0.73]}
+  memory_benchmarks: {locomo: pending, longmemeval_s: pending, references: ["arXiv 2610.34073 (Memory Tax)", "arXiv 2610.26825 (MemT-1.0)"]}
 caveats:
   - "Teacher fragments saw the answer: they are an upper bound, not a baseline."
   - "Dataset A is built from benchmarks: do not claim zero-shot results on them."

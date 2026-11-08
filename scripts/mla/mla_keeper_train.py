@@ -19,7 +19,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, "/home/wii/Projects/certain/scripts")
 import mla_lib as ML
 
 ap = argparse.ArgumentParser()
@@ -31,12 +31,15 @@ ap.add_argument("--train-splits", default="train,train2"); ap.add_argument("--sm
 ap.add_argument("--eval-every", type=int, default=3000); ap.add_argument("--eval-n", type=int, default=0)
 ap.add_argument("--pred-thr", type=float, default=0.8); ap.add_argument("--merge-gap", type=int, default=5)
 ap.add_argument("--min-run", type=int, default=4)
-ap.add_argument("--baseline", default="")
+ap.add_argument("--baseline", default="/media/wii/bigdata/mm/chopper_smallmix54k_shape_val/preds_val.jsonl")
 ap.add_argument("--val-split", default="val", help="ctx_/qw_ tag to evaluate on (val, wval)")
 ap.add_argument("--eval-only", default="")
+ap.add_argument("--first-eval", type=int, default=0, help="one extra early eval at this step (2026-11-08: the user wants a first reading after ~30 min)")
+ap.add_argument("--keep-w", type=float, default=0.5, help="KEEP loss share of kept tokens (0.5 = balanced; the mmBERT recipe of 2026-11-07 uses 0.15)")
 ap.add_argument("--init", default="", help="keeper.pt to CONTINUE from (LoRA + head; fresh optimiser and schedule)")
 ap.add_argument("--sweep", default="", help="extra SHAPED thresholds, e.g. 0.6,0.7,0.75,0.85: each is reported and its fragments saved to preds_val_t<thr>.jsonl")
 ap.add_argument("--seed", type=int, default=0, help="data-order seed (a second epoch uses a new one)")
+ap.add_argument("--skip", type=int, default=0, help="RESUME: skip the first N rows of the (same-seed) shuffled order; schedule continues at N, 50-update re-warmup (fresh Adam)")
 A = ap.parse_args()
 os.makedirs(A.out, exist_ok=True); dev = os.environ.get("KDEV", "cuda"); random.seed(A.seed); torch.manual_seed(A.seed)
 LOG = open(os.path.join(A.out, "train.log"), "a")
@@ -247,13 +250,17 @@ TR = [x for sp in A.train_splits.split(",") for x in load(sp)]; random.shuffle(T
 if A.smoke:
     TR = TR[:A.smoke]
 opt = torch.optim.AdamW([{"params": K.lora.parameters(), "lr": A.lr}, {"params": K.keep.parameters(), "lr": A.head_lr}], weight_decay=0.0)
+import signal                                                  # `kill -USR1 <pid>` saves keeper_step<N>.pt at the next row, training continues
+SAVE = [False]; signal.signal(signal.SIGUSR1, lambda *_: SAVE.__setitem__(0, True))
 K.train(); t0 = time.time(); win = []; total = len(TR); upd = math.ceil(total / A.accum)
 for step, (c, lab) in enumerate(TR, 1):
-    u = (step - 1) // A.accum; f = min(1.0, (u + 1) / 50) * (0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * u / upd)))
+    if step <= A.skip:
+        continue
+    u = (step - 1) // A.accum; f = min(1.0, (u - A.skip // A.accum + 1) / 50) * (0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * u / upd)))
     opt.param_groups[0]["lr"] = A.lr * f; opt.param_groups[1]["lr"] = A.head_lr * f
     kl, y, meta = run(c, lab); y = y.to(dev)
     b = F.binary_cross_entropy_with_logits(kl, y, reduction="none")
-    lk = 0.5 * (b[y > 0].mean() + b[y == 0].mean()) if (y > 0).any() else b.mean()
+    lk = A.keep_w * b[y > 0].mean() + (1 - A.keep_w) * b[y == 0].mean() if (y > 0).any() else b.mean()
     (lk / A.accum).backward()
     with torch.no_grad():
         q_ = kl.detach() > 0; t_ = y > 0
@@ -266,8 +273,11 @@ for step, (c, lab) in enumerate(TR, 1):
         tp_, fp_, fn_, tn_ = w[:, 2].sum(), w[:, 3].sum(), w[:, 4].sum(), w[:, 5].sum()
         bal = 0.5 * (tp_ / max(1, tp_ + fn_) + tn_ / max(1, tn_ + fp_)); f1_ = 2 * tp_ / max(1, 2 * tp_ + fp_ + fn_)
         log(f"step {step}/{total} | keepL {w[:, 0].mean():.3f} | train KEEP@0.5 bal-acc {bal:.3f} F1 {f1_:.3f} | passage tokens {w[:, 1].mean():.0f} (×2) | "
-            f"{(time.time() - t0) / step:.2f}s/step | peak {torch.cuda.max_memory_allocated() / 2**30 if dev == 'cuda' else 0:.1f}GiB")
-    if step % A.eval_every == 0 or step == total:
+            f"{(time.time() - t0) / (step - A.skip):.2f}s/step | peak {torch.cuda.max_memory_allocated() / 2**30 if dev == 'cuda' else 0:.1f}GiB")
+    if SAVE[0]:
+        SAVE[0] = False; torch.save({"lora": K.lora.state_dict(), "keep": K.keep.state_dict(), "args": vars(A), "step": step, "g": g, "n": n,
+                                     "perms": A.perms}, os.path.join(A.out, f"keeper_step{step}.pt")); log(f"saved keeper_step{step}.pt on SIGUSR1")
+    if step % A.eval_every == 0 or step == total or step == A.first_eval:
         torch.save({"lora": K.lora.state_dict(), "keep": K.keep.state_dict(), "args": vars(A), "step": step, "g": g, "n": n,
                     "perms": A.perms}, os.path.join(A.out, "keeper.pt"))
         evaluate(f"step {step}")
