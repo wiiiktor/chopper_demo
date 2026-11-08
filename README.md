@@ -453,15 +453,17 @@ rescue count too.
 | one search, query = question + kept fragments, chop the 8 + 8 pool | .47 | .79 | .71 |
 | same, the second round must answer | .50 | .79 | .72 |
 | one search, follow-up question written by Qwen3-14B | .47 | .80 | .74 |
-| **native tool calls: the answerer writes one self-contained question per missing hop (up to 3)** | **.56** | .78 | .71 |
+| native tool calls: the answerer writes one self-contained question per missing hop (up to 3) | .56 | .78 | .71 |
+| **same, trained on hop questions rewritten into natural English** | **.61** | .76 | .74 |
 
 The last row uses MiniCPM3-4B's own trained tool-call format (`<|tool_call_start|>` … `search(query="…")` …
 `<|tool_call_end|>`; the untrained model never called the tool on our questions). A LoRA was trained on 18,086 chats
 (`scripts/tool/`): MuSiQue's published per-hop sub-questions with the earlier hop's answer filled in, every search
 answered by the chopper cutting the retrieved passages **with the hop question as its query**, plus chats that need no
-search. On validation it searched on 43 MuSiQue questions and on no HotpotQA or TriviaQA question. Some of its questions
-copy the training data's knowledge-base wording ("What is the award of Shaun Tan?"); rewriting all training questions
-into natural English is the next step.
+search. On validation it searched on 43 MuSiQue questions and on no HotpotQA or TriviaQA question. The first version
+copied the training data's knowledge-base wording ("What is the founded by of Gagosian Gallery?"); with every training
+hop question rewritten into natural English by Qwen3-14B (`scripts/tool/tool_natq.py`) it asks "Who founded Janatha
+Vimukthi Peramuna?" and MuSiQue rises to .61 (47 questions searched, again none of the other 200).
 
 ### 4. Integrated chopper: exactness
 

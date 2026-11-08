@@ -14,6 +14,8 @@ TOOLS = [{"type": "function", "function": {"name": "search", "description": "Sea
           "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "a self-contained question for one missing fact"}}, "required": ["query"]}}}]
 SYS = "Answer the question from the notes. If a fact you need is not in the notes, call search with one self-contained question for that fact."
 TRIP = json.load(open(f"{RR}/tool_triples.json"))     # tool_triples.py: Qwen3-14B rewrites of "X >> rel"
+NATQ = json.load(open(f"{RR}/tool_natq.json")) if __import__("os").path.exists(f"{RR}/tool_natq.json") else {}   # tool_natq.py: every hop question in natural English
+SEEN_Q = set()
 RAW = {}
 for f in ("train", "dev"):
     for l in open(f"/media/wii/bigdata/musique_raw/musique_ans_v1.0_{f}.jsonl"):
@@ -31,7 +33,7 @@ def hop_questions(r):
             q = w
         for j, a in enumerate(ans):
             q = q.replace(f"#{j + 1}", a)
-        out.append(q); ans.append(h["answer"])
+        SEEN_Q.add(q); out.append(NATQ.get(q, q)); ans.append(h["answer"])
     return out, ans
 
 
@@ -79,4 +81,6 @@ R.shuffle(rows)
 with open(OUT, "w") as f:
     for r in rows:
         f.write(json.dumps({"key": list(r["key"]), "system": SYS, "tools": TOOLS, "messages": r["messages"]}, ensure_ascii=False) + "\n")
-print(len(rows), stat)
+print(len(rows), stat, f"| hop questions {len(SEEN_Q)}, natural rewrites used {sum(q in NATQ for q in SEEN_Q)}")
+if __import__("os").environ.get("DUMPQ"):
+    json.dump(sorted(SEEN_Q), open(__import__("os").environ["DUMPQ"], "w"), ensure_ascii=False)
