@@ -508,7 +508,7 @@ Answers are tied (differences under about .08 are noise at 62–98 questions); t
 to say "nothing here". MuSiQue keeps its hop-1 gold passage 98% of the time but hop 2 only 58%; weighting hop-2 tokens
 in training did not move it, the search step of §3 does. The pilot chopper is not on Hugging Face yet.
 
-### 6. Long-conversation memory: LoCoMo and LongMemEval ⏳
+### 6. Long-conversation memory: LoCoMo and LongMemEval
 
 Does the chopper still work when the "documents" are a user's own past conversations? This is the long-session use
 case: what someone said weeks ago, what changed since, and what was never said. Two public benchmarks:
@@ -533,20 +533,30 @@ case: what someone said weeks ago, what changed since, and what was never said. 
 
 | luna-judged, MiniCPM3-4B answerer | LoCoMo (cat. 1–4) | LoCoMo adversarial | LongMemEval-s |
 |---|---|---|---|
-| naive RAG, top 10 raw passages | ⏳ | ⏳ | ⏳ |
-| mmBERT chopper, first 16 only | ⏳ | ⏳ | ⏳ |
-| mmBERT chopper + tool-call loop | ⏳ | ⏳ | ⏳ |
-| MiniCPM3 slice chopper (grouped-piece retrain, step 9,000), first 16 only | ⏳ | ⏳ | ⏳ |
-| MiniCPM3 slice chopper + tool-call loop | ⏳ | ⏳ | ⏳ |
-| gold evidence passages only (ceiling) | ⏳ | — | ⏳ |
+| naive RAG, top 10 raw passages | **.51** | .00 | **.49** |
+| mmBERT chopper, first 16 only | .39 | .00 | .42 |
+| mmBERT chopper + tool-call loop | .40 | .00 | .43 |
+| MiniCPM3 slice chopper (grouped-piece retrain, step 9,000), first 16 only | .30 | .00 | .39 |
+| MiniCPM3 slice chopper + tool-call loop | .31 | .00 | .39 |
+| gold evidence passages only (ceiling) | .57 | — | .59 |
 
 | diagnostics | LoCoMo | LongMemEval-s |
 |---|---|---|
-| any evidence passage in the first 16 (search) | ⏳ | ⏳ |
-| evidence kept in the chopper's notes (first 16 + searches) | ⏳ | ⏳ |
-| notes length vs history length | ⏳ | ⏳ |
-| searches per question | ⏳ | ⏳ |
-| chopper wins / losses against naive RAG (questions) | ⏳ | ⏳ |
+| any evidence passage in the first 16 (search) | .95 | .97 |
+| evidence kept in the chopper's notes, mmBERT / slice (RAG's 10 raw passages: .93 / .94) | .71 / .80 | .83 / .76 |
+| notes length, mmBERT / slice (history: ~20k / ~115k tokens) | 74 / 68 words | 89 / 66 words |
+| searches per question, mmBERT / slice | .14 / .03 | .05 / .02 |
+| questions the chopper + loop wins / loses against naive RAG, mmBERT / slice | 8 / 31 · 12 / 40 (of 240) | 18 / 35 · 20 / 55 (of 300) |
+
+**What it shows (9 Nov 2026):**
+- **The 4B answering model is the ceiling, not the search or the chopper.** With only the gold evidence it scores .57 / .59,
+  against 73.4 for the Qwen3.5-4B answering model in Memory Tax. It never says "not mentioned" (0 on every abstention and
+  adversarial question), rarely states preferences, and copies relative dates ("last week") instead of resolving them against
+  the session date. It was trained on short single-fact answers; conversation memory needs its own answering-model rows ⏳.
+- **The chopper costs .04–.12 against naive RAG** here (the "memory tax"). Most of the loss is on multi-session aggregation and
+  preference questions, where it keeps less of the evidence; on single-session recall and knowledge updates the mmBERT chopper ties
+  or beats RAG with much shorter notes.
+- **The search loop rarely fires** on these questions (2–14%), so it adds about .01.
 
 **Published numbers to compare with** (their setups, judges and answerers, not ours):
 

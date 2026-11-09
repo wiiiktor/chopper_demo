@@ -32,8 +32,9 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 | "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **69%** of the time, keeps 1.5% of the text |
 | chopping time per lookup (RTX 3090) | **155 ms** (separate mmBERT) · **277 ms** (built into MiniCPM3-4B) |
 
-Long-conversation memory benchmarks (LoCoMo, LongMemEval) are running now ⏳; the comparison with
-[published memory systems](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval-) goes there.
+First long-conversation memory results (LoCoMo, LongMemEval) are in
+[the details](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval): there the 4B answering model is the
+limit, and conversation-memory training is next ⏳.
 
 ## Pick your chopper
 
