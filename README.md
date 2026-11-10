@@ -16,7 +16,7 @@
 400 MuSiQue questions, 100 each at 1, 2, 3 and 4 hops, each with its own 20 retrieved paragraphs. Qwen3-14B (4-bit, no fine-tuning,
 no thinking mode) answers from the notes only; gpt-5.6-luna judges. Notes length = prompt tokens.
 
-<p align="center"><img src="figures/qwen_notes_table.svg" width="100%" alt="Qwen3-14B correct answers (1/2/3/4 hops) and notes length. All notes retrieved from database: 2,620 tokens, 84/28/22/12. Multi-hop chopper notes: 228 tokens, 80/47/45/33. Opus 5.5's notes: 143 tokens, 90/64/55/43. Gold notes: 217 tokens, 86/63/52/37."></p>
+<p align="center"><img src="figures/qwen_notes_table.svg" width="100%" alt="Qwen3-14B correct answers (1/2/3/4 hops) and notes length. All notes retrieved from database: 2,620 tokens, 84/28/22/12. Multi-hop chopper notes: 244 tokens, 82/50/49/31. Opus 5.5's notes: 143 tokens, 90/64/55/43. Gold notes: 217 tokens, 86/63/52/37."></p>
 
 ### Qwen3-14B: all notes vs chopper notes vs Opus 5.5's notes
 
@@ -24,10 +24,10 @@ Read each diagram like website traffic: questions flow left to right, and at eve
 out; the last stage is Qwen3-14B answering correctly. Top: all 20 retrieved paragraphs. Middle: the multi-hop chopper's notes.
 Bottom: Opus 5.5's notes.
 
-<p align="center"><img src="figures/qwen_sankey_1hop.svg" width="100%" alt="1-hop questions: Qwen3-14B correct 84% with all notes, 80% with chopper notes, 90% with Opus notes"></p>
-<p align="center"><img src="figures/qwen_sankey_2hop.svg" width="100%" alt="2-hop questions: Qwen3-14B correct 28% with all notes, 47% with chopper notes, 64% with Opus notes"></p>
-<p align="center"><img src="figures/qwen_sankey_3hop.svg" width="100%" alt="3-hop questions: Qwen3-14B correct 22% with all notes, 45% with chopper notes, 55% with Opus notes"></p>
-<p align="center"><img src="figures/qwen_sankey_4hop.svg" width="100%" alt="4-hop questions: Qwen3-14B correct 12% with all notes, 33% with chopper notes, 43% with Opus notes"></p>
+<p align="center"><img src="figures/qwen_sankey_1hop.svg" width="100%" alt="1-hop questions: Qwen3-14B correct 84% with all notes, 82% with chopper notes, 90% with Opus notes"></p>
+<p align="center"><img src="figures/qwen_sankey_2hop.svg" width="100%" alt="2-hop questions: Qwen3-14B correct 28% with all notes, 50% with chopper notes, 64% with Opus notes"></p>
+<p align="center"><img src="figures/qwen_sankey_3hop.svg" width="100%" alt="3-hop questions: Qwen3-14B correct 22% with all notes, 49% with chopper notes, 55% with Opus notes"></p>
+<p align="center"><img src="figures/qwen_sankey_4hop.svg" width="100%" alt="4-hop questions: Qwen3-14B correct 12% with all notes, 31% with chopper notes, 43% with Opus notes"></p>
 
 In the middle and bottom diagrams the last stage counts only questions whose notes kept the whole chain; Qwen also gets some right
 from partial notes, so its overall scores (table above) are higher. More: [docs/DETAILS.md §7](docs/DETAILS.md#7-multi-hop-where-answers-get-lost).

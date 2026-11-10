@@ -27,7 +27,7 @@ o += [f'<circle cx="{qx:.1f}" cy="{qy:.1f}" r="7" fill="{LOSS}"/>', f'<circle cx
 open(f"{OUT}/size_cube.svg", "w").write(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" {FONT}>' + "".join(o) + "</svg>")
 
 # 2. Qwen3-14B notes table with mini bars
-ROWS = [("All notes retrieved from database", 2620, [84, 28, 22, 12]), ("Multi-hop chopper notes", 228, [80, 47, 45, 33]),
+ROWS = [("All notes retrieved from database", 2620, [84, 28, 22, 12]), ("Multi-hop chopper notes", 244, [82, 50, 49, 31]),
         ("Opus 5.5's notes", 143, [90, 64, 55, 43]), ("Gold notes (each hop's gold sentences)", 217, [86, 63, 52, 37])]
 COLS = ["Qwen3-14B answering from", "notes length", "1-hop", "2-hop", "3-hop", "4-hop"]
 X = [16, 330, 460, 570, 680, 790]; RH = 46; W2 = 900; H2 = 50 + RH * len(ROWS) + 10
