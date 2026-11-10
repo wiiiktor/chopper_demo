@@ -6,7 +6,7 @@ usage: hop_sankey.py <funnel.json> <out dir> [srcA=label] [srcB=label]"""
 import json, os, sys
 F, OUT = sys.argv[1], sys.argv[2]; os.makedirs(OUT, exist_ok=True)
 SRC = [a.split("=", 1) for a in sys.argv[3:]] or [["mh0", "Multi-hop chopper (mmBERT, 0.31B)"], ["opusblind", "Claude Opus 5.5 as the note-taker (~10,000B, estimate)"]]
-D = json.load(open(F))["all"]
+J = json.load(open(F)); D = J["all"] if "all" in J else J          # funnel.json (all/unknown) or qfunnel.json (flat)
 INK, MUTE, FLOW, BAND, LOSS, LBAND, BG = "#1b211f", "#5d6863", "#2f7d6d", "#9fcdc2", "#c0533d", "#efc2b6", "#ffffff"
 
 
@@ -22,6 +22,8 @@ def sankey(d, k, y0, title, W=900):
     for j in range(k):
         surv.append(surv[-1] - d["lost"][j])
     surv += [d["ans_kept"], d["ans_ok"] or 0]; drops = d["lost"] + [d["ans_drop"], d["ans_kept"] - (d["ans_ok"] or 0)]
+    if "tok" in d and d["tok"] > 50:
+        title += f" · {d['tok']:,} tokens"
     S = len(stages); x = lambda i: 20 + i * (W - 20 - 120) / (S - 1)
     o.append(f'<text x="20" y="{y0 + 18}" font-size="15" font-weight="700" fill="{INK}">{title}</text>')
     for i in range(1, S):
@@ -49,5 +51,5 @@ for k in (1, 2, 3, 4):
         o, y = sankey(D[src][str(k)], k, y, lab); body += o
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 {y:.0f}" width="900" font-family="Helvetica, Arial, sans-serif">'
            f'<rect width="100%" height="100%" fill="{BG}"/>' + "".join(body) + "</svg>")
-    open(f"{OUT}/hop_sankey_{k}hop.svg", "w").write(svg)
+    open(f"{OUT}/{os.environ.get('PREFIX', 'hop_sankey')}_{k}hop.svg", "w").write(svg)
 print("written", OUT)

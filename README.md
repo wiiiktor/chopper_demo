@@ -5,6 +5,35 @@
 </p>
 <p align="center"><em>70-second video: <a href="https://youtu.be/KMvmdXCEOJU">youtu.be/KMvmdXCEOJU</a></em></p>
 
+## Chopper 0.3B close to Opus 5.5 in cutting out the best pieces
+
+### mmBERT is 32,000 times smaller
+
+<p align="center"><img src="figures/size_cube.svg" width="100%" alt="One corner of a cube of dots. Each dot is 0.31B, the size of the mmBERT chopper; the multi-hop chopper is the single red dot on the corner; a 32 by 32 by 32 cube of such dots, about 32,000, stands for Claude Opus 5.5 at a rough 10,000B estimate (its size is not published)."></p>
+
+### Qwen3-14B answering from different notes
+
+400 MuSiQue questions, 100 each at 1, 2, 3 and 4 hops, each with its own 20 retrieved paragraphs. Qwen3-14B (4-bit, no fine-tuning,
+no thinking mode) answers from the notes only; gpt-5.6-luna judges. Notes length = prompt tokens.
+
+<p align="center"><img src="figures/qwen_notes_table.svg" width="100%" alt="Qwen3-14B correct answers (1/2/3/4 hops) and notes length. All notes retrieved from database: 2,620 tokens, 84/28/22/12. Multi-hop chopper notes: 228 tokens, 80/47/45/33. Opus 5.5's notes: 143 tokens, 90/64/55/43. Gold notes: 217 tokens, 86/63/52/37."></p>
+
+### Qwen3-14B: all notes vs chopper notes vs Opus 5.5's notes
+
+Read each diagram like website traffic: questions flow left to right, and at every hop the ones whose fact the notes missed drop
+out; the last stage is Qwen3-14B answering correctly. Top: all 20 retrieved paragraphs. Middle: the multi-hop chopper's notes.
+Bottom: Opus 5.5's notes.
+
+<p align="center"><img src="figures/qwen_sankey_1hop.svg" width="100%" alt="1-hop questions: Qwen3-14B correct 84% with all notes, 80% with chopper notes, 90% with Opus notes"></p>
+<p align="center"><img src="figures/qwen_sankey_2hop.svg" width="100%" alt="2-hop questions: Qwen3-14B correct 28% with all notes, 47% with chopper notes, 64% with Opus notes"></p>
+<p align="center"><img src="figures/qwen_sankey_3hop.svg" width="100%" alt="3-hop questions: Qwen3-14B correct 22% with all notes, 45% with chopper notes, 55% with Opus notes"></p>
+<p align="center"><img src="figures/qwen_sankey_4hop.svg" width="100%" alt="4-hop questions: Qwen3-14B correct 12% with all notes, 33% with chopper notes, 43% with Opus notes"></p>
+
+In the middle and bottom diagrams the last stage counts only questions whose notes kept the whole chain; Qwen also gets some right
+from partial notes, so its overall scores (table above) are higher. More: [docs/DETAILS.md §7](docs/DETAILS.md#7-multi-hop-where-answers-get-lost).
+
+---
+
 # Chopper 🔪 keep only the part of RAG that answers the question
 
 Standard RAG (retrieval-augmented generation) pastes whole passages into your model's context, and they stay there.
@@ -32,14 +61,6 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 | "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **69%** of the time, keeps 1.5% of the text |
 | chopping time per lookup (RTX 3090) | **155 ms** (separate mmBERT) · **277 ms** (built into MiniCPM3-4B) |
 | 4-hop questions where every needed fact reaches the notes (MuSiQue, all paragraphs present) | **2% → 40%** with the new multi-hop chopper (0.31B); Claude Opus 5.5 as note-taker: 56% |
-
-### Where multi-hop answers get lost
-
-Read it like website traffic: 100 four-hop questions flow left to right, and at every hop the ones whose fact the notes missed
-drop out. Top: the new multi-hop chopper (0.31B). Bottom: Claude Opus 5.5 taking the notes (~10,000B, rough estimate). Last stage:
-Opus 5.5 answering from those notes. All hop counts, side by side, are in [the details](docs/DETAILS.md#7-multi-hop-where-answers-get-lost).
-
-<p align="center"><img src="figures/hop_sankey_4hop.svg" width="100%" alt="Sankey funnel for 100 four-hop MuSiQue questions. Multi-hop chopper: 80% keep hop 1, 64% hop 2, 52% hop 3, 45% hop 4, 40% keep the answer, 28% answered correctly by Opus 5.5 from the notes. Opus 5.5 as note-taker: 92%, 77%, 64%, 58%, 56% and 44%."></p>
 
 First long-conversation memory results (LoCoMo, LongMemEval) are in
 [the details](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval): there the 4B answering model is the

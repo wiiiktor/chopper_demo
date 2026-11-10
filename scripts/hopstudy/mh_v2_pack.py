@@ -48,11 +48,17 @@ def emb(texts, q=False):
     return torch.cat(out)
 
 
+UNIQ = list(dict.fromkeys(ALLP)); IDX = {t: i for i, t in enumerate(UNIQ)}       # 2026-11-10: embed every paragraph ONCE (per-row embedding of
+order = sorted(range(len(UNIQ)), key=lambda i: len(UNIQ[i])); EU = torch.zeros(len(UNIQ), 1024, dtype=torch.float16, device=dev)   # 60 candidates ran >1 s/row)
+with torch.no_grad():
+    for i in range(0, len(order), 64):
+        ix = order[i:i + 64]; EU[torch.tensor(ix, device=dev)] = emb([UNIQ[j] for j in ix]).half()
+log(f"embedded {len(UNIQ)} unique paragraphs")
 t0 = time.time()
 with open(f"{PK}/ctx_mhret.jsonl", "w") as fc, open(f"{PK}/qw_mhret.jsonl", "w") as fq, torch.no_grad():
     for n, c in enumerate(C):
         own = [p["text"] for p in c["passages"]]; cand = own + [ALLP[i] for i in rng.sample(range(len(ALLP)), 40)]
-        cand = list(dict.fromkeys(cand)); E = emb(cand); qe = emb([c["question"]], q=True)[0]
+        cand = list(dict.fromkeys(cand)); E = EU[torch.tensor([IDX[t] for t in cand], device=dev)].float(); qe = emb([c["question"]], q=True)[0]
         de = (E @ qe).argsort(descending=True).tolist()[:30]
         dc = [toks(t) for t in cand]; N_ = len(dc); avg = np.mean([len(d) for d in dc]); dfc = Counter(w for d in dc for w in set(d)); sc = np.zeros(N_)
         for i, d in enumerate(dc):
@@ -60,7 +66,7 @@ with open(f"{PK}/ctx_mhret.jsonl", "w") as fc, open(f"{PK}/qw_mhret.jsonl", "w")
             for w in set(toks(c["question"])):
                 if w in tf:
                     sc[i] += math.log(1 + (N_ - dfc[w] + 0.5) / (dfc[w] + 0.5)) * tf[w] * 2.5 / (tf[w] + 1.5 * (0.25 + 0.75 * len(d) / avg))
-        pool = list(dict.fromkeys(de + list(np.argsort(-sc)[:20])))
+        pool = list(dict.fromkeys(de[:24] + list(np.argsort(-sc)[:12])))
         b = rtk([[c["question"], cand[i]] for i in pool], padding=True, truncation=True, max_length=512, return_tensors="pt").to(dev)
         top = [pool[j] for j in rmo(**b).logits.view(-1).float().argsort(descending=True).tolist()[:16]]
         gold = [own.index(c["passages"][g[0]]["text"]) for g in c["groups"]]
@@ -73,6 +79,6 @@ with open(f"{PK}/ctx_mhret.jsonl", "w") as fc, open(f"{PK}/qw_mhret.jsonl", "w")
         fc.write(json.dumps({"dataset": c["dataset"], "split": "mhret", "row": c["row"], "question": c["question"], "answer": c["answer"], "groups": [],
                              "allin": 1.0, "passages": [{"pos": k, "cid": -1, "text": t, "group": -1} for k, t in enumerate(txt)]}, ensure_ascii=False) + "\n")
         fq.write(json.dumps({"dataset": c["dataset"], "split": "mhret", "row": c["row"], "spans": sp, "steps": [], "miss": []}) + "\n")
-        if n % 2000 == 0:
+        if n % 500 == 0:
             log(f"{n}/{len(C)} | {(time.time() - t0) / (n + 1):.2f}s/row")
 log("RETPACK DONE", dict(st), f"retrieval kept {st['gold hops retrieved'] / max(1, st['gold hops']):.2f} of gold hop paragraphs")
