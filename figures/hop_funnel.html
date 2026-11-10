@@ -1,0 +1,187 @@
+<title>Where Multi-hop Answers Get Lost</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* layout: one column; a selector for the source, then one traffic-style Sankey per hop count, then the end-to-end table */
+:root{
+  --bg:#f5f6f3; --panel:#ffffff; --ink:#1b211f; --mute:#5d6863; --line:#d9ddd6;
+  --flow:#2f7d6d; --flowband:#9fcdc2; --loss:#c0533d; --lossband:#efc2b6; --pend:#8a8f87;
+  --display:"Source Serif 4",Georgia,serif; --body:"Atkinson Hyperlegible",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121614; --panel:#1a1f1d; --ink:#e7ebe8; --mute:#a0aaa5; --line:#2f3733;
+  --flow:#5fbfaa; --flowband:#245a4f; --loss:#e47b63; --lossband:#5e3127; --pend:#7d847f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121614; --panel:#1a1f1d; --ink:#e7ebe8; --mute:#a0aaa5; --line:#2f3733;
+  --flow:#5fbfaa; --flowband:#245a4f; --loss:#e47b63; --lossband:#5e3127; --pend:#7d847f; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
+main{max-width:920px;margin:0 auto;display:flex;flex-direction:column;gap:26px}
+h1{font-family:var(--display);font-weight:600;font-size:2rem;line-height:1.15;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:600;font-size:1.2rem;margin:0;text-wrap:balance}
+p{margin:0;max-width:70ch}
+.lede{color:var(--mute);margin-top:8px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.pickrow{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.picklab{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);min-width:56px}
+.which{font-size:.85rem;font-weight:700;margin:6px 0 -4px}
+.pbar{display:grid;grid-template-columns:minmax(90px,200px) 1fr auto;gap:10px;align-items:center;font-size:.78rem;color:var(--mute);margin-top:6px}
+section.card .ptrack{height:8px}
+.ptrack{height:4px;background:var(--line);border-radius:2px;overflow:hidden;min-width:0}
+.pfill{display:block;height:100%;background:var(--ink);min-width:2px}
+.pval{font-family:var(--mono);color:var(--ink)}
+.seg button{font:inherit;font-size:.9rem;padding:7px 12px;border-radius:4px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--flow);box-shadow:inset 0 0 0 1px var(--flow);font-weight:700}
+.seg button:focus-visible{outline:2px solid var(--flow);outline-offset:2px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.cardhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+.stat{font-family:var(--mono);font-size:.82rem;color:var(--mute)}
+.svgwrap{overflow-x:auto}
+svg{display:block;width:100%;min-width:620px;height:auto}
+svg text{fill:var(--ink);font-family:var(--body);font-size:12px}
+svg .sub{fill:var(--mute);font-size:11px}
+.tbl{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.9rem}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--mute);font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
+tbody tr:last-child td{border-bottom:none}
+td.num{font-family:var(--mono)}
+.note{font-size:.84rem;color:var(--mute);max-width:74ch}
+ul.note{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+</style>
+
+<main>
+<header>
+  <h1>Where multi-hop answers get lost</h1>
+  <p class="lede">100 MuSiQue questions per hop count, each with its own 20 paragraphs, so every needed paragraph is always there and nothing is lost to search. Read each diagram like website traffic: questions flow left to right, and at every hop the ones whose paragraph the chopper (or teacher) did not keep drop out.</p>
+</header>
+
+<section class="card" aria-label="Model size">
+  <h2>Model size</h2>
+  <div class="pbar"><span class="plab">Multi-hop chopper (mmBERT)</span><span class="ptrack"><span class="pfill" style="width:0.25%"></span></span><span class="pval">0.31B</span></div>
+  <div class="pbar"><span class="plab">Slice of MiniCPM3-4B</span><span class="ptrack"><span class="pfill" style="width:0.25%"></span></span><span class="pval">0.76B</span></div>
+  <div class="pbar"><span class="plab">Qwen3-14B teacher</span><span class="ptrack"><span class="pfill" style="width:0.25%"></span></span><span class="pval">14B</span></div>
+  <div class="pbar"><span class="plab">Claude Opus 5.5</span><span class="ptrack"><span class="pfill" style="width:100%"></span></span><span class="pval">~10,000B (rough estimate)</span></div>
+  <p class="note">Linear scale: the three small models are under 0.15% of the bar and are drawn at the 2-pixel minimum. Opus's size is not published.</p>
+</section>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+  <div class="pickrow"><span class="picklab">Questions</span><div class="seg" id="subset" role="group" aria-label="Question subset">
+    <button type="button" id="sub-all" data-sub="all" aria-pressed="true">All 400</button>
+    <button type="button" id="sub-unknown" data-sub="unknown" aria-pressed="false">Only those Opus cannot answer from memory (244)</button></div></div>
+  <div class="pickrow"><span class="picklab">Top</span><div class="seg" role="group" aria-label="Top diagram source" data-side="a"></div></div>
+  <div class="pickrow"><span class="picklab">Bottom</span><div class="seg" role="group" aria-label="Bottom diagram source" data-side="b"></div></div>
+</div>
+<p class="note"><b>Hop k kept</b>: some kept text lies inside the paragraph that states hop k's fact. <b>Answer in notes</b>: the final answer string itself is in the kept text. A question can keep a piece of every needed paragraph and still miss the answer, when the kept piece of the last paragraph is not the sentence with the answer; those drop out as "answer cut".</p>
+
+<div id="charts" style="display:flex;flex-direction:column;gap:16px"></div>
+
+<section style="display:flex;flex-direction:column;gap:10px">
+  <h2>End to end: every hop kept and the answer in the notes</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>notes source</th><th>1-hop</th><th>2-hop</th><th>3-hop</th><th>4-hop</th><th>text kept</th></tr></thead>
+    <tbody id="tb"></tbody>
+  </table></div>
+  <ul class="note">
+    <li>"Hop kept" means at least one kept fragment lies inside that hop's gold paragraph. A fact also stated in another paragraph counts as lost here, so losses are slightly overstated for every source alike.</li>
+    <li><b>Answered correctly</b>: Claude Opus 5.5 answers from each source's notes only ("not in notes" if they fall short), judged by gpt-5.6-luna against MuSiQue's answer and aliases. The same strong answerer for every source, so the chopper is not held back by a small answerer. Even perfect notes reach only 79 / 75 / 70 / 64% (strict judging of MuSiQue's answer forms), which is the ceiling here. Measured for both multi-hop choppers, the current chopper and answer-blind Opus.</li>
+    <li><b>Model size</b>: thin bar on a linear scale up to 10,000B. Opus's size is not published; ~10,000B is a rough estimate.</li>
+    <li>Choppers read at their usual thresholds: current p &gt; .5, 54k p &gt; .8, slice p &gt; .5 with cleanup. Teachers saw the gold answer while quoting.</li>
+    <li><b>Multi-hop chopper</b>: mmBERT that re-runs its last 8 of 22 layers with its own first-pass keep probabilities (one model call, ~1.4x the compute), trained on 13,844 fresh MuSiQue train questions labelled with every hop's fact and its title. The hop study is MuSiQue dev, so no question overlaps, but the pool format matches its training.</li>
+    <li><b>Two passes</b>: the chopper cuts once, then again with the question plus its first-pass fragments as the query (so the bridge entity is in the query); the notes are the union of both passes, about twice the text.</li>
+    <li><b>Answer-blind Opus</b> gets the same prompt without the gold answer and must work it out. <b>From memory</b>: Opus was asked each question with no passages; 156 of 400 it answered correctly (1-hop 68, 2-hop 43, 3-hop 32, 4-hop 13) and the second subset leaves those out.</li>
+    <li>The slice was trained on short pieces of web passages and never saw 20-paragraph Wikipedia pools; it reads them slowly here (945 ms) and keeps the fewest full chains.</li>
+  </ul>
+</section>
+</main>
+
+<script>
+(function(){
+  var ALL={"all":{"fullc":{"1":{"n":100,"lost":[23],"ans_drop":0,"ans_kept":72,"tok":0.0286,"ans_ok":61,"ok_all":66},"2":{"n":100,"lost":[13,50],"ans_drop":0,"ans_kept":31,"tok":0.0338,"ans_ok":28,"ok_all":36},"3":{"n":100,"lost":[31,35,17],"ans_drop":0,"ans_kept":12,"tok":0.0295,"ans_ok":9,"ok_all":31},"4":{"n":100,"lost":[49,37,8,4],"ans_drop":0,"ans_kept":2,"tok":0.025,"ans_ok":1,"ok_all":11}},"base54k":{"1":{"n":100,"lost":[19],"ans_drop":100,"ans_kept":78,"tok":0.042,"ans_ok":null,"ok_all":null},"2":{"n":100,"lost":[6,46],"ans_drop":100,"ans_kept":43,"tok":0.0569,"ans_ok":null,"ok_all":null},"3":{"n":100,"lost":[18,33,11],"ans_drop":100,"ans_kept":34,"tok":0.0609,"ans_ok":null,"ok_all":null},"4":{"n":100,"lost":[15,41,15,9],"ans_drop":100,"ans_kept":16,"tok":0.0666,"ans_ok":null,"ok_all":null}},"opus":{"1":{"n":100,"lost":[1],"ans_drop":100,"ans_kept":99,"tok":0.0148,"ans_ok":null,"ok_all":null},"2":{"n":100,"lost":[4,9],"ans_drop":100,"ans_kept":85,"tok":0.0233,"ans_ok":null,"ok_all":null},"3":{"n":100,"lost":[11,22,0],"ans_drop":100,"ans_kept":67,"tok":0.0293,"ans_ok":null,"ok_all":null},"4":{"n":100,"lost":[7,17,14,6],"ans_drop":100,"ans_kept":54,"tok":0.0334,"ans_ok":null,"ok_all":null}},"luna6":{"1":{"n":100,"lost":[7],"ans_drop":100,"ans_kept":91,"tok":0.0122,"ans_ok":null,"ok_all":null},"2":{"n":100,"lost":[12,9],"ans_drop":100,"ans_kept":78,"tok":0.0207,"ans_ok":null,"ok_all":null},"3":{"n":100,"lost":[15,29,1],"ans_drop":100,"ans_kept":53,"tok":0.0248,"ans_ok":null,"ok_all":null},"4":{"n":100,"lost":[23,21,15,3],"ans_drop":100,"ans_kept":38,"tok":0.0278,"ans_ok":null,"ok_all":null}},"slice":{"1":{"n":100,"lost":[31],"ans_drop":100,"ans_kept":53,"tok":0.0373,"ans_ok":null,"ok_all":null},"2":{"n":100,"lost":[21,51],"ans_drop":100,"ans_kept":16,"tok":0.041,"ans_ok":null,"ok_all":null},"3":{"n":100,"lost":[25,43,24],"ans_drop":100,"ans_kept":7,"tok":0.0416,"ans_ok":null,"ok_all":null},"4":{"n":100,"lost":[29,51,13,4],"ans_drop":100,"ans_kept":2,"tok":0.0429,"ans_ok":null,"ok_all":null}},"twopass":{"1":{"n":100,"lost":[21],"ans_drop":100,"ans_kept":74,"tok":0.0602,"ans_ok":null,"ok_all":null},"2":{"n":100,"lost":[12,39],"ans_drop":100,"ans_kept":43,"tok":0.0737,"ans_ok":null,"ok_all":null},"3":{"n":100,"lost":[27,34,14],"ans_drop":100,"ans_kept":23,"tok":0.0655,"ans_ok":null,"ok_all":null},"4":{"n":100,"lost":[46,30,10,4],"ans_drop":100,"ans_kept":10,"tok":0.0539,"ans_ok":null,"ok_all":null}},"mh8":{"1":{"n":100,"lost":[9],"ans_drop":0,"ans_kept":90,"tok":0.0392,"ans_ok":73,"ok_all":76},"2":{"n":100,"lost":[3,23],"ans_drop":0,"ans_kept":65,"tok":0.057,"ans_ok":52,"ok_all":56},"3":{"n":100,"lost":[8,9,9],"ans_drop":0,"ans_kept":64,"tok":0.0683,"ans_ok":43,"ok_all":52},"4":{"n":100,"lost":[18,15,13,5],"ans_drop":0,"ans_kept":45,"tok":0.0712,"ans_ok":29,"ok_all":44}},"qwen":{"1":{"n":100,"lost":[7],"ans_drop":100,"ans_kept":89,"tok":0.0191,"ans_ok":null,"ok_all":null},"2":{"n":100,"lost":[24,3],"ans_drop":100,"ans_kept":72,"tok":0.0297,"ans_ok":null,"ok_all":null},"3":{"n":100,"lost":[37,23,1],"ans_drop":100,"ans_kept":39,"tok":0.0353,"ans_ok":null,"ok_all":null},"4":{"n":100,"lost":[35,28,12,0],"ans_drop":100,"ans_kept":23,"tok":0.0429,"ans_ok":null,"ok_all":null}},"mh0":{"1":{"n":100,"lost":[8],"ans_drop":0,"ans_kept":91,"tok":0.0393,"ans_ok":77,"ok_all":79},"2":{"n":100,"lost":[3,27],"ans_drop":0,"ans_kept":62,"tok":0.0551,"ans_ok":51,"ok_all":57},"3":{"n":100,"lost":[11,11,11],"ans_drop":0,"ans_kept":61,"tok":0.0672,"ans_ok":46,"ok_all":57},"4":{"n":100,"lost":[20,16,12,7],"ans_drop":0,"ans_kept":40,"tok":0.0682,"ans_ok":28,"ok_all":46}},"opusblind":{"1":{"n":100,"lost":[1],"ans_drop":0,"ans_kept":99,"tok":0.015,"ans_ok":86,"ok_all":86},"2":{"n":100,"lost":[3,8],"ans_drop":0,"ans_kept":88,"tok":0.0235,"ans_ok":76,"ok_all":77},"3":{"n":100,"lost":[10,22,0],"ans_drop":0,"ans_kept":67,"tok":0.0308,"ans_ok":59,"ok_all":67},"4":{"n":100,"lost":[8,15,13,6],"ans_drop":0,"ans_kept":56,"tok":0.0325,"ans_ok":44,"ok_all":57}}},"unknown":{"fullc":{"1":{"n":32,"lost":[10],"ans_drop":0,"ans_kept":20,"tok":0.0235,"ans_ok":13,"ok_all":14},"2":{"n":57,"lost":[9,30],"ans_drop":0,"ans_kept":13,"tok":0.0322,"ans_ok":11,"ok_all":15},"3":{"n":68,"lost":[26,17,13],"ans_drop":0,"ans_kept":11,"tok":0.0282,"ans_ok":8,"ok_all":18},"4":{"n":87,"lost":[45,29,7,4],"ans_drop":0,"ans_kept":2,"tok":0.0258,"ans_ok":1,"ok_all":10}},"base54k":{"1":{"n":32,"lost":[7],"ans_drop":32,"ans_kept":24,"tok":0.0384,"ans_ok":null,"ok_all":null},"2":{"n":57,"lost":[4,27],"ans_drop":57,"ans_kept":22,"tok":0.0584,"ans_ok":null,"ok_all":null},"3":{"n":68,"lost":[16,16,8],"ans_drop":68,"ans_kept":26,"tok":0.0591,"ans_ok":null,"ok_all":null},"4":{"n":87,"lost":[12,34,13,9],"ans_drop":87,"ans_kept":15,"tok":0.0669,"ans_ok":null,"ok_all":null}},"opus":{"1":{"n":32,"lost":[0],"ans_drop":32,"ans_kept":32,"tok":0.0128,"ans_ok":null,"ok_all":null},"2":{"n":57,"lost":[1,7],"ans_drop":57,"ans_kept":48,"tok":0.0242,"ans_ok":null,"ok_all":null},"3":{"n":68,"lost":[11,11,0],"ans_drop":68,"ans_kept":46,"tok":0.0292,"ans_ok":null,"ok_all":null},"4":{"n":87,"lost":[5,9,12,6],"ans_drop":87,"ans_kept":53,"tok":0.0332,"ans_ok":null,"ok_all":null}},"luna6":{"1":{"n":32,"lost":[0],"ans_drop":32,"ans_kept":32,"tok":0.0107,"ans_ok":null,"ok_all":null},"2":{"n":57,"lost":[6,5],"ans_drop":57,"ans_kept":45,"tok":0.0209,"ans_ok":null,"ok_all":null},"3":{"n":68,"lost":[15,16,1],"ans_drop":68,"ans_kept":35,"tok":0.0232,"ans_ok":null,"ok_all":null},"4":{"n":87,"lost":[20,12,15,3],"ans_drop":87,"ans_kept":37,"tok":0.0279,"ans_ok":null,"ok_all":null}},"slice":{"1":{"n":32,"lost":[9],"ans_drop":32,"ans_kept":16,"tok":0.0341,"ans_ok":null,"ok_all":null},"2":{"n":57,"lost":[11,30],"ans_drop":57,"ans_kept":9,"tok":0.0416,"ans_ok":null,"ok_all":null},"3":{"n":68,"lost":[22,23,17],"ans_drop":68,"ans_kept":6,"tok":0.0407,"ans_ok":null,"ok_all":null},"4":{"n":87,"lost":[26,43,11,4],"ans_drop":87,"ans_kept":2,"tok":0.0421,"ans_ok":null,"ok_all":null}},"twopass":{"1":{"n":32,"lost":[10],"ans_drop":32,"ans_kept":20,"tok":0.0496,"ans_ok":null,"ok_all":null},"2":{"n":57,"lost":[8,21],"ans_drop":57,"ans_kept":22,"tok":0.072,"ans_ok":null,"ok_all":null},"3":{"n":68,"lost":[23,18,11],"ans_drop":68,"ans_kept":16,"tok":0.0623,"ans_ok":null,"ok_all":null},"4":{"n":87,"lost":[42,22,9,4],"ans_drop":87,"ans_kept":10,"tok":0.0549,"ans_ok":null,"ok_all":null}},"mh8":{"1":{"n":32,"lost":[4],"ans_drop":0,"ans_kept":27,"tok":0.0347,"ans_ok":18,"ok_all":18},"2":{"n":57,"lost":[2,14],"ans_drop":0,"ans_kept":36,"tok":0.0585,"ans_ok":25,"ok_all":27},"3":{"n":68,"lost":[6,6,7],"ans_drop":0,"ans_kept":41,"tok":0.0674,"ans_ok":26,"ok_all":30},"4":{"n":87,"lost":[15,15,12,5],"ans_drop":0,"ans_kept":36,"tok":0.0694,"ans_ok":23,"ok_all":36}},"qwen":{"1":{"n":32,"lost":[1],"ans_drop":32,"ans_kept":31,"tok":0.0137,"ans_ok":null,"ok_all":null},"2":{"n":57,"lost":[16,0],"ans_drop":57,"ans_kept":41,"tok":0.0282,"ans_ok":null,"ok_all":null},"3":{"n":68,"lost":[29,17,1],"ans_drop":68,"ans_kept":21,"tok":0.0352,"ans_ok":null,"ok_all":null},"4":{"n":87,"lost":[33,20,11,0],"ans_drop":87,"ans_kept":21,"tok":0.0421,"ans_ok":null,"ok_all":null}},"mh0":{"1":{"n":32,"lost":[4],"ans_drop":0,"ans_kept":27,"tok":0.0354,"ans_ok":19,"ok_all":19},"2":{"n":57,"lost":[2,17],"ans_drop":0,"ans_kept":35,"tok":0.0556,"ans_ok":26,"ok_all":29},"3":{"n":68,"lost":[10,5,9],"ans_drop":0,"ans_kept":39,"tok":0.0658,"ans_ok":29,"ok_all":36},"4":{"n":87,"lost":[17,16,11,7],"ans_drop":0,"ans_kept":32,"tok":0.0659,"ans_ok":22,"ok_all":38}},"opusblind":{"1":{"n":32,"lost":[0],"ans_drop":0,"ans_kept":32,"tok":0.0124,"ans_ok":23,"ok_all":23},"2":{"n":57,"lost":[1,6],"ans_drop":0,"ans_kept":49,"tok":0.0242,"ans_ok":40,"ok_all":41},"3":{"n":68,"lost":[10,12,0],"ans_drop":0,"ans_kept":45,"tok":0.0284,"ans_ok":37,"ok_all":41},"4":{"n":87,"lost":[6,7,11,6],"ans_drop":0,"ans_kept":55,"tok":0.0323,"ans_ok":43,"ok_all":48}}}}, SUB="all", DATA=ALL.all;
+  var NAMES={mh8:"Multi-hop chopper (recycling, new)",mh0:"Multi-hop chopper (same data, no recycling)",fullc:"Current chopper",twopass:"Current chopper, two passes",base54k:"54k chopper",slice:"Slice (MiniCPM3 20%)",luna6:"Teacher: GPT-6 Luna",qwen:"Teacher: Qwen3-14B (our labeller)",opus:"Teacher: Opus 5.5 (saw answer)",opusblind:"Teacher: Opus 5.5 (answer-blind)"};
+  var PARAMS={mh8:{b:0.31,t:"0.31B"},mh0:{b:0.31,t:"0.31B"},fullc:{b:0.31,t:"0.31B"},twopass:{b:0.31,t:"0.31B (run twice)"},base54k:{b:0.31,t:"0.31B"},
+    slice:{b:0.76,t:"0.76B used (of a 4B model)"},luna6:{b:0,t:"not published"},qwen:{b:14,t:"14B (4-bit)"},opus:{b:10000,t:"~10,000B (rough estimate, not published)"},
+    opusblind:{b:10000,t:"~10,000B (rough estimate, not published)"}};
+  var ORDER=["mh8","mh0","fullc","twopass","base54k","slice","qwen","luna6","opusblind","opus"], SEL={a:"mh8",b:"opusblind"};
+  var NS="http://www.w3.org/2000/svg";
+  function el(t,a,txt){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;return e;}
+  function ribbon(x0,a0,b0,x1,a1,b1){var m=(x0+x1)/2;return "M"+x0+","+a0+" C"+m+","+a0+" "+m+","+a1+" "+x1+","+a1+" L"+x1+","+b1+" C"+m+","+b1+" "+m+","+b0+" "+x0+","+b0+" Z";}
+  function draw(src,k){
+    var d=DATA[src][k], W=900, top=46, sc=150/d.n, nw=10, lossTop=top+150+48, H=lossTop+150*0.62+40;
+    var pc=function(v){return Math.round(100*v/d.n)+"%";};
+    var stages=["Questions"]; for(var j=1;j<=k;j++) stages.push("Hop "+j+" kept"); stages.push("Answer in notes"); stages.push("Answered correctly");
+    var S=stages.length, x=function(i){return 24+i*(W-24-110)/(S-1);};
+    var surv=[d.n]; for(j=0;j<k;j++) surv.push(surv[surv.length-1]-d.lost[j]); surv.push(d.ans_kept);
+    var drops=d.lost.slice(); drops.push(d.ans_drop);
+    var has=(d.ans_ok!==null&&d.ans_ok!==undefined); if(has){surv.push(d.ans_ok); drops.push(d.ans_kept-d.ans_ok);}
+    var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":NAMES[src]+", "+k+"-hop: "+d.ans_kept+" of 100 keep every hop and the answer"});
+    var lossX=0;
+    for(var i=1;i<surv.length;i++){
+      var x0=x(i-1)+nw, x1=x(i), s=surv[i], p=surv[i-1], l=drops[i-1];
+      if(s>0) svg.appendChild(el("path",{d:ribbon(x0,top,top+s*sc,x1,top,top+s*sc),fill:"var(--flowband)",opacity:"0.95"}));
+      if(l>0){
+        var ly=lossTop, lh=Math.max(l*sc*0.62,2);
+        svg.appendChild(el("path",{d:ribbon(x0,top+s*sc,top+p*sc,x1,ly,ly+lh),fill:"var(--lossband)",opacity:"0.95"}));
+        svg.appendChild(el("rect",{x:x1,y:ly,width:nw,height:lh,fill:"var(--loss)",rx:2}));
+        svg.appendChild(el("text",{x:x1+nw+5,y:ly+11},(i<=k?"lost at hop "+i:(i===k+1?"answer cut":"answered wrong"))));
+        svg.appendChild(el("text",{x:x1+nw+5,y:ly+25,"class":"sub"},l+" questions ("+pc(l)+")"));
+      }
+    }
+    for(i=0;i<surv.length;i++){
+      var h=Math.max(surv[i]*sc,1.5);
+      svg.appendChild(el("rect",{x:x(i),y:top,width:nw,height:h,fill:"var(--flow)",rx:2}));
+      svg.appendChild(el("text",{x:x(i)+(i===0?0:-2),y:top-24,"text-anchor":i===0?"start":"middle"},stages[i]));
+      svg.appendChild(el("text",{x:x(i)+(i===0?0:-2),y:top-9,"text-anchor":i===0?"start":"middle","class":"sub"},(i===0?surv[i]+" questions":pc(surv[i]))));
+    }
+    if(!has){
+      var xi=x(S-1);
+      svg.appendChild(el("rect",{x:xi,y:top,width:nw,height:Math.max(d.ans_kept*sc,1.5),fill:"none",stroke:"var(--pend)","stroke-dasharray":"4 3"}));
+      svg.appendChild(el("path",{d:ribbon(x(S-2)+nw,top,top+d.ans_kept*sc,xi,top,top+d.ans_kept*sc),fill:"none",stroke:"var(--pend)","stroke-dasharray":"4 3"}));
+      svg.appendChild(el("text",{x:xi-2,y:top-24,"text-anchor":"middle"},stages[S-1]));
+      svg.appendChild(el("text",{x:xi-2,y:top-9,"text-anchor":"middle","class":"sub"},"not measured"));
+    }
+    return svg;
+  }
+  function render(){
+    var box=document.getElementById("charts"); box.innerHTML="";
+    for(var k=1;k<=4;k++){
+      var card=document.createElement("div"); card.className="card";
+      var head=document.createElement("div"); head.className="cardhead";
+      var h=document.createElement("h2"); h.textContent=k+"-hop questions";
+      var st=document.createElement("span"); st.className="stat";
+      var na=DATA[SEL.a][k], nb=DATA[SEL.b][k];
+      st.textContent="reach the answer: "+Math.round(100*na.ans_kept/na.n)+"% vs "+Math.round(100*nb.ans_kept/nb.n)+"% of "+na.n+" questions";
+      head.appendChild(h); head.appendChild(st); card.appendChild(head);
+      ["a","b"].forEach(function(side){
+        var src=SEL[side], d=DATA[src][k], w=document.createElement("div"); w.className="which";
+        w.textContent=NAMES[src]+" · text kept "+(d.tok*100).toFixed(1)+"%"+(d.ok_all!=null?" · Opus answered "+Math.round(100*d.ok_all/d.n)+"% correctly from these notes":""); card.appendChild(w);
+        var pr=PARAMS[src], pb=document.createElement("div"); pb.className="pbar";
+        pb.innerHTML='<span class="plab">model size</span><span class="ptrack"><span class="pfill" style="width:'+(pr.b?Math.max(100*pr.b/10000,0.25):0)+'%"></span></span><span class="pval">'+pr.t+'</span>';
+        card.appendChild(pb);
+        var wrap=document.createElement("div"); wrap.className="svgwrap"; wrap.appendChild(draw(src,String(k))); card.appendChild(wrap);
+      });
+      box.appendChild(card);
+    }
+    document.querySelectorAll(".seg button").forEach(function(b){b.setAttribute("aria-pressed",SEL[b.dataset.side]===b.dataset.src?"true":"false");});
+    document.querySelectorAll("#subset button").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.sub===SUB?"true":"false");});
+    fillTable();
+    try{localStorage.setItem("hopsel2",JSON.stringify(SEL));}catch(e){}
+  }
+  document.querySelectorAll("#subset button").forEach(function(b){b.addEventListener("click",function(){SUB=b.dataset.sub;DATA=ALL[SUB];render();});});
+  document.querySelectorAll(".seg").forEach(function(g){
+    ORDER.forEach(function(s){var b=document.createElement("button");b.type="button";b.id="b-"+g.dataset.side+"-"+s;b.dataset.src=s;b.dataset.side=g.dataset.side;
+      b.textContent=NAMES[s];b.addEventListener("click",function(){SEL[b.dataset.side]=s;render();});g.appendChild(b);});
+  });
+  function fillTable(){
+    var tb=document.getElementById("tb"); tb.innerHTML="";
+    ORDER.forEach(function(s){
+      var tr=document.createElement("tr"), td=document.createElement("td"); td.textContent=NAMES[s]; tr.appendChild(td); var tk=0;
+      for(var k=1;k<=4;k++){var x=DATA[s][k],c=document.createElement("td");c.className="num";c.textContent=Math.round(100*x.ans_kept/x.n)+"%";tr.appendChild(c);tk+=x.tok;}
+      var c2=document.createElement("td");c2.className="num";c2.textContent=(tk/4*100).toFixed(1)+"%";tr.appendChild(c2); tb.appendChild(tr);
+    });
+  }
+  try{var v=JSON.parse(localStorage.getItem("hopsel2")||"null"); if(v&&DATA[v.a]&&DATA[v.b]) SEL=v;}catch(e){}
+  render();
+})();
+</script>

@@ -1,0 +1,148 @@
+<title>mmBERT Chopper Results</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: one reading column; each section = a claim, a table, and to-scale bars where the comparison matters */
+:root{
+  --bg:#f6f5f1; --panel:#ffffff; --ink:#1d2321; --mute:#5c6662; --line:#dcdcd4;
+  --mm:#c2571a; --rag:#3d6f8e; --gold:#8a8f5a; --slice:#7b4f9e; --track:#ecebe4;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141716; --panel:#1c201f; --ink:#e9ebe6; --mute:#a3aca7; --line:#323936;
+  --mm:#ef8a4c; --rag:#79aed0; --gold:#c3c78d; --slice:#b58fd6; --track:#262b29; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141716; --panel:#1c201f; --ink:#e9ebe6; --mute:#a3aca7; --line:#323936;
+  --mm:#ef8a4c; --rag:#79aed0; --gold:#c3c78d; --slice:#b58fd6; --track:#262b29; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
+main{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:34px}
+h1{font-family:var(--display);font-weight:650;font-size:2.1rem;line-height:1.15;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:500;font-size:1.35rem;margin:0 0 6px;text-wrap:balance}
+p{margin:0;max-width:68ch}
+.lede{color:var(--mute);margin-top:8px}
+.meta{font-family:var(--mono);font-size:.78rem;color:var(--mute);letter-spacing:.02em;margin-top:10px}
+section{display:flex;flex-direction:column;gap:12px}
+.claim{max-width:68ch}
+.tbl{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.9rem}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal;min-width:220px}
+thead th{font-weight:600;color:var(--mute);font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
+tbody tr:last-child td{border-bottom:none}
+tr.hi td{font-weight:600}
+td.num{font-family:var(--mono)}
+.note{font-size:.82rem;color:var(--mute);max-width:72ch}
+.bars{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:grid;gap:16px}
+.group h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:0 0 6px;font-weight:600}
+.row{display:grid;grid-template-columns:minmax(120px,190px) 1fr 44px;gap:10px;align-items:center;font-size:.85rem}
+.row .lab{min-width:0;overflow-wrap:anywhere}
+.track{background:var(--track);height:14px;border-radius:2px;position:relative}
+.fill{height:100%;border-radius:2px}
+.val{font-family:var(--mono);font-size:.8rem;text-align:right}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.8rem;color:var(--mute)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.card b{font-family:var(--display);font-size:1.6rem;font-weight:650}
+.card span{font-size:.82rem;color:var(--mute)}
+a{color:var(--rag)}
+</style>
+
+<main>
+<header>
+  <h1>mmBERT chopper: where it stands</h1>
+  <p class="lede">The universal chopper (mmBERT-base, continued on the 8-language rerank recipe, <code>rr/chopper_fullc</code>) cuts retrieved passages down to the fragments that answer the question. Every number below was measured on the RTX 3090; answers are judged by gpt-5.6-luna.</p>
+  <p class="meta">updated 9 Nov 2026 · validation 100 questions per benchmark · memory benchmarks 300 questions each</p>
+</header>
+
+<div class="cards">
+  <div class="card"><b>2.7–4.7%</b><span>of the retrieved text kept on MuSiQue / HotpotQA / TriviaQA</span></div>
+  <div class="card"><b>.39 → .61</b><span>MuSiQue correct answers, first search → native tool-call search loop</span></div>
+  <div class="card"><b>.69</b><span>pools with the answer deleted where it keeps ~nothing and asks to search</span></div>
+  <div class="card"><b>−.04 / −.12</b><span>versus plain RAG on LongMemEval / LoCoMo: the memory gap to close</span></div>
+</div>
+
+<section>
+  <h2>1. The chopper alone</h2>
+  <p class="claim">Continued training on the rerank recipe raised the 8-language holdout F1 from .30 to .465 and taught "nothing here", while keeping less text. Benchmark answers are unchanged within noise.</p>
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>old 54k</th><th>pilot</th><th>fresh retrain</th><th>continued (current)</th></tr></thead>
+    <tbody>
+      <tr><td>8-language holdout F1 / P / R</td><td class="num">.30/.33/.28</td><td class="num">.45/.32/.78</td><td class="num">.445/.33/.67</td><td class="num"><b>.465/.36/.67</b></td></tr>
+      <tr><td>deleted-answer pools: says search / text kept</td><td class="num">0 / 1.5%</td><td class="num">0 / 4.8%</td><td class="num">.68 / 1.5%</td><td class="num"><b>.69 / 1.5%</b></td></tr>
+      <tr><td>wrongly says search on answer rows</td><td class="num">0</td><td class="num">0</td><td class="num">.12</td><td class="num">.115</td></tr>
+      <tr><td>answer in kept text, M / H / T</td><td class="num">.48/.80/.80</td><td class="num">.46/.80/.74</td><td class="num">.35/.79/.76</td><td class="num">.42/.80/.74</td></tr>
+      <tr><td>luna-correct answers, first pool, M / H / T</td><td class="num">.63/.78/.78</td><td class="num">.60/.79/.77</td><td class="num">.44/.77/.75</td><td class="num">.60/.81/.75</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">M / H / T = MuSiQue / HotpotQA / TriviaQA. The answer rows count only questions whose gold passages are all among the first 16. Differences under about .08 are noise at 62–98 questions.</p>
+</section>
+
+<section>
+  <h2>2. End to end with the search loop</h2>
+  <p class="claim">The MiniCPM3-4B answerer reads the chopper's notes and, when a fact is missing, writes a natural follow-up question in its native tool-call format. Here every validation question counts, including the ones the first search missed.</p>
+  <div class="bars" id="loop"></div>
+  <div class="legend"><span><i class="sw" style="background:var(--mute)"></i>first 16 only</span><span><i class="sw" style="background:var(--mm)"></i>tool calls, natural questions (best)</span><span><i class="sw" style="background:var(--gold)"></i>near-perfect notes (ceiling)</span></div>
+  <div class="tbl"><table>
+    <thead><tr><th>reading → searching</th><th>MuSiQue</th><th>HotpotQA</th><th>TriviaQA</th></tr></thead>
+    <tbody>
+      <tr><td>first 16 only</td><td class="num">.39</td><td class="num">.78</td><td class="num">.73</td></tr>
+      <tr><td>one search, question + kept text, forced answer</td><td class="num">.50</td><td class="num">.79</td><td class="num">.72</td></tr>
+      <tr><td>one search, Qwen3-14B follow-up question</td><td class="num">.47</td><td class="num">.80</td><td class="num">.74</td></tr>
+      <tr><td>native tool calls v1 (knowledge-base wording)</td><td class="num">.56</td><td class="num">.78</td><td class="num">.71</td></tr>
+      <tr class="hi"><td>native tool calls v2 (natural questions)</td><td class="num">.61</td><td class="num">.76</td><td class="num">.74</td></tr>
+      <tr><td>v3: search results cut by a hop-question chopper (not kept)</td><td class="num">.60</td><td class="num">.76</td><td class="num">.74</td></tr>
+      <tr><td>near-perfect notes (ceiling)</td><td class="num">.84</td><td class="num">.84</td><td class="num">.88</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>3. Long-conversation memory</h2>
+  <p class="claim">On LoCoMo and LongMemEval-s, plain RAG over the raw history beats the chopper, and even the gold evidence alone tops out near .58. The 4B answerer is the main limit: it never says "not mentioned", rarely states preferences, and copies relative dates instead of resolving them.</p>
+  <div class="bars" id="mem"></div>
+  <div class="legend"><span><i class="sw" style="background:var(--gold)"></i>gold evidence only</span><span><i class="sw" style="background:var(--rag)"></i>naive RAG, 10 raw passages</span><span><i class="sw" style="background:var(--mm)"></i>mmBERT + search loop</span><span><i class="sw" style="background:var(--slice)"></i>MiniCPM3 slice (step 9,000) + loop</span></div>
+  <div class="tbl"><table>
+    <thead><tr><th>diagnostic</th><th>LoCoMo</th><th>LongMemEval-s</th></tr></thead>
+    <tbody>
+      <tr><td>evidence in the first 16 passages (any)</td><td class="num">.95</td><td class="num">.97</td></tr>
+      <tr><td>evidence kept in mmBERT's notes (RAG raw: .93 / .94)</td><td class="num">.71</td><td class="num">.83</td></tr>
+      <tr><td>notes length (history ~20k / ~115k tokens)</td><td class="num">74 words</td><td class="num">89 words</td></tr>
+      <tr><td>searches per question</td><td class="num">.14</td><td class="num">.05</td></tr>
+      <tr><td>questions mmBERT wins / loses against RAG</td><td class="num">8 / 31</td><td class="num">18 / 35</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Scores are reweighted to each benchmark's real question mix (LoCoMo without the adversarial category, as the papers do). For reference, Memory Tax (<a href="https://arxiv.org/abs/2610.34073">arXiv 2610.34073</a>) reports, with a Qwen3.5-4B answerer on LongMemEval-s, RAG 70.2 and gold evidence 73.4, with its own judge. MemT-1.0 (<a href="https://arxiv.org/abs/2610.26825">arXiv 2610.26825</a>) finds that text memory still leads memory written into the model.</p>
+</section>
+
+<section>
+  <h2>Next</h2>
+  <p class="claim">A conversation-memory dataset: real WildChat histories with planted facts, updates, preferences, relative dates and never-mentioned questions. Labels come free because the evidence turn is known by construction. The same rows train mmBERT (keep the whole turn and its date) and the answerer (resolve dates, list every item, say "not mentioned", search when the notes fall short).</p>
+</section>
+</main>
+
+<script>
+(function(){
+  function bars(id, groups){
+    var el=document.getElementById(id), html="";
+    groups.forEach(function(g){
+      html+='<div class="group"><h3>'+g.name+'</h3>';
+      g.rows.forEach(function(r){
+        html+='<div class="row"><span class="lab">'+r[0]+'</span><div class="track" role="img" aria-label="'+r[0]+' '+r[1].toFixed(2)+'"><div class="fill" style="width:'+(r[1]*100)+'%;background:var(--'+r[2]+')"></div></div><span class="val">'+r[1].toFixed(2)+'</span></div>';
+      });
+      html+='</div>';
+    });
+    el.innerHTML=html;
+  }
+  bars("loop",[
+    {name:"MuSiQue",rows:[["first 16 only",.39,"mute"],["tool calls v2",.61,"mm"],["ceiling",.84,"gold"]]},
+    {name:"HotpotQA",rows:[["first 16 only",.78,"mute"],["tool calls v2",.76,"mm"],["ceiling",.84,"gold"]]},
+    {name:"TriviaQA",rows:[["first 16 only",.73,"mute"],["tool calls v2",.74,"mm"],["ceiling",.88,"gold"]]}
+  ]);
+  bars("mem",[
+    {name:"LoCoMo (categories 1–4)",rows:[["gold evidence",.574,"gold"],["naive RAG",.512,"rag"],["mmBERT + loop",.395,"mm"],["slice + loop",.305,"slice"]]},
+    {name:"LongMemEval-s",rows:[["gold evidence",.587,"gold"],["naive RAG",.490,"rag"],["mmBERT + loop",.431,"mm"],["slice + loop",.389,"slice"]]}
+  ]);
+})();
+</script>

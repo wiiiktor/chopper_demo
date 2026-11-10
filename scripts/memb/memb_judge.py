@@ -37,9 +37,9 @@ for st, ss in S.items():
         out.append({"bench": b, "cat": c, "n": r[0], "luna": r[1] / r[0], "searches": r[2] / r[0], "ev_first16": r[4] / max(1, r[3]), "ev_kept": r[5] / max(1, r[3])})
         print(f"{os.path.basename(os.path.dirname(st))}/{os.path.basename(st):18s} {b:6s} {c:28s} n={r[0]:3d} | luna-correct {r[1] / r[0]:.2f} | "
               f"searches/q {r[2] / r[0]:.2f} | evidence in first 16 {r[4] / max(1, r[3]):.2f} kept {r[5] / max(1, r[3]):.2f}")
-    FULL = json.load(open(f"{D}/catfull.json"))         # reweight the stratified sample to each benchmark's real category mix (LoCoMo: categories 1-4, as the papers)
+    FULL = json.load(open(f"{D}/catfull.json")) if os.path.exists(f"{D}/catfull.json") else {}         # reweight the stratified sample to each benchmark's real category mix (LoCoMo: categories 1-4, as the papers)
     for b in {k[0] for k in R}:
-        W = {c: n for c, n in FULL[b].items() if c != "adversarial" and (b, c) in R}
+        W = {c: n for c, n in FULL.get(b, {}).items() if c != "adversarial" and (b, c) in R}
         if W:
             acc = sum(n * R[(b, c)][1] / R[(b, c)][0] for c, n in W.items()) / sum(W.values())
             out.append({"bench": b, "cat": "WEIGHTED", "luna": acc})

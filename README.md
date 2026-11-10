@@ -31,6 +31,15 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 | correct answers end to end, MuSiQue / HotpotQA / TriviaQA (judged by gpt-5.6-luna, 4B answering model) | first search only .39 / .78 / .73 → **with the search loop .61 / .76 / .74** |
 | "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **69%** of the time, keeps 1.5% of the text |
 | chopping time per lookup (RTX 3090) | **155 ms** (separate mmBERT) · **277 ms** (built into MiniCPM3-4B) |
+| 4-hop questions where every needed fact reaches the notes (MuSiQue, all paragraphs present) | **2% → 40%** with the new multi-hop chopper (0.31B); Claude Opus 5.5 as note-taker: 56% |
+
+### Where multi-hop answers get lost
+
+Read it like website traffic: 100 four-hop questions flow left to right, and at every hop the ones whose fact the notes missed
+drop out. Top: the new multi-hop chopper (0.31B). Bottom: Claude Opus 5.5 taking the notes (~10,000B, rough estimate). Last stage:
+Opus 5.5 answering from those notes. All hop counts, side by side, are in [the details](docs/DETAILS.md#7-multi-hop-where-answers-get-lost).
+
+<p align="center"><img src="figures/hop_sankey_4hop.svg" width="100%" alt="Sankey funnel for 100 four-hop MuSiQue questions. Multi-hop chopper: 80% keep hop 1, 64% hop 2, 52% hop 3, 45% hop 4, 40% keep the answer, 28% answered correctly by Opus 5.5 from the notes. Opus 5.5 as note-taker: 92%, 77%, 64%, 58%, 56% and 44%."></p>
 
 First long-conversation memory results (LoCoMo, LongMemEval) are in
 [the details](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval): there the 4B answering model is the

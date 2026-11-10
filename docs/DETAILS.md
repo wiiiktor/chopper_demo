@@ -605,6 +605,48 @@ headers, top 10. Their 4B row is therefore the nearest comparison for a 4B answe
     model's state was recalled about 18× worse than the same fact read as text. It is why this project compresses
     text instead of state, and its benchmark list is where we take our memory tests from.
 
+### 7. Multi-hop: where answers get lost
+
+**How much of a reasoning chain survives the chopper?** Judged per hop count, not per benchmark: 100 MuSiQue dev questions each
+at 1, 2, 3 and 4 hops (1-hop = the natural first sub-question of a 2-hop question). Each question keeps MuSiQue's own 20
+paragraphs, so every needed paragraph is present and nothing is lost to search. A question survives hop *k* if the notes keep text
+from the paragraph stating hop *k*'s fact; then the answer itself must be in the notes; then **Claude Opus 5.5 answers from the notes
+only** (judged by gpt-5.6-luna), the same strong answerer for every note source. Scripts: `scripts/hopstudy/`. Interactive version
+(any two sources, a subset without the questions Opus answers from memory):
+[Where multi-hop answers get lost](https://claude.ai/artifact/SKT1Zx9ZZ85FExPZ53dV6K).
+
+| questions of 100 keeping every hop and the answer | 1-hop | 2-hop | 3-hop | 4-hop | text kept | size |
+|---|---|---|---|---|---|---|
+| universal chopper (rerank-continued, the current one) | 72 | 31 | 12 | 2 | 2.9% | 0.31B |
+| **multi-hop chopper** (13,844 fresh MuSiQue train questions) | **91** | **62** | **61** | **40** | 4–7% | 0.31B |
+| same, re-running its last 8 layers with its own first-pass marks | 90 | 65 | 64 | 45 | 4–7% | 0.31B |
+| Qwen3-14B as note-taker (our labeller) | 89 | 72 | 39 | 23 | | 14B |
+| GPT-6 Luna as note-taker | 91 | 78 | 53 | 38 | 2.1% | not published |
+| Claude Opus 5.5 as note-taker, without the answer | 99 | 88 | 67 | 56 | 2.5% | ~10,000B (estimate) |
+
+| Opus 5.5 answers correctly from the notes of | 1-hop | 2-hop | 3-hop | 4-hop |
+|---|---|---|---|---|
+| universal chopper | 66 | 36 | 31 | 11 |
+| **multi-hop chopper** | **79** | **57** | **57** | **46** |
+| Opus 5.5's own notes | 86 | 77 | 67 | 57 |
+| perfect notes (each hop's gold sentences; strict judging of MuSiQue's answer forms caps this) | 79 | 75 | 70 | 64 |
+
+<p align="center"><img src="../figures/hop_sankey_1hop.svg" width="100%" alt="1-hop funnel, multi-hop chopper vs Opus 5.5"></p>
+<p align="center"><img src="../figures/hop_sankey_2hop.svg" width="100%" alt="2-hop funnel, multi-hop chopper vs Opus 5.5"></p>
+<p align="center"><img src="../figures/hop_sankey_3hop.svg" width="100%" alt="3-hop funnel, multi-hop chopper vs Opus 5.5"></p>
+<p align="center"><img src="../figures/hop_sankey_4hop.svg" width="100%" alt="4-hop funnel, multi-hop chopper vs Opus 5.5"></p>
+
+- **Reading the figures:** the last stage counts only questions whose notes kept the whole chain and the answer; Opus also answers some
+  questions from partial notes, which is why the answer table above is higher (46 vs 28 at four hops).
+- **The fresh multi-hop data is what works.** Re-running the last 8 layers with the first pass's marks ("recycling") adds 3–5
+  chains and nothing in correct answers, for 36% more compute; the version without it is the one shown in the figures.
+- **Opus's lead is reasoning, not memory:** without the gold answer it scores the same (99 / 88 / 67 / 56), and leaving out the 156
+  questions it answers from memory alone changes nothing.
+- **On real retrieved pools** (16 passages from our search) the multi-hop chopper keeps the MuSiQue answer for .50 of questions
+  (universal chopper .42) with HotpotQA, TriviaQA, the 8-language rerank holdout and "nothing here" unchanged.
+- **Next** ⏳: labels from Opus 5.5's reasoning chains (they quote the bridging clauses the fragments still clip) and training on
+  retrieved pools as well; the multi-hop chopper is not on Hugging Face yet.
+
 ## The operator
 
 `operator-for-llm-with-mmbert.py` implements it with the universal chopper (shared code in `scripts/operator_common.py`).

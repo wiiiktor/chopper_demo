@@ -29,6 +29,10 @@ ap.add_argument("--keep-w", type=float, default=0.5, help="KEEP loss share of th
 ap.add_argument("--train-splits", default="train", help="comma list of ctx_/qw_ file tags to train on (e.g. train,train2)")
 ap.add_argument("--val-split", default="val", help="ctx_/qw_ tag to evaluate on (val, wval)")
 ap.add_argument("--eval-only", default="", help="chopper.pt (or an older reader.pt) to load; evaluate on val and dump preds, no training")
+ap.add_argument("--recycle", type=int, default=0, help="2026-11-10 multi-hop chopper: re-run the LAST N encoder layers a second time with the "
+                "first pass's KEEP probability added to every token (zero-initialised projection, AlphaFold-style recycling); loss on both passes, "
+                "the second pass is the output. 0 = one pass (the old chopper)")
+ap.add_argument("--rec-w1", type=float, default=0.5, help="weight of the first pass's KEEP loss when recycling")
 ap.add_argument("--init", default="", help="chopper.pt (or an older reader.pt) to CONTINUE training from (fresh optimiser and schedule)")
 ap.add_argument("--merge-gap", type=int, default=0, help="decode: fill gaps of ≤ this many tokens between kept tokens")
 ap.add_argument("--min-run", type=int, default=1, help="decode: drop kept runs shorter than this many tokens")
@@ -81,16 +85,37 @@ class Chopper(nn.Module):
         self.enc = AutoModel.from_pretrained(A.base, dtype=torch.bfloat16)
         H = self.enc.config.hidden_size
         self.keep = nn.Linear(H, 1); self.dec = nn.Linear(H, 2)
+        self.rec = nn.Linear(1, H)                     # recycling: first-pass KEEP probability -> hidden-size offset, starts at zero
+        nn.init.zeros_(self.rec.weight); nn.init.zeros_(self.rec.bias)
 
-    def forward(self, ids):
-        h = self.enc(input_ids=ids).last_hidden_state[0].float()
-        return self.keep(h)[:, 0], self.dec(h[0])
+    def forward(self, ids, both=False):
+        if not A.recycle:
+            h = self.enc(input_ids=ids).last_hidden_state[0].float()
+            k, d = self.keep(h)[:, 0], self.dec(h[0])
+            return (k, d, None) if both else (k, d)
+        import transformers.models.modernbert.modeling_modernbert as MB
+        e = self.enc; x = e.embeddings(input_ids=ids); pos = torch.arange(ids.shape[1], device=ids.device).unsqueeze(0)
+        mk = {"config": e.config, "inputs_embeds": x, "attention_mask": None}
+        am = {"full_attention": MB.create_bidirectional_mask(**mk), "sliding_attention": MB.create_bidirectional_sliding_window_mask(**mk)}
+        pe = {t: e.rotary_emb(x, pos, t) for t in set(e.config.layer_types)}
+        cut = len(e.layers) - A.recycle
+        for i, L in enumerate(e.layers):
+            if i == cut:
+                x_cut = x
+            x = L(x, attention_mask=am[L.attention_type], position_embeddings=pe[L.attention_type])
+        k1 = self.keep(e.final_norm(x)[0].float())[:, 0]
+        x = x_cut + self.rec(torch.sigmoid(k1).detach().unsqueeze(-1)).to(x_cut.dtype).unsqueeze(0)
+        for L in e.layers[cut:]:
+            x = L(x, attention_mask=am[L.attention_type], position_embeddings=pe[L.attention_type])
+        h = e.final_norm(x)[0].float()
+        k2, d = self.keep(h)[:, 0], self.dec(h[0])
+        return (k2, d, k1) if both else (k2, d)
 
 
 M = Chopper().to(dev)
 M.enc.gradient_checkpointing_enable() if hasattr(M.enc, "gradient_checkpointing_enable") else None
 opt = torch.optim.AdamW([{"params": M.enc.parameters(), "lr": A.lr},
-                         {"params": list(M.keep.parameters()) + list(M.dec.parameters()), "lr": A.head_lr}], weight_decay=0.0)
+                         {"params": list(M.keep.parameters()) + list(M.dec.parameters()) + list(M.rec.parameters()), "lr": A.head_lr}], weight_decay=0.0)
 TR, VA = [x for sp in A.train_splits.split(",") for x in load(sp)], load(A.val_split)
 random.shuffle(TR)
 if A.smoke:
@@ -175,11 +200,15 @@ def evaluate(step):
 if A.eval_only:
     ck = torch.load(A.eval_only, map_location="cpu", weights_only=False)
     M.enc.load_state_dict(ck["enc"]); M.keep.load_state_dict(ck["keep"]); M.dec.load_state_dict(ck["dec"])
+    if "rec" in ck:
+        M.rec.load_state_dict(ck["rec"]); A.recycle = ck["args"].get("recycle", 0)
     log(f"eval only: {A.eval_only} (step {ck['step']}) | KEEP threshold {A.pred_thr}")
     evaluate(f"{ck['step']} @p>{A.pred_thr}"); raise SystemExit
 if A.init:
     ck = torch.load(A.init, map_location="cpu", weights_only=False)
     M.enc.load_state_dict(ck["enc"]); M.keep.load_state_dict(ck["keep"]); M.dec.load_state_dict(ck["dec"])
+    if "rec" in ck:
+        M.rec.load_state_dict(ck["rec"])
     log(f"continuing from {A.init} (step {ck['step']}, splits {ck['args'].get('train_splits')})")
 hist = []; t0 = time.time(); win = []
 M.train(); opt.zero_grad(set_to_none=True)
@@ -190,10 +219,13 @@ for step, (c, lab) in enumerate(TR, 1):
     opt.param_groups[0]["lr"] = A.lr * f; opt.param_groups[1]["lr"] = A.head_lr * f
     s, e, y, dec, hw = encode(c, lab); y = y.to(dev); hw = 1 + (A.hop_w - 1) * hw.to(dev)
     with torch.autocast("cuda", dtype=torch.bfloat16):
-        kl, dl = M(torch.tensor([e["input_ids"]], device=dev))
+        kl, dl, k1 = M(torch.tensor([e["input_ids"]], device=dev), both=True)
     kl, dl = kl.float(), dl.float()
-    b = F.binary_cross_entropy_with_logits(kl, y, reduction="none")
-    lk = A.keep_w * (b * hw)[y > 0].sum() / hw[y > 0].sum() + (1 - A.keep_w) * b[y == 0].mean() if (y > 0).any() else b.mean()
+
+    def keep_loss(kx):
+        b = F.binary_cross_entropy_with_logits(kx.float(), y, reduction="none")
+        return A.keep_w * (b * hw)[y > 0].sum() / hw[y > 0].sum() + (1 - A.keep_w) * b[y == 0].mean() if (y > 0).any() else b.mean()
+    lk = keep_loss(kl) + (A.rec_w1 * keep_loss(k1) if k1 is not None else 0)
     ld = F.cross_entropy(dl.unsqueeze(0), torch.tensor([dec], device=dev), weight=W)
     ((lk + ld) / A.accum).backward()
     with torch.no_grad():                              # train-window KEEP quality at p>0.5 (chart: does it flatten?)
@@ -209,7 +241,7 @@ for step, (c, lab) in enumerate(TR, 1):
         log(f"step {step}/{total} | keepL {w[:, 0].mean():.3f} decL {w[:, 1].mean():.3f} | train KEEP@0.5 bal-acc {bal:.3f} F1 {f1_:.3f} | len {w[:, 2].mean():.0f} | "
             f"{(time.time() - t0) / step:.2f}s/step | peak {torch.cuda.max_memory_allocated() / 2**30:.1f}GiB")
     if step % A.eval_every == 0 or step == total:
-        torch.save({"keep": M.keep.state_dict(), "dec": M.dec.state_dict(), "enc": M.enc.state_dict(), "args": vars(A), "step": step},
+        torch.save({"keep": M.keep.state_dict(), "dec": M.dec.state_dict(), "enc": M.enc.state_dict(), "rec": M.rec.state_dict(), "args": vars(A), "step": step},
                    os.path.join(A.out, "chopper.pt"))
         if not os.path.lexists(os.path.join(A.out, "reader.pt")):   # old name, for chains written before the rename
             os.symlink("chopper.pt", os.path.join(A.out, "reader.pt"))
