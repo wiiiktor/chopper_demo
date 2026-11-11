@@ -5,15 +5,15 @@
 /* layout: one column; a selector for the source, then one traffic-style Sankey per hop count, then the end-to-end table */
 :root{
   --bg:#f5f6f3; --panel:#ffffff; --ink:#1b211f; --mute:#5d6863; --line:#d9ddd6;
-  --flow:#2f7d6d; --flowband:#9fcdc2; --loss:#c0533d; --lossband:#efc2b6; --pend:#8a8f87; --graphite:#3a3f45; --rust:#a8461f; --onrust:#ffffff;
+  --flow:#2f7d6d; --flowband:#9fcdc2; --loss:#c0533d; --lossband:#efc2b6; --pend:#8a8f87; --graphite:#3a3f45; --rust:#f07a22; --onrust:#1b1206;
   --display:"Source Serif 4",Georgia,serif; --body:"Atkinson Hyperlegible",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#121614; --panel:#1a1f1d; --ink:#e7ebe8; --mute:#a0aaa5; --line:#2f3733;
-  --flow:#5fbfaa; --flowband:#245a4f; --loss:#e47b63; --lossband:#5e3127; --pend:#7d847f; --graphite:#2a2e33; --rust:#9a3f1c; --onrust:#fff6f1; color-scheme:dark}}
+  --flow:#5fbfaa; --flowband:#245a4f; --loss:#e47b63; --lossband:#5e3127; --pend:#7d847f; --graphite:#2a2e33; --rust:#f07a22; --onrust:#1b1206; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121614; --panel:#1a1f1d; --ink:#e7ebe8; --mute:#a0aaa5; --line:#2f3733;
-  --flow:#5fbfaa; --flowband:#245a4f; --loss:#e47b63; --lossband:#5e3127; --pend:#7d847f; --graphite:#2a2e33; --rust:#9a3f1c; --onrust:#fff6f1; color-scheme:dark}
+  --flow:#5fbfaa; --flowband:#245a4f; --loss:#e47b63; --lossband:#5e3127; --pend:#7d847f; --graphite:#2a2e33; --rust:#f07a22; --onrust:#1b1206; color-scheme:dark}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
 main{max-width:920px;margin:0 auto;display:flex;flex-direction:column;gap:26px}
