@@ -55,7 +55,7 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 ```
 
 - 🎯 **Clean context:** only useful fragments enter the session; the raw passages never stay.
-- ⚡ **Less compute:** the main model reads 3–5% of the retrieved text.
+- ⚡ **Less compute:** the main model reads 2–5% of the retrieved text.
 - 🔗 **Multi-hop works:** the model writes a follow-up question when a fact is missing, and searches again.
 - 🏠 **Built on one home GPU:** every dataset, label and model here was trained on a single RTX 3090.
 
@@ -63,9 +63,9 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 
 | | |
 |---|---|
-| retrieved text the main model reads | **3–5%** (about 20–30× less); the answer is still in the kept text for 85% of HotpotQA and 69% of TriviaQA questions |
-| multi-hop questions with every needed passage found (MuSiQue) | **.62 → .87** with one written follow-up search |
-| correct answers end to end, MuSiQue / HotpotQA / TriviaQA (judged by gpt-5.6-luna, 4B answering model) | first search only .39 / .78 / .73 → **with the search loop .61 / .76 / .74** |
+| retrieved text the main model reads | **2–5%** (about 20–40× less); the answer is still in the kept text for 85% of HotpotQA and 69% of TriviaQA questions |
+| multi-hop questions with every needed passage found (MuSiQue; earlier chopper) | **.62 → .87** with one written follow-up search |
+| correct answers end to end, MuSiQue / HotpotQA / TriviaQA (judged by gpt-5.6-luna, 4B answering model; earlier chopper) | first search only .39 / .78 / .73 → **with the search loop .61 / .76 / .74** |
 | "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **67%** of the time, keeps 1.4% of the text |
 | chopping time per lookup (RTX 3090) | **155 ms** (separate mmBERT) · **277 ms** (built into MiniCPM3-4B) |
 | 4-hop MuSiQue questions answered correctly by Qwen3-14B, one retrieval | **12% → 29%** with the chopper's chops instead of all 20 snippets (11× fewer tokens); with Opus 5.5's chops: 43% |
