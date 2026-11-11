@@ -9,8 +9,7 @@
 
 > **One database retrieval per question, even at 4 hops.** Every result below uses a single retrieval: each question gets its
 > 20 paragraphs once, the chopper cuts them once, and Qwen3-14B answers once. There are no follow-up searches and no second
-> rounds, so a 4-hop question has to be chained from one cut. Results with a few iterations (Qwen asks a follow-up question and
-> the chopper cuts again) are on a separate page: [docs/ITERATIVE.md](docs/ITERATIVE.md).
+> rounds, so a 4-hop question has to be chained from one cut.
 
 ### mmBERT is 32,000 times smaller
 
@@ -19,7 +18,8 @@
 ### Qwen3-14B answering from different notes
 
 400 MuSiQue questions, 100 each at 1, 2, 3 and 4 hops, each with its own 20 retrieved paragraphs. Qwen3-14B (4-bit, no fine-tuning,
-no thinking mode) answers from the notes only; gpt-5.6-luna judges. Notes length = prompt tokens.
+no thinking mode) answers from the notes only; gpt-5.6-luna judges. Notes length = prompt tokens. Each score counts every correct
+answer, including those from incomplete notes; the number in brackets counts only questions whose notes kept every hop and the answer.
 
 <p align="center"><img src="figures/qwen_notes_table.svg" width="100%" alt="Qwen3-14B correct answers (1/2/3/4 hops) and notes length. All notes retrieved from database: 2,620 tokens, 84/28/22/12. Multi-hop chopper notes: 244 tokens, 82/50/49/31. Opus 5.5's notes: 143 tokens, 90/64/55/43. Gold notes: 217 tokens, 86/63/52/37."></p>
 
@@ -34,8 +34,8 @@ Bottom: Opus 5.5's notes.
 <p align="center"><img src="figures/qwen_sankey_3hop.svg" width="100%" alt="3-hop questions: Qwen3-14B correct 22% with all notes, 49% with chopper notes, 55% with Opus notes"></p>
 <p align="center"><img src="figures/qwen_sankey_4hop.svg" width="100%" alt="4-hop questions: Qwen3-14B correct 12% with all notes, 31% with chopper notes, 43% with Opus notes"></p>
 
-In the middle and bottom diagrams the last stage counts only questions whose notes kept the whole chain; Qwen also gets some right
-from partial notes, so its overall scores (table above) are higher. More: [docs/DETAILS.md §7](docs/DETAILS.md#7-multi-hop-where-answers-get-lost).
+The last stage is the table's score; the lighter block under it counts answers Qwen got right from incomplete notes, and the
+number in brackets leaves them out. More: [docs/DETAILS.md §7](docs/DETAILS.md#7-multi-hop-where-answers-get-lost).
 
 ---
 
@@ -60,22 +60,21 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 
 | | |
 |---|---|
-| retrieved text the main model reads | **3–5%** (about 20–30× less); the answer is still in the kept text for 80% of HotpotQA and TriviaQA questions |
+| retrieved text the main model reads | **3–5%** (about 20–30× less); the answer is still in the kept text for 85% of HotpotQA and 69% of TriviaQA questions |
 | multi-hop questions with every needed passage found (MuSiQue) | **.62 → .87** with one written follow-up search |
 | correct answers end to end, MuSiQue / HotpotQA / TriviaQA (judged by gpt-5.6-luna, 4B answering model) | first search only .39 / .78 / .73 → **with the search loop .61 / .76 / .74** |
-| "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **69%** of the time, keeps 1.5% of the text |
+| "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **61%** of the time, keeps 1.9% of the text |
 | chopping time per lookup (RTX 3090) | **155 ms** (separate mmBERT) · **277 ms** (built into MiniCPM3-4B) |
-| 4-hop questions where every needed fact reaches the notes (MuSiQue, all paragraphs present) | **2% → 40%** with the new multi-hop chopper (0.31B); Claude Opus 5.5 as note-taker: 56% |
+| 4-hop MuSiQue questions answered correctly by Qwen3-14B, one retrieval | **12% → 29%** with chopper notes instead of all 20 paragraphs (11× fewer tokens); with Claude Opus 5.5's notes: 43% |
 
-First long-conversation memory results (LoCoMo, LongMemEval) are in
-[the details](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval): there the 4B answering model is the
-limit, and conversation-memory training is next ⏳.
+Long-conversation memory results (LoCoMo, LongMemEval) are in
+[the details](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval): there the 4B answering model is the limit.
 
 ## Pick your chopper
 
 | | 🟧 **universal** | 🟪 **integrated** |
 |---|---|---|
-| what it is | a separate small encoder (mmBERT, 0.31B or 0.14B) | a 20% slice of MiniCPM3-4B's own weights + a small LoRA |
+| what it is | a separate small encoder (mmBERT-base, 0.31B; a 0.14B mmBERT-small on the earlier data) | a 20% slice of MiniCPM3-4B's own weights + a small LoRA |
 | works with | **any** answering model: text in, text out | MiniCPM3-4B |
 | extra memory | 0.31B / 0.14B weights | 45M parameters; reads the model's own cache |
 | weights | 🤗 [`wiiiktor/chopper_mmbert`](https://huggingface.co/wiiiktor/chopper_mmbert) | 🤗 [`wiiiktor/chopper_minicpm3`](https://huggingface.co/wiiiktor/chopper_minicpm3) |
@@ -111,7 +110,8 @@ Everything else is on one page, **[docs/DETAILS.md](docs/DETAILS.md)**:
 ## Credits
 
 Built on mmBERT (JHU CLSP), MiniCPM3-4B (OpenBMB), Qwen3 and Qwen3-Embedding (Qwen team), bge-reranker (BAAI), and the
-MuSiQue, HotpotQA, TriviaQA, Wikipedia, LoCoMo and LongMemEval datasets. Our memory evaluation follows
+MuSiQue, HotpotQA, 2WikiMultiHopQA, TriviaQA, QASPER, Multi-Session Chat, WildChat, FineWeb, Wikipedia, LoCoMo and
+LongMemEval datasets. Our memory evaluation follows
 [Memory Tax](https://arxiv.org/abs/2610.34073) (He et al., 2026) and compares with
 [MemT-1.0](https://arxiv.org/abs/2610.26825) (MemTensor, 2026). Full table with licenses:
 [docs/DETAILS.md](docs/DETAILS.md#credits-and-licenses).

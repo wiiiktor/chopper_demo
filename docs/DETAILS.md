@@ -11,7 +11,7 @@
 > This is the long version: datasets, training, every result, the operator and the rewiring. The short overview is
 > the [README](../README.md).
 
-> **DRAFT 2026-11-03.** Sections marked ⏳ describe parts that are planned or still training. Every number in
+> **DRAFT 2026-11-11.** Sections marked ⏳ describe parts that are planned or still training. Every number in
 > **Results** was measured; nothing in it is projected.
 
 > 💡 **Affordable technology.** Everything in this repository was built and trained on **one 24 GB GPU** (an RTX 3090
@@ -246,13 +246,23 @@ questions ~1 h. That is **~21 h for 27,000 rows**.
 
 Planned later: 3-hop chains (A → B → C).
 
+### C. Final mix
+
+102,654 training rows in one shuffled mix: MuSiQue 1–4 hop questions labelled by Claude Opus 5.5 (on MuSiQue's own
+paragraphs and on retrieved pools), HotpotQA and 2WikiMultiHopQA with human supporting facts, MuSiQue unanswerable
+questions, the 8-language rerank pools ([§5](#5-rerank-pilot-8-languages-business-documents-no-answer-here)), QASPER
+(scientific papers), Multi-Session Chat and WildChat conversations. Files and per-source counts: the `final_mix/` folder
+of 🤗 [`wiiiktor/chopper_demo`](https://huggingface.co/datasets/wiiiktor/chopper_demo). A curriculum (noisier sources
+first) tied the flat mix, so the flat mix is the one released.
+
 ---
 
 ## Models
 
 | model | base | trainable | trained on | status |
 |---|---|---|---|---|
-| 🟧 **universal chopper: mmBERT-base and mmBERT-small** (small = the size-matched control) | `jhu-clsp/mmBERT-base` (0.31B) / `jhu-clsp/mmBERT-small` (0.14B) | all weights + KEEP head + decision head | all 54,000 rows: datasets A and B shuffled together, one epoch | ✅ on HF (base 2 h 50 min, small 2 h, 3090) |
+| 🟧 **universal chopper: mmBERT-base** | `jhu-clsp/mmBERT-base` (0.31B) | all weights + KEEP head + decision head | the 54,000 rows of datasets A and B, then the 102,654-row final mix ([C](#c-final-mix)), one epoch each | ✅ on HF (final mix 5 h 50 min, 3090) |
+| universal chopper: mmBERT-small | `jhu-clsp/mmBERT-small` (0.14B) | same | the 54,000 rows of datasets A and B | ✅ on HF (2 h); not yet trained on the final mix |
 | 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
 | **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ✅ both on 🤗 [`chopper_minicpm3/answerer/`](https://huggingface.co/wiiiktor/chopper_minicpm3/tree/main/answerer): `chopper-notes/`, `clean-notes/` |
@@ -578,8 +588,6 @@ headers, top 10. Their 4B row is therefore the nearest comparison for a 4B answe
   instructions in passages (the chopper should drop them, the answerer should never repeat them).
 - **Harder memory benchmark:** MINT-Eval, value tracking under many conflicting versions; naive RAG scores only 28.6
   there in Memory Tax.
-- **New training rows:** facts that change over a conversation (dated tags decide), questions across several sessions,
-  temporal questions, and never-mentioned facts as no-answer rows.
 
 #### Related work we build on
 - **Memory Tax: Dissecting the Net Value of Agent Memory** (He, Zhoubian, Yang, Wen, Wang, Hu, Yang, Zhang, Nie, Han,
@@ -609,43 +617,35 @@ headers, top 10. Their 4B row is therefore the nearest comparison for a 4B answe
 
 **How much of a reasoning chain survives the chopper?** Judged per hop count, not per benchmark: 100 MuSiQue dev questions each
 at 1, 2, 3 and 4 hops (1-hop = the natural first sub-question of a 2-hop question). Each question keeps MuSiQue's own 20
-paragraphs, so every needed paragraph is present and nothing is lost to search. A question survives hop *k* if the notes keep text
-from the paragraph stating hop *k*'s fact; then the answer itself must be in the notes; then **Claude Opus 5.5 answers from the notes
-only** (judged by gpt-5.6-luna), the same strong answerer for every note source. Scripts: `scripts/hopstudy/`. Interactive version
-(any two sources, a subset without the questions Opus answers from memory):
-[Where multi-hop answers get lost](https://claude.ai/artifact/SKT1Zx9ZZ85FExPZ53dV6K).
+paragraphs and gets **one retrieval**: the chopper cuts once and Qwen3-14B (4-bit, no fine-tuning) answers once from the notes,
+judged by gpt-5.6-luna. A question survives hop *k* if the notes keep text from the paragraph stating hop *k*'s fact; then the
+answer itself must be in the notes. Scripts: `scripts/hopstudy/`. Interactive version:
+[Chopper 0.3B close to Opus 5.5](https://claude.ai/artifact/SKT1Zx9ZZ85FExPZ53dV6K).
 
-| questions of 100 keeping every hop and the answer | 1-hop | 2-hop | 3-hop | 4-hop | text kept | size |
-|---|---|---|---|---|---|---|
-| universal chopper (rerank-continued, the current one) | 72 | 31 | 12 | 2 | 2.9% | 0.31B |
-| **multi-hop chopper** (13,844 fresh MuSiQue train questions) | **91** | **62** | **61** | **40** | 4–7% | 0.31B |
-| same, re-running its last 8 layers with its own first-pass marks | 90 | 65 | 64 | 45 | 4–7% | 0.31B |
-| Qwen3-14B as note-taker (our labeller) | 89 | 72 | 39 | 23 | | 14B |
-| GPT-6 Luna as note-taker | 91 | 78 | 53 | 38 | 2.1% | not published |
-| Claude Opus 5.5 as note-taker, without the answer | 99 | 88 | 67 | 56 | 2.5% | ~10,000B (estimate) |
+| questions of 100 keeping every hop and the answer | 1-hop | 2-hop | 3-hop | 4-hop | size |
+|---|---|---|---|---|---|
+| first universal chopper (datasets A + B, rerank-continued) | 72 | 31 | 12 | 2 | 0.31B |
+| **final chopper** (final mix) | **96** | **69** | **64** | **47** | 0.31B |
+| Qwen3-14B as note-taker | 89 | 72 | 39 | 23 | 14B |
+| Claude Opus 5.5 as note-taker, without the answer | 99 | 88 | 67 | 56 | ~10,000B (estimate) |
 
-| Opus 5.5 answers correctly from the notes of | 1-hop | 2-hop | 3-hop | 4-hop |
-|---|---|---|---|---|
-| universal chopper | 66 | 36 | 31 | 11 |
-| **multi-hop chopper** | **79** | **57** | **57** | **46** |
-| Opus 5.5's own notes | 86 | 77 | 67 | 57 |
-| perfect notes (each hop's gold sentences; strict judging of MuSiQue's answer forms caps this) | 79 | 75 | 70 | 64 |
+Qwen3-14B correct answers; in brackets, only questions whose notes kept every hop and the answer:
 
-<p align="center"><img src="../figures/hop_sankey_1hop.svg" width="100%" alt="1-hop funnel, multi-hop chopper vs Opus 5.5"></p>
-<p align="center"><img src="../figures/hop_sankey_2hop.svg" width="100%" alt="2-hop funnel, multi-hop chopper vs Opus 5.5"></p>
-<p align="center"><img src="../figures/hop_sankey_3hop.svg" width="100%" alt="3-hop funnel, multi-hop chopper vs Opus 5.5"></p>
-<p align="center"><img src="../figures/hop_sankey_4hop.svg" width="100%" alt="4-hop funnel, multi-hop chopper vs Opus 5.5"></p>
+| Qwen3-14B answering from | notes tokens | 1-hop | 2-hop | 3-hop | 4-hop |
+|---|---|---|---|---|---|
+| all 20 paragraphs | 2,620 | 84 | 28 | 22 | 12 |
+| **final chopper's notes** | **228** | **83** (82) | **48** (44) | **45** (35) | **29** (21) |
+| Opus 5.5's notes | 144 | 90 (90) | 64 (60) | 55 (40) | 43 (30) |
+| gold notes (each hop's gold sentences) | 217 | 86 | 63 | 52 | 37 |
 
-- **Reading the figures:** the last stage counts only questions whose notes kept the whole chain and the answer; Opus also answers some
-  questions from partial notes, which is why the answer table above is higher (46 vs 28 at four hops).
-- **The fresh multi-hop data is what works.** Re-running the last 8 layers with the first pass's marks ("recycling") adds 3–5
-  chains and nothing in correct answers, for 36% more compute; the version without it is the one shown in the figures.
-- **Opus's lead is reasoning, not memory:** without the gold answer it scores the same (99 / 88 / 67 / 56), and leaving out the 156
-  questions it answers from memory alone changes nothing.
-- **On real retrieved pools** (16 passages from our search) the multi-hop chopper keeps the MuSiQue answer for .50 of questions
-  (universal chopper .42) with HotpotQA, TriviaQA, the 8-language rerank holdout and "nothing here" unchanged.
-- **Next** ⏳: labels from Opus 5.5's reasoning chains (they quote the bridging clauses the fragments still clip) and training on
-  retrieved pools as well; the multi-hop chopper is not on Hugging Face yet.
+- **Fresh multi-hop data with exact labels is what moves the chopper.** Re-running its last 8 layers with its own first-pass
+  marks ("recycling") added nothing in correct answers, for 36% more compute, and is not used.
+- **Opus's lead is chaining, not memory:** without the gold answer it scores the same, and leaving out the 156 questions it
+  answers from memory alone changes nothing.
+- **The answering model needs no fine-tuning:** Qwen3-14B with the chopper's notes more than doubles its 3–4-hop score with
+  11× fewer tokens.
+- **On 2WikiMultiHopQA dev** (100 questions per type, not used for choosing the model) the final chopper keeps the answer for
+  73–83% of questions.
 
 ## The operator
 
@@ -789,6 +789,11 @@ after the fact.
 | MuSiQue | Trivedi et al., 2022 | CC BY 4.0 | dataset A |
 | HotpotQA | Yang et al., 2018 | CC BY-SA 4.0 | dataset A |
 | TriviaQA | Joshi et al., 2017 | Apache 2.0 *(verify per release)* | dataset A |
+| 2WikiMultiHopQA | Ho et al., 2020 | Apache 2.0 | final mix |
+| QASPER | Dasigi et al., 2021 (AI2) | CC BY 4.0 | final mix |
+| Multi-Session Chat | Xu et al., 2022 (Meta, ParlAI) | MIT | final mix |
+| WildChat | Zhao et al., 2024 (AI2) | ODC-BY | final mix |
+| FineWeb, FineWeb-2 | Hugging Face | ODC-BY | rerank pools (final mix) |
 | Wikipedia | Wikipedia contributors | CC BY-SA 4.0 | dataset B |
 | LoCoMo | Maharana et al., 2024 (Snap Research) | CC BY-NC 4.0 | memory benchmark, §6 (evaluation only) |
 | LongMemEval | Wu et al., 2025 | MIT | memory benchmark, §6 (evaluation only) |
@@ -819,7 +824,7 @@ retrieve: {embedder: Qwen/Qwen3-Embedding-0.6B, top: 100, reranker: BAAI/bge-rer
 chop:
   universal:   # mmBERT, a separate encoder; works with any answering model
     {bases: [jhu-clsp/mmBERT-base, jhu-clsp/mmBERT-small], input: "Question: <q> [SEP] p1 [SEP] … p16", max_tokens: 8192,
-     output: per-token p(KEEP), decode: {threshold: 0.8, merge_gap_tokens: 5, min_run_tokens: 4}, operator: operator-for-llm-with-mmbert.py}
+     output: per-token p(KEEP), decode: {threshold: "chopper_config.json (base 0.5, small 0.8)", merge_gap_tokens: 5, min_run_tokens: 4}, operator: operator-for-llm-with-mmbert.py}
   integrated:  # a slice of the answering model itself
     {base: openbmb/MiniCPM3-4B, frac: 0.2, kept_per_layer: {heads: 8, mlp_neurons: 960}, lora_rank: 32, trainable: 44.9M,
      reads: "host LATENT cache (whole conversation) + passages twice", keep_from: second_copy,
@@ -834,17 +839,19 @@ answering_model:
 training_data:
   benchmark_chains: {rows: 27000, sources: [MuSiQue, HotpotQA, TriviaQA], splits: train, eval_rows: 300}
   wikipedia_chains: {status: done, rows: 27000, eval_rows: 300, mix: "18000 2-hop + 9000 1-hop", scripts: [wk_chains.py, wk_gen.py, wk_judge.py, wk_pools.py]}
-labels: {teacher: Qwen/Qwen3-14B-AWQ, sees_gold_answer: true, use: training only}
+  final_mix: {rows: 102654, eval_rows: 4030, sources: [MuSiQue (Opus 5.5 labels), HotpotQA, 2WikiMultiHopQA, MuSiQue unanswerable, rerank 8 languages, QASPER, Multi-Session Chat, WildChat]}
+labels: {datasets_A_B: Qwen/Qwen3-14B-AWQ (saw the gold answer), final_mix: "human supporting facts, Claude Opus 5.5, Qwen3-14B + gpt-5.6-luna check"}
 hardware: {gpu: RTX 3090 24GB, cloud: none}
-weights_and_data:   # Hugging Face, public
-  universal_chopper: {repo: wiiiktor/chopper_mmbert, folders: [mmbert-base/, mmbert-small/], trained_on: "54k = dataset A + dataset B mixed, one epoch", files: ["encoder/", heads.safetensors, chopper_config.json]}
+weights_and_data:   # Hugging Face
+  universal_chopper: {repo: wiiiktor/chopper_mmbert, folders: [mmbert-base/, mmbert-small/], trained_on: "base: 54k (A + B) then the 102,654-row final mix; small: 54k", files: ["encoder/", heads.safetensors, chopper_config.json]}
   integrated_chopper: {repo: wiiiktor/chopper_minicpm3, files: [permutation.safetensors, chopper_lora.safetensors, keep_head.safetensors, keeper.pt, perms_minicpm3.pt], base: openbmb/MiniCPM3-4B (unmodified; permutation applied at load)}
   datasets: {repo: wiiiktor/chopper_demo, type: dataset}
 key_results:
-  answer_in_kept: {mmbert_base: [0.48, 0.80, 0.80], mmbert_small: [0.47, 0.81, 0.74], minicpm3_slice: [0.47, 0.80, 0.69]}   # MuSiQue, HotpotQA, TriviaQA
+  answer_in_kept: {mmbert_base_final: [0.55, 0.85, 0.69], mmbert_small: [0.47, 0.81, 0.74], minicpm3_slice: [0.47, 0.80, 0.69]}   # MuSiQue, HotpotQA, TriviaQA
+  hop_study_qwen3_14b_correct: {all_20_paragraphs: [84, 28, 22, 12], chopper_notes: [83, 48, 45, 29], opus_5_5_notes: [90, 64, 55, 43]}   # 1-4 hops, one retrieval
   musique_all_hops: {first_16: 0.62, plus_followup_question_search: 0.87}
   tool_call_loop_luna: {musique: 0.61, hotpotqa: 0.76, triviaqa: 0.74, first_16_only: [0.39, 0.78, 0.73]}
-  memory_benchmarks: {locomo: pending, longmemeval_s: pending, references: ["arXiv 2610.34073 (Memory Tax)", "arXiv 2610.26825 (MemT-1.0)"]}
+  memory_benchmarks: {rag: [0.51, 0.49], mmbert_chopper: [0.40, 0.43], note: "LoCoMo, LongMemEval-S; the 4B answering model is the limit", references: ["arXiv 2610.34073 (Memory Tax)", "arXiv 2610.26825 (MemT-1.0)"]}
 caveats:
   - "Teacher fragments saw the answer: they are an upper bound, not a baseline."
   - "Dataset A is built from benchmarks: do not claim zero-shot results on them."

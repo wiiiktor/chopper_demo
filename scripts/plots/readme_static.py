@@ -27,8 +27,11 @@ o += [f'<circle cx="{qx:.1f}" cy="{qy:.1f}" r="7" fill="{LOSS}"/>', f'<circle cx
 open(f"{OUT}/size_cube.svg", "w").write(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" {FONT}>' + "".join(o) + "</svg>")
 
 # 2. Qwen3-14B notes table with mini bars
-ROWS = [("All notes retrieved from database", 2620, [84, 28, 22, 12]), ("Multi-hop chopper notes", 244, [82, 50, 49, 31]),
-        ("Opus 5.5's notes", 143, [90, 64, 55, 43]), ("Gold notes (each hop's gold sentences)", 217, [86, 63, 52, 37])]
+# (all correct, complete-notes-only correct in brackets; None = notes are always complete)
+ROWS = [("All notes retrieved from database", 2620, [(84, None), (28, None), (22, None), (12, None)]),
+        ("Chopper notes (mmBERT 0.31B)", 228, [(83, 82), (48, 44), (45, 35), (29, 21)]),
+        ("Opus 5.5's notes", 144, [(90, 90), (64, 60), (55, 40), (43, 30)]),
+        ("Gold notes (each hop's gold sentences)", 217, [(86, None), (63, None), (52, None), (37, None)])]
 COLS = ["Qwen3-14B answering from", "notes length", "1-hop", "2-hop", "3-hop", "4-hop"]
 X = [16, 330, 460, 570, 680, 790]; RH = 46; W2 = 900; H2 = 50 + RH * len(ROWS) + 10
 o = [f'<rect width="100%" height="100%" fill="{BG}"/>']
@@ -38,7 +41,7 @@ o.append(f'<line x1="10" y1="42" x2="{W2 - 10}" y2="42" stroke="{LINE}"/>')
 for i, (name, tok, v) in enumerate(ROWS):
     y = 50 + i * RH
     o.append(f'<text x="{X[0]}" y="{y + 28}" font-size="14" fill="{INK}">{name.replace(chr(39), "&#39;")}</text>')
-    for j, (val, mx, lab) in enumerate([(tok, 2620, f"{tok:,}")] + [(x, 100, str(x)) for x in v]):
+    for j, (val, mx, lab) in enumerate([(tok, 2620, f"{tok:,}")] + [(a, 100, f"{a} ({b})" if b is not None else str(a)) for a, b in v]):
         x = X[j + 1]; w = 90
         o.append(f'<rect x="{x}" y="{y + 10}" width="{w}" height="5" rx="2" fill="{LINE}"/>')
         o.append(f'<rect x="{x}" y="{y + 10}" width="{max(w * val / mx, 2):.1f}" height="5" rx="2" fill="{FLOW}"/>')

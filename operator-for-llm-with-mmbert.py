@@ -13,7 +13,7 @@ from your own answer-or-search LoRA (--answerer-lora <PEFT dir>, trained with sc
 usage:
   python operator-for-llm-with-mmbert.py --docs <folder of .txt/.md | file.jsonl> [--ask "question" ...]
          --model <hf model id> [--answerer-lora none|<dir>] [--chopper base|small]
-         [--weights wiiiktor/chopper_mmbert] [--max-rounds 3] [--threshold 0.8] [--device auto]
+         [--weights wiiiktor/chopper_mmbert] [--max-rounds 3] [--threshold <from chopper_config.json>] [--device auto]
 Without --ask it opens an interactive prompt (empty line or "exit" ends the session)."""
 import argparse, os, sys
 import numpy as np
@@ -29,7 +29,7 @@ ap.add_argument("--answerer-lora", default="none", help="none (answer from an in
 ap.add_argument("--chopper", default="base", choices=["base", "small"])
 ap.add_argument("--weights", default="wiiiktor/chopper_mmbert", help="HF repo id or a local copy of it (mmbert-base/, mmbert-small/)")
 ap.add_argument("--max-rounds", type=int, default=3)
-ap.add_argument("--threshold", type=float, default=0.8)
+ap.add_argument("--threshold", type=float, default=None, help="p(KEEP) cut-off; default = the one in the model's chopper_config.json")
 ap.add_argument("--device", default="auto")
 A = ap.parse_args()
 dev = device(A.device); dt = torch.bfloat16 if dev == "cuda" else torch.float32
@@ -48,6 +48,9 @@ ctk = AutoTokenizer.from_pretrained(f"{cd}/encoder")
 enc = AutoModel.from_pretrained(f"{cd}/encoder", dtype=dt).to(dev).eval()
 HD = {k: v.to(dev).float() for k, v in load_file(f"{cd}/heads.safetensors").items()}
 SEP = f" {ctk.sep_token} "
+if A.threshold is None:
+    import json
+    A.threshold = json.load(open(f"{cd}/chopper_config.json"))["decode"]["pred_thr"]
 
 
 @torch.no_grad()

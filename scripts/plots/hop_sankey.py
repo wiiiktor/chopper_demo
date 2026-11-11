@@ -41,7 +41,14 @@ def sankey(d, k, y0, title, W=900):
         h = max(surv[i] * sc, 1.5); anchor = "start" if i == 0 else "middle"
         o.append(f'<rect x="{x(i)}" y="{top}" width="{nw}" height="{h:.1f}" fill="{FLOW}" rx="2"/>')
         o.append(f'<text x="{x(i)}" y="{top - 22}" font-size="11.5" text-anchor="{anchor}" fill="{INK}">{stages[i]}</text>')
-        o.append(f'<text x="{x(i)}" y="{top - 8}" font-size="11" text-anchor="{anchor}" fill="{MUTE}">{surv[i]}{" questions" if i == 0 else "%"}</text>')
+        lab = f"{surv[i]} questions" if i == 0 else (f"{d['ok_all']}% ({surv[i]}%)" if i == S - 1 and d.get("ok_all") is not None else f"{surv[i]}%")
+        o.append(f'<text x="{x(i)}" y="{top - 8}" font-size="11" text-anchor="{anchor}" fill="{MUTE}">{lab}</text>')
+    extra = (d.get("ok_all") or 0) - (d["ans_ok"] or 0)
+    if extra > 0:                                   # correct from incomplete notes: stacked under the full-chain part, so the bar = the table
+        ry = top + (d["ans_ok"] or 0) * sc + 2
+        o.append(f'<rect x="{x(S - 1)}" y="{ry:.1f}" width="{nw}" height="{max(extra * sc, 1.5):.1f}" fill="{FLOW}" fill-opacity="0.55" rx="2"/>')
+        o.append(f'<text x="{x(S - 1) + nw + 4}" y="{ry + 9:.1f}" font-size="11" fill="{MUTE}">+{extra} from</text>')
+        o.append(f'<text x="{x(S - 1) + nw + 4}" y="{ry + 22:.1f}" font-size="11" fill="{MUTE}">incomplete notes</text>')
     return o, lossTop + 120 * 0.6 + 34
 
 
