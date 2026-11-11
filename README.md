@@ -7,6 +7,11 @@
 
 ## Chopper 0.3B close to Opus 5.5 in cutting out the best pieces
 
+> **One database retrieval per question, even at 4 hops.** Every result below uses a single retrieval: each question gets its
+> 20 paragraphs once, the chopper cuts them once, and Qwen3-14B answers once. There are no follow-up searches and no second
+> rounds, so a 4-hop question has to be chained from one cut. Results with a few iterations (Qwen asks a follow-up question and
+> the chopper cuts again) are on a separate page: [docs/ITERATIVE.md](docs/ITERATIVE.md).
+
 ### mmBERT is 32,000 times smaller
 
 <p align="center"><img src="figures/size_cube.svg" width="100%" alt="One corner of a cube of dots. Each dot is 0.31B, the size of the mmBERT chopper; the multi-hop chopper is the single red dot on the corner; a 32 by 32 by 32 cube of such dots, about 32,000, stands for Claude Opus 5.5 at a rough 10,000B estimate (its size is not published)."></p>
