@@ -63,7 +63,7 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 | retrieved text the main model reads | **3–5%** (about 20–30× less); the answer is still in the kept text for 85% of HotpotQA and 69% of TriviaQA questions |
 | multi-hop questions with every needed passage found (MuSiQue) | **.62 → .87** with one written follow-up search |
 | correct answers end to end, MuSiQue / HotpotQA / TriviaQA (judged by gpt-5.6-luna, 4B answering model) | first search only .39 / .78 / .73 → **with the search loop .61 / .76 / .74** |
-| "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **61%** of the time, keeps 1.9% of the text |
+| "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **67%** of the time, keeps 1.4% of the text |
 | chopping time per lookup (RTX 3090) | **155 ms** (separate mmBERT) · **277 ms** (built into MiniCPM3-4B) |
 | 4-hop MuSiQue questions answered correctly by Qwen3-14B, one retrieval | **12% → 29%** with chopper notes instead of all 20 paragraphs (11× fewer tokens); with Claude Opus 5.5's notes: 43% |
 
