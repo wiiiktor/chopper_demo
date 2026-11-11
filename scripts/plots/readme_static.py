@@ -35,17 +35,18 @@ ROWS = [("All notes retrieved from database", 2620, [(84, None), (28, None), (22
 COLS = ["Qwen3-14B answering from", "notes length", "1-hop", "2-hop", "3-hop", "4-hop"]
 X = [16, 330, 460, 570, 680, 790]; RH = 46; W2 = 900; H2 = 50 + RH * len(ROWS) + 10
 o = [f'<rect width="100%" height="100%" fill="{BG}"/>']
-for x, c in zip(X, COLS):
-    o.append(f'<text x="{x}" y="30" font-size="12" font-weight="700" fill="{MUTE}" letter-spacing=".5">{c.upper()}</text>')
+for i, (x, c) in enumerate(zip(X, COLS)):
+    xa, an = (x, "start") if i == 0 else (x + 90, "end")
+    o.append(f'<text x="{xa}" y="30" font-size="12" font-weight="700" text-anchor="{an}" fill="{MUTE}" letter-spacing=".5">{c.upper()}</text>')
 o.append(f'<line x1="10" y1="42" x2="{W2 - 10}" y2="42" stroke="{LINE}"/>')
 for i, (name, tok, v) in enumerate(ROWS):
     y = 50 + i * RH
     o.append(f'<text x="{X[0]}" y="{y + 28}" font-size="14" fill="{INK}">{name.replace(chr(39), "&#39;")}</text>')
     for j, (val, mx, lab) in enumerate([(tok, 2620, f"{tok:,}")] + [(a, 100, f"{a} ({b})" if b is not None else str(a)) for a, b in v]):
         x = X[j + 1]; w = 90
-        o.append(f'<rect x="{x}" y="{y + 10}" width="{w}" height="5" rx="2" fill="{LINE}"/>')
-        o.append(f'<rect x="{x}" y="{y + 10}" width="{max(w * val / mx, 2):.1f}" height="5" rx="2" fill="{FLOW}"/>')
-        o.append(f'<text x="{x}" y="{y + 33}" font-size="14" fill="{INK}" font-family="Menlo, Consolas, monospace">{lab}</text>')
+        o.append(f'<text x="{x + w}" y="{y + 24}" font-size="14" text-anchor="end" fill="{INK}" font-family="Menlo, Consolas, monospace">{lab}</text>')
+        o.append(f'<rect x="{x}" y="{y + 31}" width="{w}" height="5" rx="2" fill="{LINE}"/>')
+        o.append(f'<rect x="{x}" y="{y + 31}" width="{max(w * val / mx, 2):.1f}" height="5" rx="2" fill="{FLOW}"/>')
     o.append(f'<line x1="10" y1="{y + RH}" x2="{W2 - 10}" y2="{y + RH}" stroke="{LINE}"/>')
 open(f"{OUT}/qwen_notes_table.svg", "w").write(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W2} {H2}" width="{W2}" {FONT}>' + "".join(o) + "</svg>")
 print("written")
