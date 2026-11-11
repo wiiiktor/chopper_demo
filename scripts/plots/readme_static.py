@@ -28,11 +28,11 @@ open(f"{OUT}/size_cube.svg", "w").write(f'<svg xmlns="http://www.w3.org/2000/svg
 
 # 2. Qwen3-14B notes table with mini bars
 # (all correct, complete-notes-only correct in brackets; None = notes are always complete)
-ROWS = [("All notes retrieved from database", 2620, [(84, None), (28, None), (22, None), (12, None)]),
-        ("Chopper notes (mmBERT 0.31B)", 228, [(83, 82), (48, 44), (45, 35), (29, 21)]),
-        ("Opus 5.5's notes", 144, [(90, 90), (64, 60), (55, 40), (43, 30)]),
-        ("Gold notes (each hop's gold sentences)", 217, [(86, None), (63, None), (52, None), (37, None)])]
-COLS = ["Qwen3-14B answering from", "notes length", "1-hop", "2-hop", "3-hop", "4-hop"]
+ROWS = [("All snippets retrieved from the database", 2620, [(84, None), (28, None), (22, None), (12, None)]),
+        ("Chops from the chopper (mmBERT 0.31B)", 228, [(83, 82), (48, 44), (45, 35), (29, 21)]),
+        ("Chops from Opus 5.5", 144, [(90, 90), (64, 60), (55, 40), (43, 30)]),
+        ("Gold chops (each hop's gold sentences)", 217, [(86, None), (63, None), (52, None), (37, None)])]
+COLS = ["Qwen3-14B answering from", "tokens", "1-hop", "2-hop", "3-hop", "4-hop"]
 X = [16, 330, 460, 570, 680, 790]; RH = 46; W2 = 900; H2 = 50 + RH * len(ROWS) + 10
 o = [f'<rect width="100%" height="100%" fill="{BG}"/>']
 for i, (x, c) in enumerate(zip(X, COLS)):

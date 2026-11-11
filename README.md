@@ -7,34 +7,37 @@
 
 ## Chopper 0.3B close to Opus 5.5 in cutting out the best pieces
 
+**Chops** are pieces cut out of the original text snippets retrieved from a database or a long conversation: exact quotes,
+never rewritten. The chopper (mmBERT, 0.31B) makes them; for comparison, Claude Opus 5.5 makes them too, also forced to
+quote directly.
+
 > **One database retrieval per question, even at 4 hops.** Every result below uses a single retrieval: each question gets its
-> 20 paragraphs once, the chopper cuts them once, and Qwen3-14B answers once. There are no follow-up searches and no second
+> 20 snippets once, the chopper cuts them once, and Qwen3-14B answers once. There are no follow-up searches and no second
 > rounds, so a 4-hop question has to be chained from one cut.
 
 ### mmBERT is 32,000 times smaller
 
-<p align="center"><img src="figures/size_cube.svg" width="100%" alt="One corner of a cube of dots. Each dot is 0.31B, the size of the mmBERT chopper; the multi-hop chopper is the single red dot on the corner; a 32 by 32 by 32 cube of such dots, about 32,000, stands for Claude Opus 5.5 at a rough 10,000B estimate (its size is not published)."></p>
+<p align="center"><img src="figures/size_cube.svg" width="100%" alt="One corner of a cube of dots. Each dot is 0.31B, the size of the mmBERT chopper; the chopper is the single red dot on the corner; a 32 by 32 by 32 cube of such dots, about 32,000, stands for Claude Opus 5.5 at a rough 10,000B estimate (its size is not published)."></p>
 
-### Qwen3-14B answering from different notes
+### Qwen3-14B answering from snippets or chops
 
-400 MuSiQue questions, 100 each at 1, 2, 3 and 4 hops, each with its own 20 retrieved paragraphs. Qwen3-14B (4-bit, no fine-tuning,
-no thinking mode) answers from the notes only; gpt-5.6-luna judges. Notes length = prompt tokens. Each score counts every correct
-answer, including those from incomplete notes; the number in brackets counts only questions whose notes kept every hop and the answer.
+400 MuSiQue questions, 100 each at 1, 2, 3 and 4 hops, each with its own 20 retrieved snippets. Qwen3-14B (4-bit, no fine-tuning,
+no thinking mode) answers from the given text only; gpt-5.6-luna judges. Length = prompt tokens. Each score counts every correct
+answer, including those from incomplete chops; the number in brackets counts only questions whose chops kept every hop and the answer.
 
-<p align="center"><img src="figures/qwen_notes_table.svg" width="100%" alt="Qwen3-14B correct answers (1/2/3/4 hops) and notes length. All notes retrieved from database: 2,620 tokens, 84/28/22/12. Multi-hop chopper notes: 244 tokens, 82/50/49/31. Opus 5.5's notes: 143 tokens, 90/64/55/43. Gold notes: 217 tokens, 86/63/52/37."></p>
+<p align="center"><img src="figures/qwen_notes_table.svg" width="100%" alt="Qwen3-14B correct answers at 1/2/3/4 hops (complete chops only in brackets) and length. All snippets retrieved from the database: 2,620 tokens, 84/28/22/12. Chops from the chopper: 228 tokens, 83 (82) / 48 (44) / 45 (35) / 29 (21). Chops from Opus 5.5: 144 tokens, 90 (90) / 64 (60) / 55 (40) / 43 (30). Gold chops: 217 tokens, 86/63/52/37."></p>
 
-### Qwen3-14B: all notes vs chopper notes vs Opus 5.5's notes
+### Qwen3-14B: all snippets vs chops from the chopper vs chops from Opus 5.5
 
-Read each diagram like website traffic: questions flow left to right, and at every hop the ones whose fact the notes missed drop
-out; the last stage is Qwen3-14B answering correctly. Top: all 20 retrieved paragraphs. Middle: the multi-hop chopper's notes.
-Bottom: Opus 5.5's notes.
+Read each diagram like website traffic: questions flow left to right, and at every hop the ones whose fact the chops missed drop
+out; the last stage is Qwen3-14B answering correctly. Top: all 20 retrieved snippets. Middle: the chopper's chops. Bottom: Opus 5.5's chops.
 
-<p align="center"><img src="figures/qwen_sankey_1hop.svg" width="100%" alt="1-hop questions: Qwen3-14B correct 84% with all notes, 82% with chopper notes, 90% with Opus notes"></p>
-<p align="center"><img src="figures/qwen_sankey_2hop.svg" width="100%" alt="2-hop questions: Qwen3-14B correct 28% with all notes, 50% with chopper notes, 64% with Opus notes"></p>
-<p align="center"><img src="figures/qwen_sankey_3hop.svg" width="100%" alt="3-hop questions: Qwen3-14B correct 22% with all notes, 49% with chopper notes, 55% with Opus notes"></p>
-<p align="center"><img src="figures/qwen_sankey_4hop.svg" width="100%" alt="4-hop questions: Qwen3-14B correct 12% with all notes, 31% with chopper notes, 43% with Opus notes"></p>
+<p align="center"><img src="figures/qwen_sankey_1hop.svg" width="100%" alt="1-hop questions: Qwen3-14B correct 84% with all snippets, 83% with the chopper's chops, 90% with Opus's chops"></p>
+<p align="center"><img src="figures/qwen_sankey_2hop.svg" width="100%" alt="2-hop questions: Qwen3-14B correct 28% with all snippets, 48% with the chopper's chops, 64% with Opus's chops"></p>
+<p align="center"><img src="figures/qwen_sankey_3hop.svg" width="100%" alt="3-hop questions: Qwen3-14B correct 22% with all snippets, 45% with the chopper's chops, 55% with Opus's chops"></p>
+<p align="center"><img src="figures/qwen_sankey_4hop.svg" width="100%" alt="4-hop questions: Qwen3-14B correct 12% with all snippets, 29% with the chopper's chops, 43% with Opus's chops"></p>
 
-The last stage is the table's score; the lighter block under it counts answers Qwen got right from incomplete notes, and the
+The last stage is the table's score; the lighter block under it counts answers Qwen got right from incomplete chops, and the
 number in brackets leaves them out. More: [docs/DETAILS.md §7](docs/DETAILS.md#7-multi-hop-where-answers-get-lost).
 
 ---
@@ -65,7 +68,7 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 | correct answers end to end, MuSiQue / HotpotQA / TriviaQA (judged by gpt-5.6-luna, 4B answering model) | first search only .39 / .78 / .73 → **with the search loop .61 / .76 / .74** |
 | "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **67%** of the time, keeps 1.4% of the text |
 | chopping time per lookup (RTX 3090) | **155 ms** (separate mmBERT) · **277 ms** (built into MiniCPM3-4B) |
-| 4-hop MuSiQue questions answered correctly by Qwen3-14B, one retrieval | **12% → 29%** with chopper notes instead of all 20 paragraphs (11× fewer tokens); with Claude Opus 5.5's notes: 43% |
+| 4-hop MuSiQue questions answered correctly by Qwen3-14B, one retrieval | **12% → 29%** with the chopper's chops instead of all 20 snippets (11× fewer tokens); with Opus 5.5's chops: 43% |
 
 Long-conversation memory results (LoCoMo, LongMemEval) are in
 [the details](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval): there the 4B answering model is the limit.

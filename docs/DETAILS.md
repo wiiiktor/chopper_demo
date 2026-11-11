@@ -617,9 +617,10 @@ headers, top 10. Their 4B row is therefore the nearest comparison for a 4B answe
 
 **How much of a reasoning chain survives the chopper?** Judged per hop count, not per benchmark: 100 MuSiQue dev questions each
 at 1, 2, 3 and 4 hops (1-hop = the natural first sub-question of a 2-hop question). Each question keeps MuSiQue's own 20
-paragraphs and gets **one retrieval**: the chopper cuts once and Qwen3-14B (4-bit, no fine-tuning) answers once from the notes,
-judged by gpt-5.6-luna. A question survives hop *k* if the notes keep text from the paragraph stating hop *k*'s fact; then the
-answer itself must be in the notes. Scripts: `scripts/hopstudy/`. Interactive version:
+paragraphs and gets **one retrieval**: the chopper cuts once and Qwen3-14B (4-bit, no fine-tuning) answers once from the chops
+(exact quotes cut out of the snippets),
+judged by gpt-5.6-luna. A question survives hop *k* if the chops keep text from the paragraph stating hop *k*'s fact; then the
+answer itself must be in the chops. Scripts: `scripts/hopstudy/`. Interactive version:
 [Chopper 0.3B close to Opus 5.5](https://claude.ai/artifact/SKT1Zx9ZZ85FExPZ53dV6K).
 
 | questions of 100 keeping every hop and the answer | 1-hop | 2-hop | 3-hop | 4-hop | size |
@@ -629,20 +630,20 @@ answer itself must be in the notes. Scripts: `scripts/hopstudy/`. Interactive ve
 | Qwen3-14B as note-taker | 89 | 72 | 39 | 23 | 14B |
 | Claude Opus 5.5 as note-taker, without the answer | 99 | 88 | 67 | 56 | ~10,000B (estimate) |
 
-Qwen3-14B correct answers; in brackets, only questions whose notes kept every hop and the answer:
+Qwen3-14B correct answers; in brackets, only questions whose chops kept every hop and the answer:
 
-| Qwen3-14B answering from | notes tokens | 1-hop | 2-hop | 3-hop | 4-hop |
+| Qwen3-14B answering from | tokens | 1-hop | 2-hop | 3-hop | 4-hop |
 |---|---|---|---|---|---|
-| all 20 paragraphs | 2,620 | 84 | 28 | 22 | 12 |
-| **final chopper's notes** | **228** | **83** (82) | **48** (44) | **45** (35) | **29** (21) |
-| Opus 5.5's notes | 144 | 90 (90) | 64 (60) | 55 (40) | 43 (30) |
-| gold notes (each hop's gold sentences) | 217 | 86 | 63 | 52 | 37 |
+| all 20 snippets | 2,620 | 84 | 28 | 22 | 12 |
+| **chops from the final chopper** | **228** | **83** (82) | **48** (44) | **45** (35) | **29** (21) |
+| chops from Opus 5.5 | 144 | 90 (90) | 64 (60) | 55 (40) | 43 (30) |
+| gold chops (each hop's gold sentences) | 217 | 86 | 63 | 52 | 37 |
 
 - **Fresh multi-hop data with exact labels is what moves the chopper.** Re-running its last 8 layers with its own first-pass
   marks ("recycling") added nothing in correct answers, for 36% more compute, and is not used.
 - **Opus's lead is chaining, not memory:** without the gold answer it scores the same, and leaving out the 156 questions it
   answers from memory alone changes nothing.
-- **The answering model needs no fine-tuning:** Qwen3-14B with the chopper's notes more than doubles its 3–4-hop score with
+- **The answering model needs no fine-tuning:** Qwen3-14B with the chopper's chops more than doubles its 3–4-hop score with
   11× fewer tokens.
 - **On 2WikiMultiHopQA dev** (100 questions per type, not used for choosing the model) the final chopper keeps the answer for
   73–83% of questions.

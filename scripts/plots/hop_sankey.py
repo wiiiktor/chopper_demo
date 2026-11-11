@@ -17,7 +17,7 @@ def ribbon(x0, a0, b0, x1, a1, b1):
 
 def sankey(d, k, y0, title, W=900):
     o = []; top = y0 + 64; sc = 120 / d["n"]; nw = 9; lossTop = top + 120 + 40
-    stages = ["Questions"] + [f"Hop {j} kept" for j in range(1, k + 1)] + ["Answer in notes", "Answered correctly"]
+    stages = ["Questions"] + [f"Hop {j} kept" for j in range(1, k + 1)] + ["Answer kept", "Answered correctly"]
     surv = [d["n"]]
     for j in range(k):
         surv.append(surv[-1] - d["lost"][j])
@@ -48,7 +48,7 @@ def sankey(d, k, y0, title, W=900):
         ry = top + (d["ans_ok"] or 0) * sc + 2
         o.append(f'<rect x="{x(S - 1)}" y="{ry:.1f}" width="{nw}" height="{max(extra * sc, 1.5):.1f}" fill="{FLOW}" fill-opacity="0.55" rx="2"/>')
         o.append(f'<text x="{x(S - 1) + nw + 4}" y="{ry + 9:.1f}" font-size="11" fill="{MUTE}">+{extra} from</text>')
-        o.append(f'<text x="{x(S - 1) + nw + 4}" y="{ry + 22:.1f}" font-size="11" fill="{MUTE}">incomplete notes</text>')
+        o.append(f'<text x="{x(S - 1) + nw + 4}" y="{ry + 22:.1f}" font-size="11" fill="{MUTE}">incomplete chops</text>')
     return o, lossTop + 120 * 0.6 + 34
 
 
