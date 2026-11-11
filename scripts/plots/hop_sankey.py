@@ -29,7 +29,8 @@ def sankey(d, k, y0, title, W=900):
     for i in range(1, S):
         x0, x1, s, p, l = x(i - 1) + nw, x(i), surv[i], surv[i - 1], drops[i - 1]
         if s > 0:
-            o.append(f'<path d="{ribbon(x0, top, top + s * sc, x1, top, top + s * sc)}" fill="{BAND}"/>')
+            fill = "url(#dots)" if i == S - 1 and d.get("ans_ok") is not None else BAND   # the answer stage: green with darker green rings
+            o.append(f'<path d="{ribbon(x0, top, top + s * sc, x1, top, top + s * sc)}" fill="{fill}"/>')
         if l > 0:
             lh = max(l * sc * 0.6, 2)
             o.append(f'<path d="{ribbon(x0, top + s * sc, top + p * sc, x1, lossTop, lossTop + lh)}" fill="{LBAND}"/>')
@@ -39,24 +40,32 @@ def sankey(d, k, y0, title, W=900):
             o.append(f'<text x="{x1 + nw + 4}" y="{lossTop + 24}" font-size="11" fill="{MUTE}">{l}%</text>')
     for i in range(S):
         h = max(surv[i] * sc, 1.5); anchor = "start" if i == 0 else "middle"
-        o.append(f'<rect x="{x(i)}" y="{top}" width="{nw}" height="{h:.1f}" fill="{FLOW}" rx="2"/>')
+        o.append(f'<rect x="{x(i)}" y="{top}" width="{nw}" height="{h:.1f}" fill="{"url(#dots)" if i == S - 1 and d.get("ans_ok") is not None else FLOW}" rx="2"/>')
         o.append(f'<text x="{x(i)}" y="{top - 22}" font-size="11.5" text-anchor="{anchor}" fill="{INK}">{stages[i]}</text>')
         lab = f"{surv[i]} questions" if i == 0 else (f"{d['ok_all']}% ({surv[i]}%)" if i == S - 1 and d.get("ok_all") is not None else f"{surv[i]}%")
         o.append(f'<text x="{x(i)}" y="{top - 8}" font-size="11" text-anchor="{anchor}" fill="{MUTE}">{lab}</text>')
     extra = (d.get("ok_all") or 0) - (d["ans_ok"] or 0)
     if extra > 0:                                   # correct from incomplete notes: stacked under the full-chain part, so the bar = the table
         ry = top + (d["ans_ok"] or 0) * sc + 2
-        o.append(f'<rect x="{x(S - 1)}" y="{ry:.1f}" width="{nw}" height="{max(extra * sc, 1.5):.1f}" fill="{FLOW}" fill-opacity="0.55" rx="2"/>')
+        o.append(f'<rect x="{x(S - 1)}" y="{ry:.1f}" width="{nw}" height="{max(extra * sc, 1.5):.1f}" fill="url(#dots)" rx="2"/>')
         o.append(f'<text x="{x(S - 1) + nw + 4}" y="{ry + 9:.1f}" font-size="11" fill="{MUTE}">+{extra} from</text>')
         o.append(f'<text x="{x(S - 1) + nw + 4}" y="{ry + 22:.1f}" font-size="11" fill="{MUTE}">incomplete chops</text>')
     return o, lossTop + 120 * 0.6 + 34
 
 
+SHORT = {"raw": "all snippets", "final": "chopper's chops", "mh0": "chopper's chops", "opusblind": "Opus chops"}
+DEFS = (f'<defs><pattern id="dots" width="13" height="13" patternUnits="userSpaceOnUse"><rect width="13" height="13" fill="{BAND}"/>'
+        f'<circle cx="6.5" cy="6.5" r="4.6" fill="none" stroke="{FLOW}" stroke-width="0.9"/></pattern></defs>')
 for k in (1, 2, 3, 4):
     body, y = [], 10
+    if "ok_all" in D[SRC[0][0]][str(k)]:                 # a clear heading: which hop count, and the three scores
+        body.append(f'<text x="20" y="34" font-size="24" font-weight="700" fill="{INK}">{k}-hop questions</text>')
+        body.append(f'<text x="20" y="58" font-size="14" fill="{MUTE}">Qwen3-14B correct: ' + " · ".join(
+            f"{SHORT.get(src, src)} {D[src][str(k)]['ok_all']}%" for src, lab in SRC) + "</text>")
+        body.append(f'<line x1="20" y1="72" x2="880" y2="72" stroke="#d9ddd6"/>'); y = 76
     for src, lab in SRC:
         o, y = sankey(D[src][str(k)], k, y, lab); body += o
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 {y:.0f}" width="900" font-family="Helvetica, Arial, sans-serif">'
-           f'<rect width="100%" height="100%" fill="{BG}"/>' + "".join(body) + "</svg>")
+           f'<rect width="100%" height="100%" fill="{BG}"/>' + DEFS + "".join(body) + "</svg>")
     open(f"{OUT}/{os.environ.get('PREFIX', 'hop_sankey')}_{k}hop.svg", "w").write(svg)
 print("written", OUT)

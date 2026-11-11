@@ -85,7 +85,7 @@ ul.note{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 </section>
 
 <section style="display:flex;flex-direction:column;gap:12px">
-  <h2>Qwen3-14B answering from snippets or chops</h2>
+  <h2>Qwen3-14B answering from full snippets or just short chops</h2>
   <p class="note">Qwen3-14B (4-bit), no fine-tuning, no thinking mode, answers each of the 400 questions from the given text only; gpt-5.6-luna judges. Length = prompt tokens. Each score counts every correct answer, including those from incomplete chops; the number in brackets counts only questions whose chops kept every hop and the answer.</p>
   <div class="tbl"><table class="mbt">
     <thead><tr><th>Qwen3-14B answering from</th><th>length (tokens)</th><th>1-hop</th><th>2-hop</th><th>3-hop</th><th>4-hop</th></tr></thead>
@@ -120,7 +120,7 @@ ul.note{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
     var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":(nmx||NAMES[src])+", "+k+"-hop: "+d.ans_kept+" of 100 keep every hop and the answer"});
     var pid="qdots"+(++PATN), defs=el("defs",{}), pt=el("pattern",{id:pid,width:13,height:13,patternUnits:"userSpaceOnUse"});
     pt.appendChild(el("rect",{width:13,height:13,fill:"var(--flowband)"}));                       // green between the dots, like the other stages
-    pt.appendChild(el("circle",{cx:6.5,cy:6.5,r:4.6,fill:"none",stroke:"var(--graphite)","stroke-width":0.45}));   // ring only: the green shows through
+    pt.appendChild(el("circle",{cx:6.5,cy:6.5,r:4.6,fill:"none",stroke:"var(--flow)","stroke-width":0.9}));   // ring only: the green shows through
     defs.appendChild(pt); svg.appendChild(defs);                                // last stage (Qwen answered correctly): graphite dots
     var lossX=0, last=surv.length-1;
     for(var i=1;i<surv.length;i++){
