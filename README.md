@@ -116,3 +116,10 @@ LongMemEval datasets. Our memory evaluation follows
 [Memory Tax](https://arxiv.org/abs/2610.34073) (He et al., 2026) and compares with
 [MemT-1.0](https://arxiv.org/abs/2610.26825) (MemTensor, 2026). Full table with licenses:
 [docs/DETAILS.md](docs/DETAILS.md#credits-and-licenses).
+
+---
+
+**Bored with reading LLMs' outputs?** See also my other project, [**control_room**](https://github.com/wiiiktor/control_room):
+a VS Code panel for Claude Code that shows each answer as cards, charts and clickable options instead of a wall of text.
+
+<p align="center"><a href="https://github.com/wiiiktor/control_room"><img src="media/control_room.jpg" width="60%" alt="control_room: a Claude Code answer shown as stat cards, two charts and three clickable options"></a></p>
