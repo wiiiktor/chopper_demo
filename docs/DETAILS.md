@@ -809,7 +809,7 @@ after the fact.
 | PyTorch, transformers, peft, vLLM | Meta / PyTorch Foundation, Hugging Face, vLLM project | BSD-3, Apache 2.0 | training and inference |
 
 **Licenses of what is released here:**
-- **Code:** ⏳ (suggested: Apache 2.0, matching the models).
+- **Code:** MIT ([LICENSE](../LICENSE)), as the `chopper-rag` package.
 - **Datasets:** they inherit from their sources. Because HotpotQA and Wikipedia are CC BY-SA, the derived datasets
   must be **CC BY-SA 4.0** (share-alike). The Polish rows keep their sources' terms: PoQuAD CC BY 4.0, PolQA CC BY-SA 4.0.
 - **Models:** follow their base models: MIT for the mmBERT choppers, the Polish ones included. The

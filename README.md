@@ -156,7 +156,7 @@ LongMemEval datasets; for Polish, PoQuAD and PolQA (IPI PAN). Our memory evaluat
 | what | license |
 |---|---|
 | mmBERT choppers, incl. Polish (`mmbert-base`, `mmbert-small`, `mmbert-base-pl`, `mmbert-small-pl`) | MIT (as mmBERT) |
-| `pip install chopper-rag` | MIT |
+| code in this repo ([LICENSE](LICENSE)) and `pip install chopper-rag` | MIT |
 | MiniCPM3 chopper | [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md) (as MiniCPM3-4B) |
 | training data [`wiiiktor/chopper_demo`](https://huggingface.co/datasets/wiiiktor/chopper_demo) | CC BY-SA 4.0 (share-alike from HotpotQA, Wikipedia and PolQA); Polish parts: PoQuAD CC BY 4.0, PolQA CC BY-SA 4.0 |
 
