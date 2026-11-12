@@ -33,7 +33,7 @@ def sankey(d, k, y0, title, src="", W=900):
     for t, pill in segs:
         w = FONT.getlength(t)
         if pill:
-            bg, fg = (LOSS, "#ffffff") if pill == "rust" else (BAND, INK)
+            bg, fg = (LOSS, "#ffffff") if pill == "rust" else (BAND, "#1f5247")   # dark green on light green
             o.append(f'<rect x="{tx:.1f}" y="{y0 + 3}" width="{w + 14:.1f}" height="21" rx="3" fill="{bg}"/>')
             o.append(f'<text x="{tx + 7:.1f}" y="{y0 + 18}" font-size="15" font-weight="700" fill="{fg}">{t}</text>'); tx += w + 14
         else:
