@@ -23,18 +23,19 @@ def sankey(d, k, y0, title, src="", W=900):
     for j in range(k):
         surv.append(surv[-1] - d["lost"][j])
     surv += [d["ans_kept"], d["ans_ok"] or 0]; drops = d["lost"] + [d["ans_drop"], d["ans_kept"] - (d["ans_ok"] or 0)]
-    segs = [(title, False)]                                  # (text, on a rust pill): the raw token count and the model size stand out
+    segs = [(title, False)]                                  # (text, pill): token counts of all snippets and of the chopper on rust, model sizes on light green
     if "tok" in d and d["tok"] > 50:
-        segs.append((" · ", False)); segs.append((f"{d['tok']:,} tokens", src == "raw"))
+        segs.append((" · ", False)); segs.append((f"{d['tok']:,} tokens", "rust" if src in ("raw", "final", "mh0") else False))
     if src in PARAMS:
-        segs.append((" · ", False)); segs.append((PARAMS[src], True))
+        segs.append((" · ", False)); segs.append((PARAMS[src], "green"))
     S = len(stages); x = lambda i: 20 + i * (W - 20 - 120) / (S - 1)
     tx = 20
     for t, pill in segs:
         w = FONT.getlength(t)
         if pill:
-            o.append(f'<rect x="{tx:.1f}" y="{y0 + 3}" width="{w + 14:.1f}" height="21" rx="3" fill="{LOSS}"/>')
-            o.append(f'<text x="{tx + 7:.1f}" y="{y0 + 18}" font-size="15" font-weight="700" fill="#ffffff">{t}</text>'); tx += w + 14
+            bg, fg = (LOSS, "#ffffff") if pill == "rust" else (BAND, INK)
+            o.append(f'<rect x="{tx:.1f}" y="{y0 + 3}" width="{w + 14:.1f}" height="21" rx="3" fill="{bg}"/>')
+            o.append(f'<text x="{tx + 7:.1f}" y="{y0 + 18}" font-size="15" font-weight="700" fill="{fg}">{t}</text>'); tx += w + 14
         else:
             o.append(f'<text x="{tx:.1f}" y="{y0 + 18}" font-size="15" font-weight="700" fill="{INK}" xml:space="preserve">{t}</text>'); tx += w
     for i in range(1, S):
