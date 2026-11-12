@@ -60,6 +60,10 @@ ul.note{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 .nv{text-align:left;margin-bottom:4px}
 .mbt td.num .mb{margin-bottom:0}
 .mbt th{text-align:left}
+.code{font-family:var(--mono);font-size:.84rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin:0;overflow-x:auto;white-space:pre}
+.links{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.9rem}
+.links a{color:var(--ink);text-decoration:none;border-bottom:1px dashed var(--mute)}
+.links a:focus-visible{outline:2px solid var(--flow);outline-offset:2px}
 </style>
 
 <main>
@@ -102,6 +106,28 @@ ul.note{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
     <thead><tr><th>Qwen3-14B answering from</th><th>length (tokens)</th><th>1-hop</th><th>2-hop</th><th>3-hop</th><th>4-hop</th></tr></thead>
     <tbody><tr><td>All 20 snippets (no compression)</td><td class="num"><div class="nv">2,620</div><div class="mb"><span class="mbf" style="width:100.0%"></span></div></td><td class="num"><div class="nv">84</div><div class="mb"><span class="mbf" style="width:84.0%"></span></div></td><td class="num"><div class="nv">28</div><div class="mb"><span class="mbf" style="width:28.0%"></span></div></td><td class="num"><div class="nv">22</div><div class="mb"><span class="mbf" style="width:22.0%"></span></div></td><td class="num"><div class="nv">12</div><div class="mb"><span class="mbf" style="width:12.0%"></span></div></td></tr><tr><td>LLMLingua-2 (Microsoft), rate 0.1</td><td class="num"><div class="nv">374</div><div class="mb"><span class="mbf" style="width:14.3%"></span></div></td><td class="num"><div class="nv">28</div><div class="mb"><span class="mbf" style="width:28.0%"></span></div></td><td class="num"><div class="nv">6</div><div class="mb"><span class="mbf" style="width:6.0%"></span></div></td><td class="num"><div class="nv">2</div><div class="mb"><span class="mbf" style="width:2.0%"></span></div></td><td class="num"><div class="nv">4</div><div class="mb"><span class="mbf" style="width:4.0%"></span></div></td></tr><tr><td>Provence (Naver), default threshold 0.1</td><td class="num"><div class="nv">263</div><div class="mb"><span class="mbf" style="width:10.0%"></span></div></td><td class="num"><div class="nv">77</div><div class="mb"><span class="mbf" style="width:77.0%"></span></div></td><td class="num"><div class="nv">27</div><div class="mb"><span class="mbf" style="width:27.0%"></span></div></td><td class="num"><div class="nv">26</div><div class="mb"><span class="mbf" style="width:26.0%"></span></div></td><td class="num"><div class="nv">16</div><div class="mb"><span class="mbf" style="width:16.0%"></span></div></td></tr><tr><td>Provence, threshold 0.5</td><td class="num"><div class="nv">152</div><div class="mb"><span class="mbf" style="width:5.8%"></span></div></td><td class="num"><div class="nv">71</div><div class="mb"><span class="mbf" style="width:71.0%"></span></div></td><td class="num"><div class="nv">24</div><div class="mb"><span class="mbf" style="width:24.0%"></span></div></td><td class="num"><div class="nv">21</div><div class="mb"><span class="mbf" style="width:21.0%"></span></div></td><td class="num"><div class="nv">11</div><div class="mb"><span class="mbf" style="width:11.0%"></span></div></td></tr><tr><td>Chops from the chopper, mmBERT-small (0.14B)</td><td class="num"><div class="nv">217</div><div class="mb"><span class="mbf" style="width:8.3%"></span></div></td><td class="num"><div class="nv">72</div><div class="mb"><span class="mbf" style="width:72.0%"></span></div></td><td class="num"><div class="nv">49</div><div class="mb"><span class="mbf" style="width:49.0%"></span></div></td><td class="num"><div class="nv">32</div><div class="mb"><span class="mbf" style="width:32.0%"></span></div></td><td class="num"><div class="nv">23</div><div class="mb"><span class="mbf" style="width:23.0%"></span></div></td></tr><tr><td>Chops from the chopper, mmBERT-base (0.31B)</td><td class="num"><div class="nv">228</div><div class="mb"><span class="mbf" style="width:8.7%"></span></div></td><td class="num"><div class="nv">83</div><div class="mb"><span class="mbf" style="width:83.0%"></span></div></td><td class="num"><div class="nv">48</div><div class="mb"><span class="mbf" style="width:48.0%"></span></div></td><td class="num"><div class="nv">45</div><div class="mb"><span class="mbf" style="width:45.0%"></span></div></td><td class="num"><div class="nv">29</div><div class="mb"><span class="mbf" style="width:29.0%"></span></div></td></tr></tbody>
   </table></div>
+</section>
+<section style="display:flex;flex-direction:column;gap:12px">
+  <h2>Polish: the same answers from 15× less text</h2>
+  <p class="note">856 Polish questions the choppers never saw (PoQuAD dev, PolQA test), 16 snippets each, the same Qwen3-14B prompt. % answered correctly. The Polish choppers were trained on PoQuAD and PolQA (human labels) mixed with rows of the general mix.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Qwen3-14B answering from</th><th>length (tokens)</th><th>PoQuAD</th><th>PolQA</th><th>all</th></tr></thead>
+    <tbody><tr><td>All 16 snippets (no compression)</td><td class="num">3,856</td><td class="num">72.5</td><td class="num">94.2</td><td class="num"><b>85.2</b></td></tr><tr><td>Chops from the Polish chopper (mmBERT-base-pl)</td><td class="num">255</td><td class="num">77.2</td><td class="num">91.6</td><td class="num"><b>85.6</b></td></tr><tr><td>Chops from the Polish chopper (mmBERT-small-pl)</td><td class="num">266</td><td class="num">75.6</td><td class="num">90.2</td><td class="num"><b>84.1</b></td></tr><tr><td>Chops from the general chopper (mmBERT-base)</td><td class="num">231</td><td class="num">63.2</td><td class="num">82.6</td><td class="num"><b>74.5</b></td></tr></tbody>
+  </table></div>
+</section>
+<section class="card" aria-label="Use it">
+  <h2>Use it</h2>
+  <pre class="code">pip install chopper-rag          # or "chopper-rag[langchain]", [llama-index], [haystack]
+
+from chopper_rag import Chopper
+chopper = Chopper.from_pretrained(variant="base")   # "small", "base-pl", "small-pl"
+result = chopper.run(question, passages)            # result.chops: exact quotes; result.decision: ANSWER / SEARCH</pre>
+  <div class="links">
+    <a href="https://github.com/wiiiktor/chopper_demo" target="_blank" rel="noopener">Code: github.com/wiiiktor/chopper_demo</a>
+    <a href="https://huggingface.co/wiiiktor/chopper_mmbert" target="_blank" rel="noopener">Models: huggingface.co/wiiiktor/chopper_mmbert</a>
+    <a href="https://huggingface.co/datasets/wiiiktor/chopper_demo" target="_blank" rel="noopener">Data: huggingface.co/datasets/wiiiktor/chopper_demo</a>
+  </div>
+  <p class="note">Licenses: code, <code>chopper-rag</code> and the mmBERT choppers (Polish included) MIT; training data CC BY-SA 4.0 (share-alike from HotpotQA, Wikipedia and PolQA; PoQuAD rows CC BY 4.0).</p>
 </section>
 </main>
 
