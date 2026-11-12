@@ -4,3 +4,5 @@ __pycache__/
 *.safetensors
 media/youtube_cover.png
 drafts/
+*.egg-info/
+dist/
