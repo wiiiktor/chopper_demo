@@ -4,6 +4,7 @@
 (Opus 5.5 answering from the notes). Data = hopstudy/funnel.json ("all" subset).
 usage: hop_sankey.py <funnel.json> <out dir> [srcA=label] [srcB=label]"""
 import json, os, sys
+from PIL import ImageFont
 F, OUT = sys.argv[1], sys.argv[2]; os.makedirs(OUT, exist_ok=True)
 SRC = [a.split("=", 1) for a in sys.argv[3:]] or [["mh0", "Multi-hop chopper (mmBERT, 0.31B)"], ["opusblind", "Claude Opus 5.5 as the note-taker (~10,000B, estimate)"]]
 J = json.load(open(F)); D = J["all"] if "all" in J else J          # funnel.json (all/unknown) or qfunnel.json (flat)
@@ -15,17 +16,27 @@ def ribbon(x0, a0, b0, x1, a1, b1):
     return f"M{x0:.1f},{a0:.1f} C{m:.1f},{a0:.1f} {m:.1f},{a1:.1f} {x1:.1f},{a1:.1f} L{x1:.1f},{b1:.1f} C{m:.1f},{b1:.1f} {m:.1f},{b0:.1f} {x0:.1f},{b0:.1f} Z"
 
 
-def sankey(d, k, y0, title, W=900):
+def sankey(d, k, y0, title, src="", W=900):
     o = []; top = y0 + 64; sc = 120 / d["n"]; nw = 9; lossTop = top + 120 + 40
     stages = ["Questions"] + [f"Hop {j} kept" for j in range(1, k + 1)] + ["Answer kept", "Answered correctly"]
     surv = [d["n"]]
     for j in range(k):
         surv.append(surv[-1] - d["lost"][j])
     surv += [d["ans_kept"], d["ans_ok"] or 0]; drops = d["lost"] + [d["ans_drop"], d["ans_kept"] - (d["ans_ok"] or 0)]
+    segs = [(title, False)]                                  # (text, on a rust pill): the raw token count and the model size stand out
     if "tok" in d and d["tok"] > 50:
-        title += f" · {d['tok']:,} tokens"
+        segs.append((" · ", False)); segs.append((f"{d['tok']:,} tokens", src == "raw"))
+    if src in PARAMS:
+        segs.append((" · ", False)); segs.append((PARAMS[src], True))
     S = len(stages); x = lambda i: 20 + i * (W - 20 - 120) / (S - 1)
-    o.append(f'<text x="20" y="{y0 + 18}" font-size="15" font-weight="700" fill="{INK}">{title}</text>')
+    tx = 20
+    for t, pill in segs:
+        w = FONT.getlength(t)
+        if pill:
+            o.append(f'<rect x="{tx:.1f}" y="{y0 + 3}" width="{w + 14:.1f}" height="21" rx="3" fill="{LOSS}"/>')
+            o.append(f'<text x="{tx + 7:.1f}" y="{y0 + 18}" font-size="15" font-weight="700" fill="#ffffff">{t}</text>'); tx += w + 14
+        else:
+            o.append(f'<text x="{tx:.1f}" y="{y0 + 18}" font-size="15" font-weight="700" fill="{INK}" xml:space="preserve">{t}</text>'); tx += w
     for i in range(1, S):
         x0, x1, s, p, l = x(i - 1) + nw, x(i), surv[i], surv[i - 1], drops[i - 1]
         if s > 0:
@@ -53,6 +64,8 @@ def sankey(d, k, y0, title, W=900):
     return o, lossTop + 120 * 0.6 + 34
 
 
+FONT = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", 15)   # Arial/Helvetica metrics, to place the pills
+PARAMS = {"final": "0.3B parameters", "mh0": "0.3B parameters", "opusblind": "~10,000B parameters (estimate)"}
 SHORT = {"raw": "all snippets", "final": "chopper's chops", "mh0": "chopper's chops", "opusblind": "Opus chops"}
 DEFS = (f'<defs><pattern id="dots" width="13" height="13" patternUnits="userSpaceOnUse"><rect width="13" height="13" fill="{BAND}"/>'
         f'<circle cx="6.5" cy="6.5" r="4.6" fill="none" stroke="{FLOW}" stroke-width="0.9"/></pattern></defs>')
@@ -64,7 +77,7 @@ for k in (1, 2, 3, 4):
             f"{SHORT.get(src, src)} {D[src][str(k)]['ok_all']}%" for src, lab in SRC) + "</text>")
         body.append(f'<line x1="20" y1="72" x2="880" y2="72" stroke="#d9ddd6"/>'); y = 76
     for src, lab in SRC:
-        o, y = sankey(D[src][str(k)], k, y, lab); body += o
+        o, y = sankey(D[src][str(k)], k, y, lab, src); body += o
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 {y:.0f}" width="900" font-family="Helvetica, Arial, sans-serif">'
            f'<rect width="100%" height="100%" fill="{BG}"/>' + DEFS + "".join(body) + "</svg>")
     open(f"{OUT}/{os.environ.get('PREFIX', 'hop_sankey')}_{k}hop.svg", "w").write(svg)
