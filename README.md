@@ -40,6 +40,23 @@ out; the last stage is Qwen3-14B answering correctly. Top: all 20 retrieved snip
 The last stage is the table's score; the lighter block under it counts answers Qwen got right from incomplete chops, and the
 number in brackets leaves them out. More: [docs/DETAILS.md §7](docs/DETAILS.md#7-multi-hop-where-answers-get-lost).
 
+### Against other context compressors
+
+Same 400 questions, same 20 snippets, same Qwen3-14B prompt; each compressor cuts the snippets once:
+
+| Qwen3-14B answering from | tokens | 1-hop | 2-hop | 3-hop | 4-hop |
+|---|---|---|---|---|---|
+| all 20 snippets (no compression) | 2,620 | 84 | 28 | 22 | 12 |
+| [LLMLingua-2](https://huggingface.co/microsoft/llmlingua-2-xlm-roberta-large-meetingbank) (Microsoft), rate 0.1 | 374 | 28 | 6 | 2 | 4 |
+| [Provence](https://huggingface.co/naver/provence-reranker-debertav3-v1) (Naver), its default threshold 0.1 | 263 | 77 | 27 | 26 | 16 |
+| Provence, threshold 0.5 | 152 | 71 | 24 | 21 | 11 |
+| **chops from the chopper, mmBERT-small (0.14B)** | 217 | 72 | **49** | 32 | 23 |
+| **chops from the chopper, mmBERT-base (0.31B)** | 228 | **83** | 48 | **45** | **29** |
+
+LLMLingua-2 drops tokens without looking at the question, so the facts a chain needs rarely survive. Provence reads the question
+but prunes each snippet on its own. **To be fair to them:** the chopper was trained on MuSiQue's train split (this test uses
+its dev split) and on other multi-hop data, while both were trained for general single-passage use.
+
 ---
 
 # Chopper 🔪 keep only the part of RAG that answers the question
@@ -57,7 +74,7 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 - 🎯 **Clean context:** only useful fragments enter the session; the raw passages never stay.
 - ⚡ **Less compute:** the main model reads 2–5% of the retrieved text.
 - 🔗 **Multi-hop works:** the model writes a follow-up question when a fact is missing, and searches again.
-- 🏠 **Built on one home GPU:** every dataset, label and model here was trained on a single RTX 3090.
+- 🏠 **Built on one home GPU:** every dataset and model here was made on a single RTX 3090 (some labels came from APIs).
 
 ## Results at a glance
 
@@ -110,8 +127,9 @@ Everything else is on one page, **[docs/DETAILS.md](docs/DETAILS.md)**:
 
 ## Credits
 
-Built on mmBERT (JHU CLSP), MiniCPM3-4B (OpenBMB), Qwen3 and Qwen3-Embedding (Qwen team), bge-reranker (BAAI), and the
-MuSiQue, HotpotQA, 2WikiMultiHopQA, TriviaQA, QASPER, Multi-Session Chat, WildChat, FineWeb, Wikipedia, LoCoMo and
+Built on mmBERT (JHU CLSP), MiniCPM3-4B (OpenBMB), Qwen3, Qwen3-Embedding and Qwen3-Reranker (Qwen team), bge-reranker (BAAI);
+labels and judgements also came from Claude Opus 5.5 (Anthropic) and gpt-5.6-luna / GPT-6 Luna (OpenAI). Compared with
+LLMLingua-2 (Microsoft) and Provence (Naver). Data: the MuSiQue, HotpotQA, 2WikiMultiHopQA, TriviaQA, QASPER, Multi-Session Chat, WildChat, FineWeb, Wikipedia, LoCoMo and
 LongMemEval datasets. Our memory evaluation follows
 [Memory Tax](https://arxiv.org/abs/2610.34073) (He et al., 2026) and compares with
 [MemT-1.0](https://arxiv.org/abs/2610.26825) (MemTensor, 2026). Full table with licenses:

@@ -787,6 +787,11 @@ after the fact.
 | MiniCPM3-4B | OpenBMB / ModelBest | code Apache 2.0; weights [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md) | integrated chopper (20% slice) |
 | Qwen3-Embedding-0.6B | Qwen team, Alibaba | Apache 2.0 | first-stage retrieval |
 | bge-reranker-v2-m3 | BAAI | Apache 2.0 | reranking |
+| Qwen3-Reranker-0.6B | Qwen team, Alibaba | Apache 2.0 | scoring pairs in the rerank dataset |
+| Claude Opus 5.5 | Anthropic | API terms | MuSiQue multi-hop span labels (final mix); note-taker in the hop study |
+| gpt-5.6-luna, GPT-6 Luna | OpenAI | API terms | YES/NO filtering of rerank rows; answer judging in every evaluation |
+| LLMLingua-2 | Pan et al., 2024 (Microsoft) | MIT | compared against (README) |
+| Provence | Chirkova et al., 2025 (Naver) | CC BY-NC-ND 4.0 | compared against (README) |
 | MuSiQue | Trivedi et al., 2022 | CC BY 4.0 | dataset A |
 | HotpotQA | Yang et al., 2018 | CC BY-SA 4.0 | dataset A |
 | TriviaQA | Joshi et al., 2017 | Apache 2.0 *(verify per release)* | dataset A |
