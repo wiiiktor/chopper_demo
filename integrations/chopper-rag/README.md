@@ -32,6 +32,8 @@ chops = chopper.chop(question, passages)                    # just the list of C
 
 ## LangChain
 
+Listed in the [LangChain integrations](https://docs.langchain.com/oss/python/integrations/providers/all_providers) as ChopperCompressor.
+
 ```python
 from langchain_classic.retrievers import ContextualCompressionRetriever  # langchain<1.0: langchain.retrievers
 from chopper_rag.langchain import ChopperCompressor

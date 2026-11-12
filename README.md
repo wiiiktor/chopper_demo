@@ -117,7 +117,8 @@ result = chopper.run("When was the Eiffel Tower completed?", passages)   # passa
 print([c.text for c in result.chops], result.decision)    # exact quotes + ANSWER / SEARCH
 ```
 
-Framework examples: [integrations/chopper-rag](integrations/chopper-rag/README.md). Or try the demo in this repo:
+Framework examples: [integrations/chopper-rag](integrations/chopper-rag/README.md). Listed in the
+[LangChain integrations](https://docs.langchain.com/oss/python/integrations/providers/all_providers) (ChopperCompressor). Or try the demo in this repo:
 
 ```bash
 pip install -r requirements.txt
