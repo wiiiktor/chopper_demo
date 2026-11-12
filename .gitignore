@@ -3,3 +3,4 @@ __pycache__/
 *.pt
 *.safetensors
 media/youtube_cover.png
+drafts/
