@@ -104,6 +104,21 @@ should become almost free. **If you pretrain models and want to build that, cont
 
 ## Quick start
 
+In your own RAG pipeline (LangChain, LlamaIndex, Haystack or plain Python):
+
+```bash
+pip install chopper-rag                  # or "chopper-rag[langchain]", [llama-index], [haystack], [all]
+```
+
+```python
+from chopper_rag import Chopper
+chopper = Chopper.from_pretrained(variant="base")          # or "small"; for Polish "base-pl", "small-pl"
+result = chopper.run("When was the Eiffel Tower completed?", passages)   # passages: list of retrieved texts
+print([c.text for c in result.chops], result.decision)    # exact quotes + ANSWER / SEARCH
+```
+
+Framework examples: [integrations/chopper-rag](integrations/chopper-rag/README.md). Or try the demo in this repo:
+
 ```bash
 pip install -r requirements.txt
 
@@ -131,10 +146,22 @@ Everything else is on one page, **[docs/DETAILS.md](docs/DETAILS.md)**:
 Built on mmBERT (JHU CLSP), MiniCPM3-4B (OpenBMB), Qwen3, Qwen3-Embedding and Qwen3-Reranker (Qwen team), bge-reranker (BAAI);
 labels and judgements also came from Claude Opus 5.5 (Anthropic) and gpt-5.6-luna / GPT-6 Luna (OpenAI). Compared with
 LLMLingua-2 (Microsoft) and Provence (Naver). Data: the MuSiQue, HotpotQA, 2WikiMultiHopQA, TriviaQA, QASPER, Multi-Session Chat, WildChat, FineWeb, Wikipedia, LoCoMo and
-LongMemEval datasets. Our memory evaluation follows
+LongMemEval datasets; for Polish, PoQuAD and PolQA (IPI PAN). Our memory evaluation follows
 [Memory Tax](https://arxiv.org/abs/2610.34073) (He et al., 2026) and compares with
 [MemT-1.0](https://arxiv.org/abs/2610.26825) (MemTensor, 2026). Full table with licenses:
 [docs/DETAILS.md](docs/DETAILS.md#credits-and-licenses).
+
+## Licenses
+
+| what | license |
+|---|---|
+| mmBERT choppers, incl. Polish (`mmbert-base`, `mmbert-small`, `mmbert-base-pl`, `mmbert-small-pl`) | MIT (as mmBERT) |
+| `pip install chopper-rag` | MIT |
+| MiniCPM3 chopper | [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md) (as MiniCPM3-4B) |
+| training data [`wiiiktor/chopper_demo`](https://huggingface.co/datasets/wiiiktor/chopper_demo) | CC BY-SA 4.0 (share-alike from HotpotQA, Wikipedia and PolQA); Polish parts: PoQuAD CC BY 4.0, PolQA CC BY-SA 4.0 |
+
+Some labels came from Claude Opus 5.5 and OpenAI Luna models, used to train a non-competing extraction tool;
+see [docs/DETAILS.md](docs/DETAILS.md#credits-and-licenses).
 
 ---
 

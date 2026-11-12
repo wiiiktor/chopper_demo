@@ -811,8 +811,8 @@ after the fact.
 **Licenses of what is released here:**
 - **Code:** ⏳ (suggested: Apache 2.0, matching the models).
 - **Datasets:** they inherit from their sources. Because HotpotQA and Wikipedia are CC BY-SA, the derived datasets
-  must be **CC BY-SA 4.0** (share-alike).
-- **Models:** follow their base models: MIT for the mmBERT choppers. The
+  must be **CC BY-SA 4.0** (share-alike). The Polish rows keep their sources' terms: PoQuAD CC BY 4.0, PolQA CC BY-SA 4.0.
+- **Models:** follow their base models: MIT for the mmBERT choppers, the Polish ones included. The
   MiniCPM3 chopper derives from the MiniCPM3-4B weights and follows the [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md): free for
   academic research; commercial use is free after registering with OpenBMB / ModelBest (questionnaire linked from the
   [MiniCPM3-4B model card](https://huggingface.co/openbmb/MiniCPM3-4B)).
