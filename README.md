@@ -77,7 +77,7 @@ Long-conversation memory results (LoCoMo, LongMemEval) are in
 
 | | 🟧 **universal** | 🟪 **integrated** |
 |---|---|---|
-| what it is | a separate small encoder (mmBERT-base, 0.31B; a 0.14B mmBERT-small on the earlier data) | a 20% slice of MiniCPM3-4B's own weights + a small LoRA |
+| what it is | a separate small encoder (mmBERT-base, 0.31B, recommended; or mmBERT-small, 0.14B) | a 20% slice of MiniCPM3-4B's own weights + a small LoRA |
 | works with | **any** answering model: text in, text out | MiniCPM3-4B |
 | extra memory | 0.31B / 0.14B weights | 45M parameters; reads the model's own cache |
 | weights | 🤗 [`wiiiktor/chopper_mmbert`](https://huggingface.co/wiiiktor/chopper_mmbert) | 🤗 [`wiiiktor/chopper_minicpm3`](https://huggingface.co/wiiiktor/chopper_minicpm3) |
