@@ -814,6 +814,8 @@ after the fact.
   academic research; commercial use is free after registering with OpenBMB / ModelBest (questionnaire linked from the
   [MiniCPM3-4B model card](https://huggingface.co/openbmb/MiniCPM3-4B)).
 
+- **Labels from commercial APIs.** Claude Opus 5.5 (Anthropic) wrote the MuSiQue span labels (`mhtrain2`, `mhret`). They were used for an allowed purpose: training a non-competing model, a small information-extraction and summarization tool (the chopper), not a general-purpose chat or text-generation model. gpt-5.6-luna and GPT-6 Luna (OpenAI) were used only as YES/NO relevance filters for the rerank rows and as answer judges in evaluations; the resulting model is likewise an extraction tool that does not compete with OpenAI's products.
+
 **Citations:** ⏳ (BibTeX for mmBERT, MiniCPM3, Qwen3, BGE-M3 / bge-reranker, MuSiQue, HotpotQA, TriviaQA, Minitron, MatFormer, LoCoMo, LongMemEval, Memory Tax, MemT-1.0).
 
 ---
