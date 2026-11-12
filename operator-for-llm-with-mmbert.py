@@ -12,7 +12,7 @@ from your own answer-or-search LoRA (--answerer-lora <PEFT dir>, trained with sc
 
 usage:
   python operator-for-llm-with-mmbert.py --docs <folder of .txt/.md | file.jsonl> [--ask "question" ...]
-         --model <hf model id> [--answerer-lora none|<dir>] [--chopper base|small]
+         --model <hf model id> [--answerer-lora none|<dir>] [--chopper base|small|base-pl|small-pl]
          [--weights wiiiktor/chopper_mmbert] [--max-rounds 3] [--threshold <from chopper_config.json>] [--device auto]
 Without --ask it opens an interactive prompt (empty line or "exit" ends the session)."""
 import argparse, os, sys
@@ -26,7 +26,7 @@ ap.add_argument("--docs", required=True)
 ap.add_argument("--ask", action="append")
 ap.add_argument("--model", required=True, help="the answering model: any Hugging Face decoder-only causal LM")
 ap.add_argument("--answerer-lora", default="none", help="none (answer from an instruction) or a PEFT dir trained for --model")
-ap.add_argument("--chopper", default="base", choices=["base", "small"])
+ap.add_argument("--chopper", default="base", choices=["base", "small", "base-pl", "small-pl"], help="-pl: trained further for Polish documents")
 ap.add_argument("--weights", default="wiiiktor/chopper_mmbert", help="HF repo id or a local copy of it (mmbert-base/, mmbert-small/)")
 ap.add_argument("--max-rounds", type=int, default=3)
 ap.add_argument("--threshold", type=float, default=None, help="p(KEEP) cut-off; default = the one in the model's chopper_config.json")

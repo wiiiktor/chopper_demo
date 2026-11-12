@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chopper-rag"
-version = "0.1.0"
+version = "0.1.1"
 description = "The chopper context compressor for RAG: exact quotes cut out of retrieved snippets, for LangChain, LlamaIndex and Haystack"
 readme = "README.md"
 license = "MIT"

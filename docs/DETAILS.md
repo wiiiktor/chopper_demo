@@ -263,6 +263,7 @@ first) tied the flat mix, so the flat mix is the one released.
 |---|---|---|---|---|
 | 🟧 **universal chopper: mmBERT-base** | `jhu-clsp/mmBERT-base` (0.31B) | all weights + KEEP head + decision head | the 54,000 rows of datasets A and B, then the 102,654-row final mix ([C](#c-final-mix)), one epoch each | ✅ on HF (final mix 5 h 50 min, 3090) |
 | universal chopper: mmBERT-small | `jhu-clsp/mmBERT-small` (0.14B) | same | the 54,000 rows of datasets A and B, then the final mix | ✅ on HF (final mix 4 h 15 min); Qwen3-14B 4-hop 23 vs base 29 |
+| universal chopper, Polish: mmBERT-base-pl / mmBERT-small-pl | the two above | same | + 15,652 Polish rows (PoQuAD, PolQA) mixed with 15,935 rows of the final mix | ✅ on HF (base 2 h 40 min, small 1 h 40 min); Qwen3-14B on 856 Polish questions: 85.6% / 84.1% from chops vs 85.2% from all snippets |
 | 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
 | **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ✅ both on 🤗 [`chopper_minicpm3/answerer/`](https://huggingface.co/wiiiktor/chopper_minicpm3/tree/main/answerer): `chopper-notes/`, `clean-notes/` |
@@ -792,6 +793,8 @@ after the fact.
 | gpt-5.6-luna, GPT-6 Luna | OpenAI | API terms | YES/NO filtering of rerank rows; answer judging in every evaluation |
 | LLMLingua-2 | Pan et al., 2024 (Microsoft) | MIT | compared against (README) |
 | Provence | Chirkova et al., 2025 (Naver) | CC BY-NC-ND 4.0 | compared against (README) |
+| PoQuAD | Tuora et al., 2022 (IPI PAN) | CC BY 4.0 (Hugging Face card) | Polish chopper |
+| PolQA | Rybak et al., 2024 (IPI PAN) | CC BY-SA 4.0 | Polish chopper |
 | MuSiQue | Trivedi et al., 2022 | CC BY 4.0 | dataset A |
 | HotpotQA | Yang et al., 2018 | CC BY-SA 4.0 | dataset A |
 | TriviaQA | Joshi et al., 2017 | Apache 2.0 *(verify per release)* | dataset A |

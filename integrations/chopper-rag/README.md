@@ -7,7 +7,7 @@ The chopper is a fine-tuned mmBERT encoder. It reads the question and the snippe
 text. Every chop records where it came from (`passage[start:end] == text`), and the chops work with any answering model.
 It also gives one **ANSWER / SEARCH** decision: whether the snippets seem to contain the answer, or you should search again.
 
-- Model: [huggingface.co/wiiiktor/chopper_mmbert](https://huggingface.co/wiiiktor/chopper_mmbert): `base` (0.31B, recommended) and `small` (0.14B)
+- Model: [huggingface.co/wiiiktor/chopper_mmbert](https://huggingface.co/wiiiktor/chopper_mmbert): `base` (0.31B, recommended) and `small` (0.14B); for Polish documents `base-pl` and `small-pl`
 - Code and demo: [github.com/wiiiktor/chopper_demo](https://github.com/wiiiktor/chopper_demo)
 
 ## Install

@@ -84,6 +84,7 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 | "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **67%** of the time, keeps 1.4% of the text |
 | chopping time per lookup (RTX 3090) | **155 ms** (separate mmBERT) · **277 ms** (built into MiniCPM3-4B) |
 | 4-hop MuSiQue questions answered correctly by Qwen3-14B, one retrieval | **12% → 29%** with the chopper's chops instead of all 20 snippets (11× fewer tokens); with Opus 5.5's chops: 43% |
+| Polish questions (PoQuAD, PolQA) answered correctly by Qwen3-14B | **85.6%** from the Polish chopper's chops (255 tokens) vs 85.2% from all 16 snippets (3,856 tokens) |
 
 Long-conversation memory results (LoCoMo, LongMemEval) are in
 [the details](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval): there the 4B answering model is the limit.
@@ -92,7 +93,7 @@ Long-conversation memory results (LoCoMo, LongMemEval) are in
 
 | | 🟧 **universal** | 🟪 **integrated** |
 |---|---|---|
-| what it is | a separate small encoder (mmBERT-base, 0.31B, recommended; or mmBERT-small, 0.14B) | a 20% slice of MiniCPM3-4B's own weights + a small LoRA |
+| what it is | a separate small encoder (mmBERT-base, 0.31B, recommended; or mmBERT-small, 0.14B; both also in Polish versions) | a 20% slice of MiniCPM3-4B's own weights + a small LoRA |
 | works with | **any** answering model: text in, text out | MiniCPM3-4B |
 | extra memory | 0.31B / 0.14B weights | 45M parameters; reads the model's own cache |
 | weights | 🤗 [`wiiiktor/chopper_mmbert`](https://huggingface.co/wiiiktor/chopper_mmbert) | 🤗 [`wiiiktor/chopper_minicpm3`](https://huggingface.co/wiiiktor/chopper_minicpm3) |

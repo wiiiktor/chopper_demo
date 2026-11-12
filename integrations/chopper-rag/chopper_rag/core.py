@@ -25,7 +25,7 @@ import numpy as np
 import torch
 
 DEFAULT_REPO = "wiiiktor/chopper_mmbert"
-VARIANTS = {"base": "mmbert-base", "small": "mmbert-small"}
+VARIANTS = {"base": "mmbert-base", "small": "mmbert-small", "base-pl": "mmbert-base-pl", "small-pl": "mmbert-small-pl"}
 MAX_LEN = 8192
 _SAFETY = 32          # tokens kept free when packing groups (tokenisation at segment borders may differ slightly)
 
@@ -105,7 +105,7 @@ class Chopper:
     def from_pretrained(cls, repo: str = DEFAULT_REPO, variant: str = "base", device: str = "auto",
                         threshold: float | None = None, dtype: torch.dtype | None = None) -> "Chopper":
         """repo: HF repo id or a local directory containing ``mmbert-base/`` / ``mmbert-small/``.
-        variant: "base" (0.31B, recommended) or "small" (0.14B). threshold: p(KEEP) cut-off (default from
+        variant: "base" (0.31B, recommended) or "small" (0.14B); "base-pl" / "small-pl" for Polish documents. threshold: p(KEEP) cut-off (default from
         chopper_config.json). dtype: default bfloat16 on CUDA, float32 on CPU."""
         from safetensors.torch import load_file
         from transformers import AutoModel, AutoTokenizer
