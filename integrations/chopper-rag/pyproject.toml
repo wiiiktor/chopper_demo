@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chopper-rag"
-version = "0.1.1"
+version = "0.1.2"
 description = "The chopper context compressor for RAG: exact quotes cut out of retrieved snippets, for LangChain, LlamaIndex and Haystack"
 readme = "README.md"
 license = "MIT"
@@ -14,7 +14,15 @@ authors = [{ name = "wiiiktor" }]
 keywords = ["rag", "context-compression", "langchain", "llama-index", "haystack", "mmbert"]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
 ]
 dependencies = [
     "torch>=2.1",
@@ -34,6 +42,8 @@ test = ["pytest"]
 [project.urls]
 Model = "https://huggingface.co/wiiiktor/chopper_mmbert"
 Source = "https://github.com/wiiiktor/chopper_demo"
+Documentation = "https://github.com/wiiiktor/chopper_demo#readme"
+Issues = "https://github.com/wiiiktor/chopper_demo/issues"
 
 [tool.setuptools]
 packages = ["chopper_rag"]

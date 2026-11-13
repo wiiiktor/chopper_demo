@@ -8,4 +8,4 @@ Framework adapters live in submodules so that importing this package needs none 
 from .core import Chop, ChopResult, Chopper
 
 __all__ = ["Chop", "ChopResult", "Chopper"]
-__version__ = "0.1.0"
+__version__ = "0.1.2"

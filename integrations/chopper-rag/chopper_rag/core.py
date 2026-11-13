@@ -89,7 +89,8 @@ def _fetch(repo, folder):
     if os.path.isdir(os.path.join(repo, folder)):
         return os.path.join(repo, folder)
     from huggingface_hub import snapshot_download
-    return os.path.join(snapshot_download(repo, allow_patterns=[f"{folder}/*"]), folder)
+    # the root config.json is fetched too: the Hub counts a repo's downloads by it
+    return os.path.join(snapshot_download(repo, allow_patterns=[f"{folder}/*", "config.json"]), folder)
 
 
 class Chopper:
@@ -116,8 +117,19 @@ class Chopper:
         if dtype is None:
             dtype = torch.bfloat16 if str(device).startswith("cuda") else torch.float32
         d = _fetch(repo, VARIANTS[variant])
-        tok = AutoTokenizer.from_pretrained(f"{d}/encoder")
-        enc = AutoModel.from_pretrained(f"{d}/encoder", dtype=dtype).to(device).eval()
+        try:
+            tok = AutoTokenizer.from_pretrained(f"{d}/encoder")
+        except ValueError:                           # transformers 4.x cannot resolve the class name saved by 5.x
+            from transformers import PreTrainedTokenizerFast
+            cfg = json.load(open(f"{d}/encoder/tokenizer_config.json"))
+            sp = {k: cfg[k] for k in ("bos_token", "eos_token", "unk_token", "sep_token", "pad_token", "cls_token", "mask_token") if cfg.get(k)}
+            tok = PreTrainedTokenizerFast(tokenizer_file=f"{d}/encoder/tokenizer.json", model_max_length=cfg.get("model_max_length", 8192),
+                                          padding_side=cfg.get("padding_side", "right"),
+                                          model_input_names=cfg.get("model_input_names", ["input_ids", "attention_mask"]), **sp)
+        import transformers
+        kw = {"dtype": dtype} if int(transformers.__version__.split(".")[0]) >= 5 else \
+            {"torch_dtype": dtype, "reference_compile": False}      # transformers 4.x: old dtype name, no torch.compile (needs triton)
+        enc = AutoModel.from_pretrained(f"{d}/encoder", **kw).to(device).eval()
         heads = load_file(f"{d}/heads.safetensors")
         dec = json.load(open(f"{d}/chopper_config.json")).get("decode", {})
         thr = dec.get("pred_thr", 0.5) if threshold is None else threshold
