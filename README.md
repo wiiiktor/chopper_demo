@@ -11,6 +11,10 @@
 never rewritten. The chopper (mmBERT, 0.31B) makes them; for comparison, Claude Opus 5.5 makes them too, also forced to
 quote directly.
 
+> **What is new:** a new method, invented in November 2026 in Poland (EU). The chopper is not an LLM summarising the snippets:
+> a small encoder reads the question and all 20 snippets together in **one pass** and marks every word keep or drop. There is no
+> text generation, so it is fast: **50 ms per question** (20 snippets, ~2,400 tokens) on one RTX 3090, 36 ms with mmBERT-small.
+
 > **One database retrieval per question, even at 4 hops.** Every result below uses a single retrieval: each question gets its
 > 20 snippets once, the chopper cuts them once, and Qwen3-14B answers once. There are no follow-up searches and no second
 > rounds, so a 4-hop question has to be chained from one cut.
