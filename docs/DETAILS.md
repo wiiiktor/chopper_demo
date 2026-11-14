@@ -794,7 +794,7 @@ after the fact.
 | LLMLingua-2 | Pan et al., 2024 (Microsoft) | MIT | compared against (README) |
 | Provence | Chirkova et al., 2025 (Naver) | CC BY-NC-ND 4.0 | compared against (README) |
 | PoQuAD | Tuora et al., 2022 (IPI PAN) | CC BY 4.0 (Hugging Face card) | Polish chopper |
-| PolQA | Rybak et al., 2024 (IPI PAN) | CC BY-SA 4.0 | Polish chopper |
+| PolQA | [Rybak et al., 2024](https://aclanthology.org/2024.lrec-main.1125) (IPI PAN, LREC-COLING 2024) | CC BY-SA 4.0 | Polish chopper |
 | MuSiQue | Trivedi et al., 2022 | CC BY 4.0 | dataset A |
 | HotpotQA | Yang et al., 2018 | CC BY-SA 4.0 | dataset A |
 | TriviaQA | Joshi et al., 2017 | Apache 2.0 *(verify per release)* | dataset A |

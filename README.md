@@ -151,7 +151,7 @@ Everything else is on one page, **[docs/DETAILS.md](docs/DETAILS.md)**:
 Built on mmBERT (JHU CLSP), MiniCPM3-4B (OpenBMB), Qwen3, Qwen3-Embedding and Qwen3-Reranker (Qwen team), bge-reranker (BAAI);
 labels and judgements also came from Claude Opus 5.5 (Anthropic) and gpt-5.6-luna / GPT-6 Luna (OpenAI). Compared with
 LLMLingua-2 (Microsoft) and Provence (Naver). Data: the MuSiQue, HotpotQA, 2WikiMultiHopQA, TriviaQA, QASPER, Multi-Session Chat, WildChat, FineWeb, Wikipedia, LoCoMo and
-LongMemEval datasets; for Polish, PoQuAD and PolQA (IPI PAN). Our memory evaluation follows
+LongMemEval datasets; for Polish, PoQuAD and [PolQA](https://aclanthology.org/2024.lrec-main.1125) (IPI PAN). Our memory evaluation follows
 [Memory Tax](https://arxiv.org/abs/2610.34073) (He et al., 2026) and compares with
 [MemT-1.0](https://arxiv.org/abs/2610.26825) (MemTensor, 2026). Full table with licenses:
 [docs/DETAILS.md](docs/DETAILS.md#credits-and-licenses).
