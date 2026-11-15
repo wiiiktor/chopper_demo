@@ -126,9 +126,13 @@ export class Chopper {
         if (y <= x) continue;
         const t = s.slice(x, y);
         x += t.length - t.trimStart().length; y -= t.length - t.trimEnd().length;
+        while (x > sa && WORD.test(s[x - 1]) && WORD.test(s[x])) x--;   // never cut inside a word
+        while (y < sb && WORD.test(s[y - 1]) && WORD.test(s[y])) y++;
         if (y - x <= 2) continue;
         const ts = []; off.forEach(([u, v], k) => { if (q[k] && u < y && v > x) ts.push(p[k]); });
         const start = poff + (x - sa), end = poff + (y - sa);
+        const last = out[out.length - 1];
+        if (last && last.passage === i && start <= last.end) { last.end = Math.max(last.end, end); last.text = passages[i].slice(last.start, last.end); continue; }
         out.push({ passage: i, start, end, text: passages[i].slice(start, end), score: ts.length ? ts.reduce((m, z) => m + z, 0) / ts.length : null });
       }
     }
@@ -152,6 +156,7 @@ export function shape(q, gap = 5, mn = 4) {              // merge kept runs <= g
   return q;
 }
 
+const WORD = /[\p{L}\p{N}_]/u;
 export function keptText(s, off, q) {                     // kept tokens -> character runs; bridge one char between kept chars
   const cm = new Array(s.length + 1).fill(false);
   off.forEach(([a, b], k) => { if (q[k]) for (let i = a; i < b; i++) cm[i] = true; });

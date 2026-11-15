@@ -51,9 +51,9 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 </head>
 <body>
 <main>
-  <h1>Chopper <span style="font-size:.5em;font-weight:400"><a href="https://huggingface.co/spaces/wiiiktor/chopper-pl">po polsku</a></span></h1>
+  <h1>Chopper <span style="font-size:.5em;font-weight:400"><a target="_top" href="https://huggingface.co/spaces/wiiiktor/chopper-pl">po polsku</a></span></h1>
   <p class="lede">Paste a question and long text (search results, documents, notes). Chopper keeps only the <b>exact quotes</b> that answer it, typically 2–5% of the text, and ranks the passages, in one pass of a small open model. <b>It runs in your browser: nothing is sent to a server.</b></p>
-  <p class="links"><a href="https://github.com/wiiiktor/chopper_demo">GitHub</a> · <a href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <code>pip install chopper-rag</code> (LangChain, LlamaIndex, Haystack) · MCP server <code>uvx chopper-rag</code> · <b>MIT, commercial use allowed</b></p>
+  <p class="links"><a target="_top" href="https://github.com/wiiiktor/chopper_demo">GitHub</a> · <a target="_top" href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <code>pip install chopper-rag</code> (LangChain, LlamaIndex, Haystack) · MCP server <code>uvx chopper-rag</code> · <b>MIT, commercial use allowed</b></p>
 
   <div class="grid">
     <section class="card">
@@ -77,7 +77,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
       <table id="rk" hidden><thead><tr><th>Rank</th><th>Passage</th><th>Relevance</th><th>Kept from this passage</th></tr></thead><tbody></tbody></table>
     </section>
   </div>
-  <p class="note">Models: <code>base</code> (mmBERT-base, 0.31B, the default and more accurate) or <code>small</code> (mmBERT-small, 0.14B, faster), int8 embeddings and fp16 matrices. Relevance = mean p(KEEP) of a passage's 16 most likely tokens: the chopper used as a reranker. On a GPU the Python package takes about 0.1 s for 16 passages; here it runs on your CPU. 8 languages (en, de, fr, es, pt, pl, zh, ja). <a href="https://huggingface.co/spaces/wiiiktor/chopper-pl">Polish version</a> with the Polish models.</p>
+  <p class="note">Models: <code>base</code> (mmBERT-base, 0.31B, the default and more accurate) or <code>small</code> (mmBERT-small, 0.14B, faster), int8 embeddings and fp16 matrices. Relevance = mean p(KEEP) of a passage's 16 most likely tokens: the chopper used as a reranker. On a GPU the Python package takes about 0.1 s for 16 passages; here it runs on your CPU. 8 languages (en, de, fr, es, pt, pl, zh, ja). <a target="_top" href="https://huggingface.co/spaces/wiiiktor/chopper-pl">Polish version</a> with the Polish models.</p>
 </main>
 
 <script type="module">
