@@ -85,7 +85,7 @@ import { PreTrainedTokenizer } from "https://cdn.jsdelivr.net/npm/@huggingface/t
 import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/ort.wasm.min.mjs";
 import { Chopper, splitPassages } from "./chopper.js";
 
-const ROOT = "https://huggingface.co/wiiiktor/chopper_mmbert/resolve/main/onnx/";
+const ROOT = "https://huggingface.co/wiiiktor/chopper_mmbert/resolve/a4bf00014d3f5da4342e69281ed0adc2ec47feb5/onnx/";
 const MODELS = { base: { dir: "mmbert-base/", size: 418.9e6 }, small: { dir: "mmbert-small/", size: 184.2e6 } };
 let BASE = ROOT + MODELS.base.dir;
 const $ = id => document.getElementById(id);
@@ -127,7 +127,7 @@ function progress() {
 }
 async function fetchBytes(name) {
   let cache = null;
-  try { cache = await caches.open("chopper-v1"); const hit = await cache.match(BASE + name); if (hit) { const b = new Uint8Array(await hit.arrayBuffer()); got[name] = TOTAL[name] || b.length; progress(); return b; } } catch (_) { cache = null; }
+  try { cache = await caches.open("chopper-v2"); const hit = await cache.match(BASE + name); if (hit) { const b = new Uint8Array(await hit.arrayBuffer()); got[name] = TOTAL[name] || b.length; progress(); return b; } } catch (_) { cache = null; }
   const r = await fetch(BASE + name); if (!r.ok) throw new Error(`${name}: HTTP ${r.status}`);
   const reader = r.body.getReader(); const parts = []; let n = 0;
   for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); n += value.length; if (TOTAL[name]) { got[name] = n; progress(); } }
@@ -135,6 +135,7 @@ async function fetchBytes(name) {
   try { if (cache) await cache.put(BASE + name, new Response(b)); } catch (_) {}
   return b;
 }
+try { caches.delete("chopper-v1"); caches.delete("chopper-pl-v1"); } catch (_) {}   // old models (wrong rope theta)
 const dec = new TextDecoder();
 let chopper, busy = false, pending = false;
 async function load(v) {
