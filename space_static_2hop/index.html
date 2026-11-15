@@ -36,7 +36,7 @@ button:disabled{opacity:.5;cursor:default}
 .exs{width:100%;border-collapse:separate;border-spacing:0 4px;margin:10px 0 18px;font-size:14px}
 .exs th{text-align:left;font-size:12px;letter-spacing:.04em;color:var(--grey);font-weight:600;padding:4px 10px}
 .exs td{padding:8px 10px;vertical-align:top;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.exs tr{cursor:pointer} .exs tr:focus-visible td{outline:2px solid var(--teal)}
+.exs tr.exr{cursor:pointer} .exs tr.exr:hover td.q{background:var(--pale)} .exs tr.exr:focus-visible td{outline:2px solid var(--teal)}
 .exs td.q{background:var(--card);border-left:1px solid var(--line);border-radius:5px 0 0 5px;width:52%}
 .exs td.okc{background:#dff0e3;color:#1f5e33} .exs td.noc{background:#f6ddd7;color:#7d2b1c}
 .exs td:last-child{border-radius:0 5px 5px 0;border-right:1px solid var(--line)}
@@ -79,8 +79,8 @@ details .body{padding:0 12px 12px;font-size:14px}
   <div class="summary" id="sum"></div>
 
   <section class="card" aria-labelledby="ql">
-    <div class="live"><b class="t">Ask your own question, answered live</b>Type any question about the same 20 paragraphs into the box below and press <b>Ask Qwen3-14B live</b>.<ol><li>Chopper cuts the chops <b>in your browser</b> (first time: downloads the model, ~450 MB; 10–60 s).</li><li>Qwen3-14B then answers <b>live, twice</b>: once reading all 20 paragraphs, once reading only the chops.</li></ol>The 20 examples below are precomputed; only your own question calls the model.</div>
-    <label id="ql" for="q">Question</label>
+    <div class="live"><b class="t">Ask your own question, answered live</b>Pick an example below to choose its 20 paragraphs, then type any question about them into the box below and press <b>Ask Qwen3-14B live</b>.<ol><li>Chopper cuts the chops <b>in your browser</b> (first time: downloads the model, ~450 MB; 10–60 s).</li><li>Qwen3-14B then answers <b>live, twice</b>: once reading all 20 paragraphs, once reading only the chops.</li></ol>The 20 examples below are precomputed; only your own question calls the model.</div>
+    <label id="ql" for="q">Question <span class="status" id="qsrc"></span></label>
     <input id="q" autocomplete="off">
     <div class="row">
       <button id="ask" disabled>Ask Qwen3-14B live</button>
@@ -145,7 +145,7 @@ $("sum").innerHTML = `
 // ---- example table: sorted with-Chopper correct first, then without-Chopper correct first
 const ORDER = EX.map((e, i) => i).sort((a, b) => (EX[b].with.ok - EX[a].with.ok) || (EX[b].without.ok - EX[a].without.ok) || a - b);
 ORDER.forEach(i => {
-  const e = EX[i], tr = document.createElement("tr"); tr.className = "ex"; tr.tabIndex = 0; tr.dataset.i = i;
+  const e = EX[i], tr = document.createElement("tr"); tr.className = "exr"; tr.tabIndex = 0; tr.dataset.i = i;
   const cell = x => `<td class="${x.ok ? "okc" : "noc"}"><span class="mk">${x.ok ? "✓" : "✗"}</span><span class="a">${esc(x.answer)}</span></td>`;
   tr.innerHTML = `<td class="q"><span class="n">${i + 1}</span>${esc(e.question)}</td>${cell(e.without)}${cell(e.with)}`;
   const go = () => { show(i); window.scrollTo({ top: 0, behavior: "smooth" }); };
@@ -160,8 +160,8 @@ function renderParas(e) {
 const pill = ok => ok === null ? `<span class="pill na">no gold answer</span>` : ok ? `<span class="pill ok">✓ correct</span>` : `<span class="pill no">✗ wrong</span>`;
 
 function show(i) {
-  cur = i; const e = EX[i];
-  document.querySelectorAll("tr.ex").forEach(r => r.classList.toggle("sel", +r.dataset.i === i));
+  cur = i; const e = EX[i]; $("qsrc").textContent = `(paragraphs of example ${i + 1})`;
+  document.querySelectorAll("tr.exr").forEach(r => r.classList.toggle("sel", +r.dataset.i === i));
   $("q").value = e.question; renderParas(e);
   $("wm").textContent = `Qwen3-14B read all 20 paragraphs: ${fmt(e.without.tokens)} tokens`;
   $("cm").textContent = `Qwen3-14B read only the chops: ${fmt(e.with.tokens)} tokens`;
@@ -231,7 +231,7 @@ async function ask() {
   const q = $("q").value.trim(); if (!q || busy) return;
   busy = true; $("ask").disabled = true;
   const e = EX[cur];
-  document.querySelectorAll(".ex").forEach(b => b.setAttribute("aria-pressed", "false"));
+  document.querySelectorAll("tr.exr").forEach(r => r.classList.remove("sel"));
   $("gold").textContent = "Your own question: there is no gold answer, so judge the two answers yourself.";
   for (const k of ["wa", "ca"]) $(k).textContent = "…";
   $("wk").innerHTML = $("ck").innerHTML = pill(null);
@@ -253,7 +253,9 @@ async function ask() {
       return;
     }
     $("st").textContent = "Qwen3-14B is answering both ways…";
-    const [a, b] = await Promise.allSettled([qwen(q, full), qwen(q, short)]);
+    const none = !chops.length;            // Chopper kept nothing: the "with" model would read empty notes, so it is not asked
+    const [a, b] = await Promise.allSettled([qwen(q, full), none ? Promise.resolve(null) : qwen(q, short)]);
+    if (none) b.value = { answer: "not in notes", prompt_tokens: 0, ms: 0, empty: true };
     const put = (res, ak, mk, label) => {
       if (res.status === "fulfilled") {
         $(ak).textContent = res.value.answer || "(no answer)";
@@ -262,6 +264,7 @@ async function ask() {
     };
     put(a, "wa", "wm", "Qwen3-14B read all 20 paragraphs");
     put(b, "ca", "cm", "Qwen3-14B read only the chops");
+    if (none) $("cm").textContent = "Chopper kept nothing (decision SEARCH: the answer is probably not in these 20 paragraphs), so Qwen3-14B was not asked";
     $("st").textContent = "Done. Change the question to ask again, or pick an example.";
   } catch (err) {
     $("st").innerHTML = `<span class="warn">${esc(err.message)}</span>`;
