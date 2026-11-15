@@ -6,6 +6,7 @@ export class Chopper {
   constructor(tokenizer, session, ort, cfg = {}) {
     this.tok = tokenizer; this.session = session; this.ort = ort;
     const d = cfg.decode || {};
+    this.snap = "sentence";   // "sentence" (default, as chopper-rag 0.1.7) | "word"
     this.threshold = d.pred_thr ?? 0.5; this.mergeGap = d.merge_gap ?? 5; this.minRun = d.min_run ?? 4;
     this.sep = ` ${tokenizer.sep_token} `;
     const v = tokenizer.get_vocab(); this.inv = [];
@@ -119,7 +120,7 @@ export class Chopper {
     }
     let q = Array.from(p, (x, k) => x > this.threshold && body[k]);
     q = shape(q, this.mergeGap, this.minRun).map((x, k) => x && body[k]);
-    const out = [];
+    const out = [], sentCache = {};
     for (const [a, b] of keptText(s, off, q)) {
       for (const [sa, sb, i, poff] of spans) {
         let x = Math.max(a, sa), y = Math.min(b, sb);
@@ -130,7 +131,13 @@ export class Chopper {
         while (y < sb && WORD.test(s[y - 1]) && WORD.test(s[y])) y++;
         if (y - x <= 2) continue;
         const ts = []; off.forEach(([u, v], k) => { if (q[k] && u < y && v > x) ts.push(p[k]); });
-        const start = poff + (x - sa), end = poff + (y - sa);
+        let start = poff + (x - sa), end = poff + (y - sa);
+        if (this.snap === "sentence") {                          // whole sentences the chop touches (as snap_chops)
+          const P = passages[i], ss = (sentCache[i] ||= sentences(P));
+          for (const [u, v] of ss) { if (u <= start && v > start) start = Math.min(start, u); if (u < end && v >= end) end = Math.max(end, v); }
+          while (start < end && /\s/.test(P[start])) start++;
+          while (end > start && /\s/.test(P[end - 1])) end--;
+        }
         const last = out[out.length - 1];
         if (last && last.passage === i && start <= last.end) { last.end = Math.max(last.end, end); last.text = passages[i].slice(last.start, last.end); continue; }
         out.push({ passage: i, start, end, text: passages[i].slice(start, end), score: ts.length ? ts.reduce((m, z) => m + z, 0) / ts.length : null });
@@ -157,6 +164,13 @@ export function shape(q, gap = 5, mn = 4) {              // merge kept runs <= g
 }
 
 const WORD = /[\p{L}\p{N}_]/u;
+const SENT_END = /[.!?。！？…]+["'”’»)\]]*(?=\s|$)|\n\s*\n|\n(?=\s*[-•*\d])/gu;
+export function sentences(t) {                            // (start, end) of sentences, as chopper_rag.core._sentences
+  const out = []; let a = 0, m; SENT_END.lastIndex = 0;
+  while ((m = SENT_END.exec(t)) !== null) { const b = m.index + m[0].length; if (t.slice(a, b).trim()) out.push([a, b]); a = b; if (m[0].length === 0) SENT_END.lastIndex++; }
+  if (t.slice(a).trim()) out.push([a, t.length]);
+  return out;
+}
 export function keptText(s, off, q) {                     // kept tokens -> character runs; bridge one char between kept chars
   const cm = new Array(s.length + 1).fill(false);
   off.forEach(([a, b], k) => { if (q[k]) for (let i = a; i < b; i++) cm[i] = true; });

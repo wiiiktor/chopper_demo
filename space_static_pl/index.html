@@ -67,6 +67,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
       </div>
       <div class="bar"><i id="pb"></i></div>
 <div class="row" role="radiogroup" aria-label="Model"><span class="status">Model:</span><label class="opt"><input type="radio" name="mv" value="base" checked> base-pl 0,31 mld (dokładniejszy, ~450 MB)</label><label class="opt"><input type="radio" name="mv" value="small"> small-pl 0,14 mld (szybszy, ~220 MB)</label></div>
+      <div class="row"><label class="opt"><input type="checkbox" id="sn" checked> Całe zdania</label></div>
       <div class="row" id="ex"><span class="status">Przykłady:</span></div>
     </section>
     <section class="card" aria-live="polite">
@@ -147,6 +148,7 @@ async function load(v) {
     const session = await ort.InferenceSession.create(m, { executionProviders: ["wasm"] });
     const tok = new PreTrainedTokenizer(JSON.parse(dec.decode(tj)), JSON.parse(dec.decode(tc)));
     chopper = new Chopper(tok, session, ort, JSON.parse(dec.decode(cc)));
+    chopper.snap = $("sn").checked ? "sentence" : "word";
     $("pb").style.width = "100%"; $("go").disabled = false;
     $("st").textContent = `Gotowe (wątki CPU: ${ort.env.wasm.numThreads}).`;
     if ($("q").value.trim()) chop();
@@ -194,6 +196,7 @@ async function chop() {
   finally { busy = false; if (pending) { pending = false; chop(); } }
 }
 $("go").onclick = chop;
+$("sn").onchange = () => { if (chopper) { chopper.snap = $("sn").checked ? "sentence" : "word"; chop(); } };
 $("q").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); chop(); } });
 // re-run automatically when the question or text changes (after a short pause in typing)
 let tmr; const later = () => { clearTimeout(tmr); tmr = setTimeout(chop, 700); };
