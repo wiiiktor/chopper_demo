@@ -125,18 +125,20 @@ Settings: `CHOPPER_VARIANT` (base, small, base-pl, small-pl), `CHOPPER_DEVICE` (
 it works but is slow (about 10 s for 16 passages of 1,000 characters with `small`, 20 s with `base`). The model is
 downloaded on the first call.
 
-## Whole words or whole sentences (`snap`)
+## Whole sentences by default (`snap`)
 
-The model decides per token, so a raw chop can start or end inside a word or a clause. Since 0.1.6 chops are snapped
-to **whole words** by default (on our held-out set this leaves accuracy unchanged, while 28% of raw chops were cut
-mid-word). For readable, complete sentences use `snap="sentence"`: every sentence a chop touches is kept whole (about
-twice the text). `snap="none"` gives the raw token runs the published results were measured with.
+The model decides per token, so a raw chop can start or end inside a word or a clause. Since 0.1.7 every chop is
+extended to the **whole sentences** it touches, so chops read as complete sentences (97% end at a sentence end, vs 36%
+raw) at the cost of a little more text (4.1% of the input kept instead of 3.4% on our held-out set). `snap="word"` only
+avoids cutting inside a word; `snap="none"` gives the raw token runs. **All F1 / accuracy numbers we publish were
+measured on raw chops (`snap="none"`)**; on that held-out set word snapping leaves F1 unchanged (0.458) and sentence
+snapping gives 0.433, because whole sentences also include words outside the gold answer span.
 
 ```python
-ch = Chopper.from_pretrained(snap="sentence")          # or: ch.snap = "sentence"
+ch = Chopper.from_pretrained(snap="word")          # or "none"; or later: ch.snap = "none"
 ```
 
-In LangChain / LlamaIndex / Haystack pass such a `Chopper` as `chopper=`; in the MCP server set `CHOPPER_SNAP=sentence`.
+In LangChain / LlamaIndex / Haystack pass such a `Chopper` as `chopper=`; in the MCP server set `CHOPPER_SNAP`.
 
 ## Output metadata (all three frameworks)
 

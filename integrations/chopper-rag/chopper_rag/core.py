@@ -8,9 +8,9 @@ Per token the KEEP head gives p(KEEP); the decision head on the first token give
 Decoding (the one the published results were measured with): keep passage tokens with p > pred_thr, merge kept runs
 separated by <= merge_gap tokens, drop runs shorter than min_run tokens, bridge the single character between two kept
 tokens, then map each run back to character offsets of the ORIGINAL passage strings. Finally the chops are snapped
-(``snap``): "word" (default since 0.1.6: never cut inside a word; on a held-out set F1 is unchanged while 28% of raw chops
-started or ended mid-word), "sentence" (keep every sentence a chop touches: complete sentences, about twice the text),
-or "none" (raw token runs, as the published results were measured).
+(``snap``): "sentence" (default since 0.1.7: every sentence a chop touches is kept whole, so chops read as complete
+sentences; on a held-out set ~4.1% of the text is kept instead of 3.4%), "word" (never cut inside a word; F1 unchanged
+vs raw, while 24% of raw chops started or ended mid-word) or "none" (raw token runs, as the published results were measured).
 
 Passages that do not fit into one 8,192-token input are processed in several forward passes: passages are packed
 greedily, in order, into groups that fit next to the question; a single passage longer than the whole budget is cut
@@ -157,7 +157,7 @@ class Chopper:
     """Load with :meth:`from_pretrained`; call :meth:`chop` (list of :class:`Chop`) or :meth:`run` (+ decision)."""
 
     def __init__(self, tokenizer, encoder, heads, device, threshold=0.5, merge_gap=5, min_run=4, max_length=MAX_LEN,
-                 snap="word"):
+                 snap="sentence"):
         self.tokenizer, self.encoder, self.device = tokenizer, encoder, device
         self.heads = {k: v.to(device).float() for k, v in heads.items()}
         self.threshold, self.merge_gap, self.min_run, self.max_length = threshold, merge_gap, min_run, max_length
@@ -168,10 +168,10 @@ class Chopper:
 
     @classmethod
     def from_pretrained(cls, repo: str = DEFAULT_REPO, variant: str = "base", device: str = "auto",
-                        threshold: float | None = None, dtype: torch.dtype | None = None, snap: str = "word") -> "Chopper":
+                        threshold: float | None = None, dtype: torch.dtype | None = None, snap: str = "sentence") -> "Chopper":
         """repo: HF repo id or a local directory containing ``mmbert-base/`` / ``mmbert-small/``.
         variant: "base" (0.31B, recommended) or "small" (0.14B); "base-pl" / "small-pl" for Polish documents. threshold: p(KEEP) cut-off (default from
-        chopper_config.json). dtype: default bfloat16 on CUDA, float32 on CPU. snap: "word" (default), "sentence" or "none"."""
+        chopper_config.json). dtype: default bfloat16 on CUDA, float32 on CPU. snap: "sentence" (default), "word" or "none"."""
         from safetensors.torch import load_file
         from transformers import AutoModel, AutoTokenizer
         if variant not in VARIANTS:

@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/wiiiktor/chopper_demo",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "chopper-rag",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"
@@ -41,10 +41,10 @@
         },
         {
           "name": "CHOPPER_SNAP",
-          "description": "word (default: chops never cut inside a word), sentence (whole sentences) or none",
+          "description": "sentence (default: whole sentences), word (never cut inside a word) or none (raw)",
           "isRequired": false,
           "format": "string",
-          "default": "word"
+          "default": "sentence"
         }
       ]
     }

@@ -6,7 +6,7 @@ Run:      chopper-mcp                      (stdio; installed by  pip install "ch
 Settings (environment variables):
     CHOPPER_VARIANT       base (default) | small | base-pl | small-pl
     CHOPPER_DEVICE        auto (default) | cpu | cuda
-    CHOPPER_SNAP          word (default: chops never cut inside a word) | sentence (whole sentences) | none
+    CHOPPER_SNAP          sentence (default: whole sentences) | word (never cut inside a word) | none (raw)
     CHOPPER_REPO          Hugging Face repo or local directory (default wiiiktor/chopper_mmbert)
     CHOPPER_ALLOWED_DIRS  directories chop_files may read, separated by os.pathsep (default: the home directory)
 
@@ -52,7 +52,7 @@ def _chopper() -> Chopper:
     with _lock:
         if _model is None:
             kw = {"variant": os.environ.get("CHOPPER_VARIANT", "base"), "device": os.environ.get("CHOPPER_DEVICE", "auto"),
-                  "snap": os.environ.get("CHOPPER_SNAP", "word")}
+                  "snap": os.environ.get("CHOPPER_SNAP", "sentence")}
             if os.environ.get("CHOPPER_REPO"):
                 kw["repo"] = os.environ["CHOPPER_REPO"]
             print(f"chopper-mcp: loading {kw}", file=sys.stderr)

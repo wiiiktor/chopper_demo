@@ -112,6 +112,8 @@ question ─► retrieve 16 passages ─► 🔪 rank + chop in one pass ─► 
 | Polish questions (PoQuAD, PolQA) answered correctly by Qwen3-14B | **85.6%** from the Polish chopper's chops (255 tokens) vs 85.2% from all 16 snippets (3,856 tokens) |
 | license | **MIT**: free for commercial use, weights and code. The closest alternatives, Provence and XProvence (Naver, sentence pruning + reranking), are CC BY-NC-ND 4.0: non-commercial only |
 
+*All quality numbers in this repository (F1, recall, answer accuracy, nDCG) were measured on **raw chops, without word or sentence snapping**. Since `chopper-rag` 0.1.7 the package extends chops to whole sentences by default (97% of chops then end at a sentence end, vs 36% raw; about 4.1% of the text kept instead of 3.4%; [details](integrations/chopper-rag/README.md#whole-sentences-by-default-snap)).*
+
 *In training (Nov 2026), suggested by the OPI PIB AI Lab:* the same Polish chopper recipe on two Polish encoders, [pl-ModernBERT-base](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) from OPI PIB (results expected about 16 Nov) and [polish-roberta-base-8k](https://huggingface.co/sdadas/polish-roberta-base-8k) (8k context, about 18 Nov), compared with mmBERT-base-pl on the same 856 Polish questions. Restarted 15 Nov with the training data fitted to the Polish tokenizers ([why](docs/DETAILS.md#polish-bases-fitting-the-data-to-the-tokenizer)).
 
 Long-conversation memory results (LoCoMo, LongMemEval) are in
