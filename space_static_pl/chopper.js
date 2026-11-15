@@ -161,7 +161,7 @@ export function keptText(s, off, q) {                     // kept tokens -> char
 }
 
 // ~size-character passages: paragraphs packed; a longer paragraph cut at a sentence or word end (as split_passages)
-export function splitPassages(text, size = 500) {
+export function splitPassages(text, size = 500, pack = true) {   // pack=false: every paragraph is its own passage
   const out = []; let start = null, end = null;
   const re = /\S(?:[\s\S]*?\S)?(?=\s*\n\s*\n|\s*$)/g; let m;
   while ((m = re.exec(text)) !== null) {
@@ -174,6 +174,7 @@ export function splitPassages(text, size = 500) {
       out.push([a, text.slice(a, cut)]); a = cut;
       while (a < b && /\s/.test(text[a])) a++;
     }
+    if (!pack) { if (b > a) out.push([a, text.slice(a, b)]); if (m[0].length === 0) re.lastIndex++; continue; }
     if (start !== null && b - start > size) { out.push([start, text.slice(start, end)]); start = null; }
     if (start === null) start = a;
     end = b;

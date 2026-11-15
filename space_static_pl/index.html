@@ -25,7 +25,10 @@ label{display:block;font-size:13px;font-weight:600;color:var(--grey);margin:0 0 
 input,textarea{width:100%;font:15px/1.5 "IBM Plex Sans",sans-serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px}
 textarea{min-height:300px;resize:vertical}
 input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
-.opt{font-size:14px;display:inline-flex;gap:5px;align-items:center;cursor:pointer}
+.opt{font-size:14px;display:inline-flex;gap:6px;align-items:center;cursor:pointer;white-space:nowrap;margin:0;font-weight:400;color:inherit;letter-spacing:0}
+.opt input{width:auto;margin:0;padding:0}
+.pn{font-size:11px;font-weight:700;color:var(--teal);margin-right:3px}
+.none{color:var(--grey)}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
 button{font:600 15px "IBM Plex Sans",sans-serif;border:1px solid var(--teal);background:var(--teal);color:#fff;border-radius:4px;padding:8px 18px;cursor:pointer}
 button.ghost{background:transparent;color:var(--ink);border-color:var(--line);font-weight:400;font-size:14px;padding:6px 10px}
@@ -36,7 +39,7 @@ button:disabled{opacity:.5;cursor:default}
 .verdict{font-weight:600;margin:0 0 4px}
 .verdict.search{color:var(--warn)}
 .stats{font-size:14px;color:var(--grey);margin:0 0 12px}
-.kept{white-space:pre-wrap;font-size:14.5px;max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:4px;padding:10px;background:var(--bg);color:var(--grey)}
+.kept{position:relative;white-space:pre-wrap;font-size:14.5px;max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:4px;padding:10px;background:var(--bg);color:var(--grey)}
 .kept mark{background:var(--mark);color:var(--ink);border-radius:2px;padding:0 1px}
 table{border-collapse:collapse;width:100%;font-size:14px;margin-top:14px}
 th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -56,7 +59,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
     <section class="card">
       <label for="q">Pytanie</label>
       <input id="q" autocomplete="off">
-      <label for="t" style="margin-top:12px">Tekst (fragmenty dzielone na pustych liniach, po ~500 znaków)</label>
+      <label for="t" style="margin-top:12px">Tekst (każdy akapit to osobny fragment; długie dzielone co ~1000 znaków)</label>
       <textarea id="t"></textarea>
       <div class="row">
         <button id="go" disabled>Tnij</button>
@@ -71,7 +74,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
       <p class="stats" id="ss"></p>
       <label>Zachowany tekst (podświetlony)</label>
       <div class="kept" id="kp"></div>
-      <table id="rk" hidden><thead><tr><th>Miejsce</th><th>Fragment</th><th>Trafność</th><th>Początek fragmentu</th></tr></thead><tbody></tbody></table>
+      <table id="rk" hidden><thead><tr><th>Miejsce</th><th>Fragment</th><th>Trafność</th><th>Zachowane z tego fragmentu</th></tr></thead><tbody></tbody></table>
     </section>
   </div>
   <p class="note">Modele: polski <code>base-pl</code> (mmBERT-base, 0,31 mld parametrów, domyślny i dokładniejszy) lub <code>small-pl</code> (mmBERT-small, 0,14 mld, szybszy), osadzenia int8 i macierze fp16. Trafność = średnie p(KEEP) 16 najbardziej prawdopodobnych tokenów fragmentu: chopper jako reranker. Na GPU pakiet Pythona potrzebuje ok. 0,1 s na 16 fragmentów; tutaj liczy Twój procesor. <a href="https://huggingface.co/spaces/wiiiktor/chopper">English version</a>.</p>
@@ -109,7 +112,7 @@ Największymi dopływami Wisły są Bug (prawy, przez Narew) oraz San. Wisła na
 EXAMPLES[1][1] = EXAMPLES[0][1];
 EXAMPLES.forEach(([q, t]) => {
   const b = document.createElement("button"); b.className = "ghost"; b.textContent = q;
-  b.onclick = () => { $("q").value = q; $("t").value = t; if (!$("go").disabled) chop(); };
+  b.onclick = () => { $("q").value = q; $("t").value = t; chop(); };
   $("ex").appendChild(b);
 });
 $("q").value = EXAMPLES[0][0]; $("t").value = EXAMPLES[0][1];
@@ -133,7 +136,7 @@ async function fetchBytes(name) {
   return b;
 }
 const dec = new TextDecoder();
-let chopper;
+let chopper, busy = false, pending = false;
 async function load(v) {
   BASE = ROOT + MODELS[v].dir; TOTAL["model.onnx"] = MODELS[v].size; got = {};
   $("go").disabled = true; chopper = null; $("pb").style.width = "0%";
@@ -152,34 +155,48 @@ document.querySelectorAll('input[name="mv"]').forEach(r => r.onchange = () => lo
 await load("base");
 
 const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
 async function chop() {
+  if (!chopper || busy) { pending = true; return; }
   const q = $("q").value.trim(), text = $("t").value;
   if (!q || !text.trim()) { $("vd").textContent = "Wpisz pytanie i tekst."; return; }
-  $("go").disabled = true; $("st").textContent = "Tnę…";
+  busy = true; pending = false; $("st").textContent = "Tnę…";
+  try {
   await new Promise(r => setTimeout(r, 20));
-  const parts = splitPassages(text, 500), offs = parts.map(p => p[0]), passages = parts.map(p => p[1]);
+  const parts = splitPassages(text, 1000, false), offs = parts.map(p => p[0]), passages = parts.map(p => p[1]);
   const t0 = performance.now();
   const r = await chopper.run(q, passages);
   const dt = (performance.now() - t0) / 1000;
   const spans = r.chops.map(c => [offs[c.passage] + c.start, offs[c.passage] + c.end]).sort((a, b) => a[0] - b[0]);
-  let html = "", cur = 0, kept = 0;
-  for (const [a, b] of spans) { html += esc(text.slice(cur, a)) + "<mark>" + esc(text.slice(a, b)) + "</mark>"; cur = b; kept += b - a; }
+  // passage numbers in the text box, so the table below can be matched to the highlights
+  const marks = offs.map((o, i) => [o, `<sup class="pn">${i + 1}</sup>`]);
+  let html = "", cur = 0, kept = 0, mi = 0;
+  const upto = x => { while (mi < marks.length && marks[mi][0] <= x) { if (marks[mi][0] >= cur) { html += esc(text.slice(cur, marks[mi][0])) + marks[mi][1]; cur = marks[mi][0]; } mi++; } };
+  for (const [a, b] of spans) { upto(a); html += esc(text.slice(cur, a)) + "<mark>" + esc(text.slice(a, b)) + "</mark>"; cur = b; kept += b - a; }
+  upto(text.length);
   $("kp").innerHTML = html + esc(text.slice(cur));
+  { const k = $("kp"), m0 = k.querySelector("mark"); k.scrollTop = m0 ? Math.max(0, m0.offsetTop - k.offsetTop - 40) : 0; }   // show the first highlight
   const v = $("vd");
   v.textContent = r.decision === "ANSWER" ? `ANSWER: tekst prawdopodobnie zawiera odpowiedź (p = ${r.pAnswer.toFixed(2)})`
                                           : `SEARCH: odpowiedzi tu raczej nie ma, szukaj dalej (p = ${r.pAnswer.toFixed(2)})`;
   v.className = "verdict" + (r.decision === "SEARCH" ? " search" : "");
   $("ss").textContent = `Zachowano ${kept.toLocaleString("pl")} z ${text.length.toLocaleString("pl")} znaków (${(100 * kept / Math.max(1, text.length)).toFixed(1)}%), cytaty: ${spans.length}, fragmenty: ${passages.length}, ${dt.toFixed(1)} s na Twoim CPU.`;
+  const byP = {}; for (const c of r.chops) (byP[c.passage] ||= []).push(passages[c.passage].slice(c.start, c.end));
   const tb = $("rk").querySelector("tbody"); tb.innerHTML = "";
   r.ranking.forEach(([i, s], k) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td class="num">${k + 1}</td><td class="num">${i + 1}</td><td class="num"><span class="relbar" style="width:${Math.round(60 * s)}px"></span>${s.toFixed(3)}</td><td>${esc(passages[i].slice(0, 90))}${passages[i].length > 90 ? "…" : ""}</td>`;
+    tr.innerHTML = `<td class="num">${k + 1}</td><td class="num">${i + 1}</td><td class="num"><span class="relbar" style="width:${Math.round(60 * s)}px"></span>${s.toFixed(3)}</td><td>${byP[i] ? byP[i].map(esc).join(" … ") : `<span class="none">(nic nie zachowano) ${esc(passages[i].slice(0, 60))}…</span>`}</td>`;
     tb.appendChild(tr);
   });
-  $("rk").hidden = false; $("go").disabled = false; $("st").textContent = "Gotowe.";
+  $("rk").hidden = false; $("st").textContent = "Gotowe.";
+  } catch (e) { $("st").textContent = "Błąd: " + e.message; }
+  finally { busy = false; if (pending) { pending = false; chop(); } }
 }
 $("go").onclick = chop;
-$("q").addEventListener("keydown", e => { if (e.key === "Enter" && !$("go").disabled) chop(); });
+$("q").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); chop(); } });
+// re-run automatically when the question or text changes (after a short pause in typing)
+let tmr; const later = () => { clearTimeout(tmr); tmr = setTimeout(chop, 700); };
+$("q").addEventListener("input", later); $("t").addEventListener("input", later);
 </script>
 </body>
 </html>
