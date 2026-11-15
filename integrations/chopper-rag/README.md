@@ -160,4 +160,4 @@ pip install -e ".[all,test]"
 CUDA_VISIBLE_DEVICES="" pytest tests/          # uses mmbert-small; CHOPPER_VARIANT=base for the base model
 ```
 
-License: MIT.
+License: **MIT, commercial use allowed** (code and the mmBERT weights). Naver's Provence / XProvence pruners, the closest alternatives, are CC BY-NC-ND 4.0 (non-commercial).

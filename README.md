@@ -109,6 +109,7 @@ question ─► retrieve 16 passages ─► 🔪 rank + chop in one pass ─► 
 | chopping time per lookup (RTX 3090) | **155 ms** (separate mmBERT) · **277 ms** (built into MiniCPM3-4B) |
 | 4-hop MuSiQue questions answered correctly by Qwen3-14B, one retrieval | **12% → 29%** with the chopper's chops instead of all 20 snippets (11× fewer tokens); with Opus 5.5's chops: 43% |
 | Polish questions (PoQuAD, PolQA) answered correctly by Qwen3-14B | **85.6%** from the Polish chopper's chops (255 tokens) vs 85.2% from all 16 snippets (3,856 tokens) |
+| license | **MIT**: free for commercial use, weights and code. The closest alternatives, Provence and XProvence (Naver, sentence pruning + reranking), are CC BY-NC-ND 4.0: non-commercial only |
 
 *In training (Nov 2026), suggested by the OPI PIB AI Lab:* the same Polish chopper recipe on two Polish encoders, [pl-ModernBERT-base](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) from OPI PIB (results expected about 16 Nov) and [polish-roberta-base-8k](https://huggingface.co/sdadas/polish-roberta-base-8k) (8k context, about 18 Nov), compared with mmBERT-base-pl on the same 856 Polish questions. Restarted 15 Nov with the training data fitted to the Polish tokenizers ([why](docs/DETAILS.md#polish-bases-fitting-the-data-to-the-tokenizer)).
 
@@ -184,6 +185,8 @@ LongMemEval datasets; for Polish, PoQuAD and [PolQA](https://aclanthology.org/20
 [docs/DETAILS.md](docs/DETAILS.md#credits-and-licenses).
 
 ## Licenses
+
+**Commercial use is allowed.** The mmBERT choppers and all code are MIT. For comparison, Naver's Provence and XProvence context pruners are licensed CC BY-NC-ND 4.0 (no commercial use, no derivatives).
 
 | what | license |
 |---|---|

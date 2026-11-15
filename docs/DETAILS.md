@@ -872,7 +872,7 @@ after the fact.
 | LongMemEval | Wu et al., 2025 | MIT | memory benchmark, §6 (evaluation only) |
 | PyTorch, transformers, peft, vLLM | Meta / PyTorch Foundation, Hugging Face, vLLM project | BSD-3, Apache 2.0 | training and inference |
 
-**Licenses of what is released here:**
+**Licenses of what is released here** (commercial use allowed for the mmBERT choppers and the code; by contrast Naver's Provence and XProvence context pruners are CC BY-NC-ND 4.0, non-commercial):
 - **Code:** MIT ([LICENSE](../LICENSE)), as the `chopper-rag` package.
 - **Datasets:** they inherit from their sources. Because HotpotQA and Wikipedia are CC BY-SA, the derived datasets
   must be **CC BY-SA 4.0** (share-alike). The Polish rows keep their sources' terms: PoQuAD CC BY 4.0, PolQA CC BY-SA 4.0.
