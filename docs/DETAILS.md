@@ -264,7 +264,7 @@ first) tied the flat mix, so the flat mix is the one released.
 | 🟧 **universal chopper: mmBERT-base** | `jhu-clsp/mmBERT-base` (0.31B) | all weights + KEEP head + decision head | the 54,000 rows of datasets A and B, then the 102,654-row final mix ([C](#c-final-mix)), one epoch each | ✅ on HF (final mix 5 h 50 min, 3090) |
 | universal chopper: mmBERT-small | `jhu-clsp/mmBERT-small` (0.14B) | same | the 54,000 rows of datasets A and B, then the final mix | ✅ on HF (final mix 4 h 15 min); Qwen3-14B 4-hop 23 vs base 29 |
 | universal chopper, Polish: mmBERT-base-pl / mmBERT-small-pl | the two above | same | + 15,652 Polish rows (PoQuAD, PolQA) mixed with 15,935 rows of the final mix | ✅ on HF (base 2 h 40 min, small 1 h 40 min); Qwen3-14B on 856 Polish questions: 85.6% / 84.1% from chops vs 85.2% from all snippets |
-| universal chopper, Polish bases from OPI PIB (suggested by the OPI PIB AI Lab) | [`OPI-PIB/pl-ModernBERT-base`](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (0.15B, 8k context); [`sdadas/polish-roberta-large-v2`](https://huggingface.co/sdadas/polish-roberta-large-v2) (0.43B, 512 positions, read in overlapping windows) | same | the full recipe from scratch: datasets A and B, rerank set, final mix, then the Polish rows, each fitted to the base's tokenizer ([below](#polish-bases-fitting-the-data-to-the-tokenizer)) | 🏃 in training on the RTX 3090, restarted 15 Nov with fitted data (pl-ModernBERT-base about 16 Nov, polish-roberta-large-v2 about 19 Nov); compared with mmBERT-base-pl on the same 856 Polish questions |
+| universal chopper, Polish bases from OPI PIB (suggested by the OPI PIB AI Lab) | [`OPI-PIB/pl-ModernBERT-base`](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (0.15B, 8k context); [`PKOBP/polish-roberta-8k`](https://huggingface.co/PKOBP/polish-roberta-8k) (0.44B, 8k context); [`sdadas/polish-roberta-large-v2`](https://huggingface.co/sdadas/polish-roberta-large-v2) (0.43B, 512 positions, read in overlapping windows) | same | the full recipe from scratch: datasets A and B, rerank set, final mix, then the Polish rows, each fitted to the base's tokenizer ([below](#polish-bases-fitting-the-data-to-the-tokenizer)) | 🏃 in training on the RTX 3090, restarted 15 Nov with fitted data (pl-ModernBERT-base about 16 Nov, polish-roberta-8k about 20 Nov, polish-roberta-large-v2 about 23 Nov); compared with mmBERT-base-pl on the same 856 Polish questions |
 | 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
 | **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ✅ both on 🤗 [`chopper_minicpm3/answerer/`](https://huggingface.co/wiiiktor/chopper_minicpm3/tree/main/answerer): `chopper-notes/`, `clean-notes/` |
@@ -553,6 +553,35 @@ French, Japanese, Portuguese and Polish (`scripts/rr/`, design in `scripts/rr/ta
 Answers are tied (differences under about .08 are noise at 62–98 questions); the gains are less text and the ability
 to say "nothing here". MuSiQue keeps its hop-1 gold passage 98% of the time but hop 2 only 58%; weighting hop-2 tokens
 in training did not move it, the search step of §3 does. The pilot chopper is not on Hugging Face yet.
+
+#### The chopper as a reranker
+
+The chopper's KEEP head already says which passages matter, so the same pass can rank them. Relevance of a passage =
+mean p(KEEP) of its 16 most likely tokens (`Chopper.run(...).ranking()` / `Chopper.rerank()` in chopper-rag ≥ 0.1.4).
+Test: every 5th row of the holdout above (400 queries, 50 per language, 388 with at least one answer passage, 16
+passages each, no metadata tags), the released universal chopper (mmBERT-base) in one pass against three cross-encoders
+that score each (query, passage) pair separately. Gold = the passages holding the judged answer sentences.
+Script: `scripts/rr/chopper_as_reranker.py`.
+
+| ranking by | nDCG@10 | MRR | Hit@1 | Hit@3 | Recall@3 | GPU s / query |
+|---|---|---|---|---|---|---|
+| chopper: mean of the 16 highest token p(KEEP) | **0.973** | 0.982 | 0.972 | 0.987 | 0.952 | **0.20** |
+| chopper: highest token p(KEEP) | 0.970 | 0.977 | 0.967 | 0.979 | 0.944 | (same pass) |
+| chopper: number of kept tokens | 0.952 | 0.960 | 0.951 | 0.961 | 0.924 | (same pass) |
+| bge-reranker-v2-m3 | 0.984 | 0.990 | 0.985 | 0.992 | 0.959 | 0.20 |
+| Qwen3-Reranker-0.6B ⚠️ | 0.977 | 0.982 | 0.972 | 0.992 | 0.959 | 0.77 |
+| Qwen3-Reranker-4B | 0.986 | 0.993 | 0.990 | 0.997 | 0.963 | 3.3 |
+
+nDCG@10 by language (chopper / bge-reranker-v2-m3 / Qwen3-Reranker-4B): de .970/.983/.996, en .975/.993/1.00,
+es .991/.996/.997, fr .975/.965/.967, ja .968/.983/.984, pl .955/.979/.974, pt .991/.986/.983, zh .962/.989/.985.
+
+- The chopper was never trained to rank; a small per-passage head trained on reranker scores should close the gap.
+- ⚠️ Gold passages were only judged where Qwen3-Reranker-0.6B scored > 0.3 (plus the seed, a 5% audit and fully read
+  generic rows), so that model is favoured by construction.
+- Easy test: usually one answer passage among 16 same-kind neighbours, and every model scores above 0.97. It shows the
+  chopper is in the same league; larger or harder pools are needed to separate the models.
+- Times are GPU forward passes on an RTX 3090 shared with a training run; these rows are long (up to ~8k tokens per
+  query), hence 0.20 s rather than the 50 ms of the 2,400-token benchmark inputs.
 
 ### 6. Long-conversation memory: LoCoMo and LongMemEval
 

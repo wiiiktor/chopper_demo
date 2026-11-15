@@ -15,12 +15,16 @@ class ChopperPostprocessor(BaseNodePostprocessor):
     """Replaces the retrieved nodes by one TextNode per chop (the exact quote). Metadata = the source node's
     metadata + ``chop_start``/``chop_end`` (character offsets in the source node's text), ``source_index`` and
     ``chop_score``; the SOURCE relationship points to the source node; the score is the source node's score.
+    ``mode="rerank"``: returns the input nodes instead, most relevant first (``top_n`` of them), score = the chopper's
+    relevance: a drop-in reranker, from the same single pass.
     The ANSWER / SEARCH decision of the last call is in ``last_decision``."""
 
     repo: str = Field(default=DEFAULT_REPO, description="HF repo id or local directory of the chopper weights")
     variant: str = Field(default="base", description="'base' (0.31B, recommended) or 'small' (0.14B)")
     device: str = Field(default="auto")
     threshold: Optional[float] = Field(default=None, description="p(KEEP) cut-off; default from the model config")
+    mode: str = Field(default="chop", description="'chop' (exact quotes) or 'rerank' (whole nodes, most relevant first)")
+    top_n: Optional[int] = Field(default=None, description="rerank mode: how many nodes to return (None = all)")
     last_decision: Optional[str] = None
     _chopper: Any = PrivateAttr(default=None)
 
@@ -42,6 +46,8 @@ class ChopperPostprocessor(BaseNodePostprocessor):
         texts = [n.node.get_content(metadata_mode=MetadataMode.NONE) for n in nodes]
         res = self._chopper.run(query_bundle.query_str, texts)
         self.last_decision = res.decision
+        if self.mode == "rerank":
+            return [NodeWithScore(node=nodes[i].node, score=r) for i, r in res.ranking(self.top_n)]
         out = []
         for c in res.chops:
             src = nodes[c.passage_index]

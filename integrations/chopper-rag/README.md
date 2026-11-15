@@ -1,11 +1,26 @@
 # chopper-rag
 
-The **chopper** as a drop-in context compressor for LangChain, LlamaIndex and Haystack, and as an MCP server for Claude.
+The **chopper** as a drop-in context compressor **and reranker** for LangChain, LlamaIndex and Haystack, and as an MCP
+server for Claude.
 
 The chopper is a fine-tuned mmBERT encoder. It reads the question and the snippets your retriever returned, and cuts out
 **chops**: exact quotes cut out of retrieved snippets, never rewritten. A chop is typically 3-5% of the retrieved
 text. Every chop records where it came from (`passage[start:end] == text`), and the chops work with any answering model.
 It also gives one **ANSWER / SEARCH** decision: whether the snippets seem to contain the answer, or you should search again.
+
+**It is also a reranker.** The same single pass scores every passage (mean p(KEEP) of its 16 most likely tokens). On a
+held-out set in 8 languages (400 queries, 16 passages each) it ranks almost as well as dedicated rerankers, at the speed
+of bge-reranker-v2-m3, with the chops and the decision included:
+
+| | nDCG@10 | Hit@1 | GPU time for 16 passages |
+|---|---|---|---|
+| **chopper (mmBERT-base, one pass)** | **0.973** | **0.972** | **0.20 s**, chops included |
+| bge-reranker-v2-m3 | 0.984 | 0.985 | 0.20 s |
+| Qwen3-Reranker-0.6B | 0.977 | 0.972 | 0.77 s |
+| Qwen3-Reranker-4B | 0.986 | 0.990 | 3.3 s |
+
+So in most pipelines you can drop the reranker: retrieve, then rank and chop in one call. Details and caveats:
+[DETAILS.md](https://github.com/wiiiktor/chopper_demo/blob/main/docs/DETAILS.md#the-chopper-as-a-reranker).
 
 - Model: [huggingface.co/wiiiktor/chopper_mmbert](https://huggingface.co/wiiiktor/chopper_mmbert): `base` (0.31B, recommended) and `small` (0.14B); for Polish documents `base-pl` and `small-pl`
 - Code and demo: [github.com/wiiiktor/chopper_demo](https://github.com/wiiiktor/chopper_demo)
@@ -27,8 +42,14 @@ result = chopper.run("When was the Eiffel Tower completed?", passages)
 for c in result.chops:                                      # Chop(passage_index, start, end, text, score)
     assert passages[c.passage_index][c.start:c.end] == c.text
 print(result.decision)                                      # "ANSWER" or "SEARCH"
+print(result.ranking(top_k=5))                              # [(passage_index, relevance), ...] most relevant first
 chops = chopper.chop(question, passages)                    # just the list of Chop
+ranked = chopper.rerank(question, passages, top_k=5)        # the chopper as a reranker
 ```
+
+In every framework below, `mode="rerank"` turns the component into a reranker: it returns the input documents / nodes,
+most relevant first (`top_n`, or `top_k` in Haystack), with the chopper's relevance as their score
+(`metadata["relevance_score"]` in LangChain). The default `mode="chop"` returns the chops.
 
 ## LangChain
 
@@ -75,15 +96,16 @@ print([d.content for d in out["chopper"]["documents"]], out["chopper"]["decision
 
 ## MCP server (Claude Desktop, Claude Code, any MCP client)
 
-`pip install "chopper-rag[mcp]"` installs `chopper-mcp`, a stdio MCP server with two tools:
+`pip install "chopper-rag[mcp]"` installs `chopper-mcp`, a stdio MCP server with three tools:
 
 | tool | what it does |
 |---|---|
 | `chop_passages(question, passages)` | cut the exact quotes that answer `question` out of a list of texts (search results, tool outputs) |
 | `chop_files(question, paths)` | read local text files, split them into ~1,000-character passages, cut out the quotes; each quote has its file path and character offset |
+| `rank_passages(question, passages, top_k)` | the chopper as a reranker: the top_k passages, most relevant first, with their relevance |
 
-Both return `decision` (ANSWER / SEARCH), the `chops` and a ready-to-read `context` string, so the model reads a few
-quotes instead of whole documents. Claude Code:
+The chop tools return `decision` (ANSWER / SEARCH), the `chops`, a ready-to-read `context` string and the passage
+`ranking`, so the model reads a few quotes instead of whole documents and needs no separate reranker. Claude Code:
 
 ```bash
 claude mcp add chopper -- chopper-mcp
@@ -109,6 +131,7 @@ One output document / node per chop, in passage order. Metadata = the source's m
 | `chop_start`, `chop_end` | character offsets of the chop in the source text |
 | `source_index` | position of the source in the input list |
 | `chop_score` | mean p(KEEP) over the chop's tokens |
+| `source_relevance` | (LangChain) the chopper's relevance score of the source passage |
 | `source_id` | (Haystack only) id of the source Document |
 
 The score of each output is the score of its source. The last ANSWER / SEARCH decision is in `last_decision`

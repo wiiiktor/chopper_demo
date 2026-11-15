@@ -137,3 +137,19 @@ def test_haystack(chopper):
     pipe.add_component("chopper", comp)
     r = pipe.run({"chopper": {"documents": docs, "query": QUESTION}})
     assert any("1889" in x.content for x in r["chopper"]["documents"])
+
+
+def test_ranking(chopper):
+    res = chopper.run(QUESTION, PASSAGES)
+    assert len(res.passage_scores) == len(PASSAGES) and all(0 <= s <= 1 for s in res.passage_scores)
+    assert res.ranking()[0][0] == 1                                  # the Eiffel passage ranks first
+    assert chopper.rerank(QUESTION, PASSAGES, top_k=2) == res.ranking(2)
+
+
+def test_rerank_mode_adapters(chopper):
+    pytest.importorskip("langchain_core")
+    from langchain_core.documents import Document
+    from chopper_rag.langchain import ChopperCompressor
+    out = ChopperCompressor(chopper=chopper, mode="rerank", top_n=2).compress_documents(
+        [Document(page_content=p) for p in PASSAGES], QUESTION)
+    assert len(out) == 2 and out[0].page_content == PASSAGES[1] and "relevance_score" in out[0].metadata

@@ -13,11 +13,14 @@ class ChopperDocumentCompressor:
     """Replaces the documents by one Document per chop (the exact quote). ``meta`` = the source document's meta +
     ``chop_start``/``chop_end`` (character offsets in the source ``content``), ``source_index``, ``source_id`` and
     ``chop_score``; ``score`` = the source document's score. Outputs ``documents`` and ``decision``
-    ("ANSWER" or "SEARCH": whether the documents hold the answer)."""
+    ("ANSWER" or "SEARCH": whether the documents hold the answer).
+    ``mode="rerank"``: outputs the input documents instead, most relevant first (``top_k`` of them), ``score`` = the
+    chopper's relevance: a drop-in replacement for a ranker, from the same single pass."""
 
     def __init__(self, repo: str = DEFAULT_REPO, variant: str = "base", device: str = "auto",
-                 threshold: float | None = None) -> None:
+                 threshold: float | None = None, mode: str = "chop", top_k: int | None = None) -> None:
         self.repo, self.variant, self.device, self.threshold = repo, variant, device, threshold
+        self.mode, self.top_k = mode, top_k
         self._chopper: Chopper | None = None
 
     def warm_up(self) -> None:
@@ -27,7 +30,7 @@ class ChopperDocumentCompressor:
 
     def to_dict(self) -> dict[str, Any]:
         return default_to_dict(self, repo=self.repo, variant=self.variant, device=self.device,
-                               threshold=self.threshold)
+                               threshold=self.threshold, mode=self.mode, top_k=self.top_k)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ChopperDocumentCompressor":
@@ -39,6 +42,10 @@ class ChopperDocumentCompressor:
         if not documents:
             return {"documents": [], "decision": "SEARCH"}
         res = self._chopper.run(query, [d.content or "" for d in documents])
+        if self.mode == "rerank":
+            from dataclasses import replace
+            return {"documents": [replace(documents[i], score=r) for i, r in res.ranking(self.top_k)],
+                    "decision": res.decision}
         out = [Document(content=c.text, score=documents[c.passage_index].score,
                         meta={**documents[c.passage_index].meta, "chop_start": c.start, "chop_end": c.end,
                               "source_index": c.passage_index, "source_id": documents[c.passage_index].id,

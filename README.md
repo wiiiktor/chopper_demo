@@ -44,6 +44,22 @@ out; the last stage is Qwen3-14B answering correctly. Top: all 20 retrieved snip
 The last stage is the table's score; the lighter block under it counts answers Qwen got right from incomplete chops, and the
 number in brackets leaves them out. More: [docs/DETAILS.md §7](docs/DETAILS.md#7-multi-hop-where-answers-get-lost).
 
+### Also a reranker: ranking and chopping in one pass
+
+The chopper scores every passage while it chops (mean p(KEEP) of the passage's 16 most likely tokens). On the
+8-language rerank holdout (400 queries, 16 passages each, never trained on), ranked against dedicated rerankers:
+
+| ranking 16 passages | nDCG@10 | Hit@1 | GPU time per query (RTX 3090) |
+|---|---|---|---|
+| **chopper, mmBERT-base (0.31B), one pass** | **0.973** | **0.972** | **0.20 s**, chops + ANSWER/SEARCH included |
+| [bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3) (0.57B) | 0.984 | 0.985 | 0.20 s |
+| [Qwen3-Reranker-0.6B](https://huggingface.co/Qwen/Qwen3-Reranker-0.6B) | 0.977 | 0.972 | 0.77 s |
+| [Qwen3-Reranker-4B](https://huggingface.co/Qwen/Qwen3-Reranker-4B) | 0.986 | 0.990 | 3.3 s |
+
+The chopper was never trained to rank, yet it is within about one point of the best rerankers at the speed of the fastest,
+so a pipeline can drop its reranker: `retrieve → chopper` gives the ranking *and* the quotes. Caveats (this test is easy
+for every model; the labels favour Qwen3-Reranker-0.6B) in [the details](docs/DETAILS.md#the-chopper-as-a-reranker).
+
 ### Against other context compressors
 
 Same 400 questions, same 20 snippets, same Qwen3-14B prompt; each compressor cuts the snippets once:
@@ -72,11 +88,12 @@ Standard RAG (retrieval-augmented generation) pastes whole passages into your mo
 model then sees ~100 tokens instead of ~3,000 per lookup, and a session can carry dozens of lookups.
 
 ```
-question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► model answers, or asks one follow-up search
+question ─► retrieve 16 passages ─► 🔪 rank + chop in one pass ─► model answers, or asks one follow-up search
 ```
 
 - 🎯 **Clean context:** only useful fragments enter the session; the raw passages never stay.
 - ⚡ **Less compute:** the main model reads 2–5% of the retrieved text.
+- 🏅 **Also a reranker:** the same pass ranks the passages almost as well as bge-reranker-v2-m3 (nDCG@10 0.973 vs 0.984, 8 languages), at the same speed. No separate reranker needed.
 - 🔗 **Multi-hop works:** the model writes a follow-up question when a fact is missing, and searches again.
 - 🏠 **Built on one home GPU:** every dataset and model here was made on a single RTX 3090 (some labels came from APIs).
 
@@ -86,11 +103,12 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 |---|---|
 | retrieved text the main model reads | **2–5%** (about 20–40× less); the answer is still in the kept text for 85% of HotpotQA and 69% of TriviaQA questions |
 | "nothing here": pools whose answer was deleted (8 languages, business documents) | asks to search again **67%** of the time, keeps 1.4% of the text |
+| ranking 16 passages (8-language holdout, 400 queries) | nDCG@10 **0.973**, vs bge-reranker-v2-m3 0.984 and Qwen3-Reranker-4B 0.986; 0.20 s like bge, 16× faster than Qwen-4B, chops included ([details](docs/DETAILS.md#the-chopper-as-a-reranker)) |
 | chopping time per lookup (RTX 3090) | **155 ms** (separate mmBERT) · **277 ms** (built into MiniCPM3-4B) |
 | 4-hop MuSiQue questions answered correctly by Qwen3-14B, one retrieval | **12% → 29%** with the chopper's chops instead of all 20 snippets (11× fewer tokens); with Opus 5.5's chops: 43% |
 | Polish questions (PoQuAD, PolQA) answered correctly by Qwen3-14B | **85.6%** from the Polish chopper's chops (255 tokens) vs 85.2% from all 16 snippets (3,856 tokens) |
 
-*In training (Nov 2026), suggested by the OPI PIB AI Lab:* the same Polish chopper recipe on two Polish encoders from OPI PIB, [pl-ModernBERT-base](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (results expected about 16 Nov) and [polish-roberta-large-v2](https://huggingface.co/sdadas/polish-roberta-large-v2) (read in 512-token windows, about 19 Nov), compared with mmBERT-base-pl on the same 856 Polish questions. Restarted 15 Nov with the training data fitted to the Polish tokenizers ([why](docs/DETAILS.md#polish-bases-fitting-the-data-to-the-tokenizer)).
+*In training (Nov 2026), suggested by the OPI PIB AI Lab:* the same Polish chopper recipe on three Polish encoders, [pl-ModernBERT-base](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) from OPI PIB (results expected about 16 Nov), [polish-roberta-8k](https://huggingface.co/PKOBP/polish-roberta-8k) (8k context, about 20 Nov) and [polish-roberta-large-v2](https://huggingface.co/sdadas/polish-roberta-large-v2) (read in 512-token windows, about 23 Nov), compared with mmBERT-base-pl on the same 856 Polish questions. Restarted 15 Nov with the training data fitted to the Polish tokenizers ([why](docs/DETAILS.md#polish-bases-fitting-the-data-to-the-tokenizer)).
 
 Long-conversation memory results (LoCoMo, LongMemEval) are in
 [the details](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval): there the 4B answering model is the limit.
@@ -118,13 +136,14 @@ pip install chopper-rag                  # or "chopper-rag[langchain]", [llama-i
 
 As a tool for Claude (Claude Code, Claude Desktop or any MCP client): `pip install "chopper-rag[mcp]"`, then
 `claude mcp add chopper -- chopper-mcp`. Claude can then call `chop_passages` / `chop_files` to read a few quotes
-instead of whole documents; setup in [integrations/chopper-rag](integrations/chopper-rag#mcp-server-claude-desktop-claude-code-any-mcp-client).
+instead of whole documents, or `rank_passages` to rerank; setup in [integrations/chopper-rag](integrations/chopper-rag#mcp-server-claude-desktop-claude-code-any-mcp-client).
 
 ```python
 from chopper_rag import Chopper
 chopper = Chopper.from_pretrained(variant="base")          # or "small"; for Polish "base-pl", "small-pl"
 result = chopper.run("When was the Eiffel Tower completed?", passages)   # passages: list of retrieved texts
 print([c.text for c in result.chops], result.decision)    # exact quotes + ANSWER / SEARCH
+print(result.ranking(top_k=5))                             # the same pass as a reranker: [(passage_index, relevance), ...]
 ```
 
 Framework examples: [integrations/chopper-rag](integrations/chopper-rag/README.md). Listed in the
