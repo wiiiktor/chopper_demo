@@ -120,10 +120,23 @@ Claude Desktop (`claude_desktop_config.json`):
 {"mcpServers": {"chopper": {"command": "chopper-mcp", "env": {"CHOPPER_VARIANT": "base", "CHOPPER_DEVICE": "auto"}}}}
 ```
 
-Settings: `CHOPPER_VARIANT` (base, small, base-pl, small-pl), `CHOPPER_DEVICE` (auto, cpu, cuda), `CHOPPER_REPO`,
+Settings: `CHOPPER_VARIANT` (base, small, base-pl, small-pl), `CHOPPER_DEVICE` (auto, cpu, cuda), `CHOPPER_SNAP` (word, sentence, none), `CHOPPER_REPO`,
 `CHOPPER_ALLOWED_DIRS` (directories `chop_files` may read, default: your home directory). A GPU is recommended; on a CPU
 it works but is slow (about 10 s for 16 passages of 1,000 characters with `small`, 20 s with `base`). The model is
 downloaded on the first call.
+
+## Whole words or whole sentences (`snap`)
+
+The model decides per token, so a raw chop can start or end inside a word or a clause. Since 0.1.6 chops are snapped
+to **whole words** by default (on our held-out set this leaves accuracy unchanged, while 28% of raw chops were cut
+mid-word). For readable, complete sentences use `snap="sentence"`: every sentence a chop touches is kept whole (about
+twice the text). `snap="none"` gives the raw token runs the published results were measured with.
+
+```python
+ch = Chopper.from_pretrained(snap="sentence")          # or: ch.snap = "sentence"
+```
+
+In LangChain / LlamaIndex / Haystack pass such a `Chopper` as `chopper=`; in the MCP server set `CHOPPER_SNAP=sentence`.
 
 ## Output metadata (all three frameworks)
 

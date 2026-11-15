@@ -7,7 +7,10 @@ Input to the model, one string of at most 8,192 tokens:
 Per token the KEEP head gives p(KEEP); the decision head on the first token gives SEARCH (0) / ANSWER (1).
 Decoding (the one the published results were measured with): keep passage tokens with p > pred_thr, merge kept runs
 separated by <= merge_gap tokens, drop runs shorter than min_run tokens, bridge the single character between two kept
-tokens, then map each run back to character offsets of the ORIGINAL passage strings.
+tokens, then map each run back to character offsets of the ORIGINAL passage strings. Finally the chops are snapped
+(``snap``): "word" (default since 0.1.6: never cut inside a word; on a held-out set F1 is unchanged while 28% of raw chops
+started or ended mid-word), "sentence" (keep every sentence a chop touches: complete sentences, about twice the text),
+or "none" (raw token runs, as the published results were measured).
 
 Passages that do not fit into one 8,192-token input are processed in several forward passes: passages are packed
 greedily, in order, into groups that fit next to the question; a single passage longer than the whole budget is cut
@@ -23,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -66,6 +70,51 @@ class ChopResult:
         return len(self.chops)
 
 
+# ------------------------------------------------------------------ snapping chops to words / sentences
+SNAPS = ("word", "sentence", "none")
+_WORD = re.compile(r"\w")
+_SENT_END = re.compile(r"[.!?。！？…]+[\"'”’»)\]]*(?=\s|$)|\n\s*\n|\n(?=\s*[-•*\d])")
+
+
+def _sentences(text):
+    """(start, end) of sentences: ends at . ! ? (plus closing quotes/brackets) before whitespace, blank lines, list items"""
+    out, a = [], 0
+    for m in _SENT_END.finditer(text):
+        b = m.end()
+        if text[a:b].strip():
+            out.append((a, b))
+        a = b
+    if text[a:].strip():
+        out.append((a, len(text)))
+    return out
+
+
+def snap_chops(chops, passages, mode="word"):
+    """extend chops to whole words ("word") or whole sentences ("sentence"); merge chops that then touch or overlap"""
+    if mode == "none" or not chops:
+        return chops
+    sents = {}
+    out = []
+    for c in chops:
+        t = passages[c.passage_index]; a, b = c.start, c.end
+        if mode == "sentence":
+            ss = sents.setdefault(c.passage_index, _sentences(t))
+            a = min([x for x, y in ss if y > a and x <= a] + [a]); b = max([y for x, y in ss if x < b and y >= b] + [b])
+        while a > 0 and _WORD.match(t[a - 1]) and _WORD.match(t[a]):
+            a -= 1
+        while b < len(t) and _WORD.match(t[b - 1]) and _WORD.match(t[b]):
+            b += 1
+        while a < b and t[a].isspace():
+            a += 1
+        while b > a and t[b - 1].isspace():
+            b -= 1
+        if out and out[-1].passage_index == c.passage_index and a <= out[-1].end:
+            p = out[-1]; p.end = max(p.end, b); p.text = t[p.start:p.end]
+            continue
+        out.append(Chop(c.passage_index, a, b, t[a:b], c.score))
+    return out
+
+
 # ------------------------------------------------------------------ decoding (identical to the reference operator)
 def _runs(m):
     d = np.diff(np.concatenate([[0], m.astype(np.int8), [0]]))
@@ -107,18 +156,22 @@ def _fetch(repo, folder):
 class Chopper:
     """Load with :meth:`from_pretrained`; call :meth:`chop` (list of :class:`Chop`) or :meth:`run` (+ decision)."""
 
-    def __init__(self, tokenizer, encoder, heads, device, threshold=0.5, merge_gap=5, min_run=4, max_length=MAX_LEN):
+    def __init__(self, tokenizer, encoder, heads, device, threshold=0.5, merge_gap=5, min_run=4, max_length=MAX_LEN,
+                 snap="word"):
         self.tokenizer, self.encoder, self.device = tokenizer, encoder, device
         self.heads = {k: v.to(device).float() for k, v in heads.items()}
         self.threshold, self.merge_gap, self.min_run, self.max_length = threshold, merge_gap, min_run, max_length
         self.sep = f" {tokenizer.sep_token} "
+        if snap not in SNAPS:
+            raise ValueError(f"snap must be one of {SNAPS}, got {snap!r}")
+        self.snap = snap
 
     @classmethod
     def from_pretrained(cls, repo: str = DEFAULT_REPO, variant: str = "base", device: str = "auto",
-                        threshold: float | None = None, dtype: torch.dtype | None = None) -> "Chopper":
+                        threshold: float | None = None, dtype: torch.dtype | None = None, snap: str = "word") -> "Chopper":
         """repo: HF repo id or a local directory containing ``mmbert-base/`` / ``mmbert-small/``.
         variant: "base" (0.31B, recommended) or "small" (0.14B); "base-pl" / "small-pl" for Polish documents. threshold: p(KEEP) cut-off (default from
-        chopper_config.json). dtype: default bfloat16 on CUDA, float32 on CPU."""
+        chopper_config.json). dtype: default bfloat16 on CUDA, float32 on CPU. snap: "word" (default), "sentence" or "none"."""
         from safetensors.torch import load_file
         from transformers import AutoModel, AutoTokenizer
         if variant not in VARIANTS:
@@ -145,7 +198,7 @@ class Chopper:
         dec = json.load(open(f"{d}/chopper_config.json")).get("decode", {})
         thr = dec.get("pred_thr", 0.5) if threshold is None else threshold
         return cls(tok, enc, heads, device, threshold=thr, merge_gap=dec.get("merge_gap", 5),
-                   min_run=dec.get("min_run", 4))
+                   min_run=dec.get("min_run", 4), snap=snap)
 
     # -------------------------------------------------------------- public API
     def chop(self, question: str, passages: list[str]) -> list[Chop]:
@@ -165,6 +218,7 @@ class Chopper:
         if n == 0:                                                     # no passages: nothing to keep, search
             p_ans = self._forward(head, [], passages, rel)[1]; n = 1
         chops.sort(key=lambda c: (c.passage_index, c.start))
+        chops = snap_chops(chops, passages, self.snap)
         return ChopResult(chops, "ANSWER" if p_ans >= 0.5 else "SEARCH", p_ans, n, [c.text for c in chops],
                           [round(x, 4) for x in rel])
 
