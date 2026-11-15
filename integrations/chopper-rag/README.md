@@ -1,6 +1,6 @@
 # chopper-rag
 
-The **chopper** as a drop-in context compressor for LangChain, LlamaIndex and Haystack.
+The **chopper** as a drop-in context compressor for LangChain, LlamaIndex and Haystack, and as an MCP server for Claude.
 
 The chopper is a fine-tuned mmBERT encoder. It reads the question and the snippets your retriever returned, and cuts out
 **chops**: exact quotes cut out of retrieved snippets, never rewritten. A chop is typically 3-5% of the retrieved
@@ -14,7 +14,7 @@ It also gives one **ANSWER / SEARCH** decision: whether the snippets seem to con
 
 ```bash
 pip install chopper-rag                  # core only (torch, transformers)
-pip install "chopper-rag[langchain]"     # or [llama-index], [haystack], [all]
+pip install "chopper-rag[langchain]"     # or [llama-index], [haystack], [mcp], [all]
 ```
 
 ## Core
@@ -72,6 +72,33 @@ pipe.connect("retriever.documents", "chopper.documents")
 out = pipe.run({"retriever": {"query": q}, "chopper": {"query": q}})
 print([d.content for d in out["chopper"]["documents"]], out["chopper"]["decision"])
 ```
+
+## MCP server (Claude Desktop, Claude Code, any MCP client)
+
+`pip install "chopper-rag[mcp]"` installs `chopper-mcp`, a stdio MCP server with two tools:
+
+| tool | what it does |
+|---|---|
+| `chop_passages(question, passages)` | cut the exact quotes that answer `question` out of a list of texts (search results, tool outputs) |
+| `chop_files(question, paths)` | read local text files, split them into ~1,000-character passages, cut out the quotes; each quote has its file path and character offset |
+
+Both return `decision` (ANSWER / SEARCH), the `chops` and a ready-to-read `context` string, so the model reads a few
+quotes instead of whole documents. Claude Code:
+
+```bash
+claude mcp add chopper -- chopper-mcp
+```
+
+Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{"mcpServers": {"chopper": {"command": "chopper-mcp", "env": {"CHOPPER_VARIANT": "base", "CHOPPER_DEVICE": "auto"}}}}
+```
+
+Settings: `CHOPPER_VARIANT` (base, small, base-pl, small-pl), `CHOPPER_DEVICE` (auto, cpu, cuda), `CHOPPER_REPO`,
+`CHOPPER_ALLOWED_DIRS` (directories `chop_files` may read, default: your home directory). A GPU is recommended; on a CPU
+it works but is slow (about 10 s for 16 passages of 1,000 characters with `small`, 20 s with `base`). The model is
+downloaded on the first call.
 
 ## Output metadata (all three frameworks)
 

@@ -116,6 +116,10 @@ In your own RAG pipeline (LangChain, LlamaIndex, Haystack or plain Python):
 pip install chopper-rag                  # or "chopper-rag[langchain]", [llama-index], [haystack], [all]
 ```
 
+As a tool for Claude (Claude Code, Claude Desktop or any MCP client): `pip install "chopper-rag[mcp]"`, then
+`claude mcp add chopper -- chopper-mcp`. Claude can then call `chop_passages` / `chop_files` to read a few quotes
+instead of whole documents; setup in [integrations/chopper-rag](integrations/chopper-rag#mcp-server-claude-desktop-claude-code-any-mcp-client).
+
 ```python
 from chopper_rag import Chopper
 chopper = Chopper.from_pretrained(variant="base")          # or "small"; for Polish "base-pl", "small-pl"
