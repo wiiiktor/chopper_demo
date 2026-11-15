@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chopper-rag"
-version = "0.1.4"
+version = "0.1.5"
 description = "The chopper context compressor and reranker for RAG: exact quotes cut out of retrieved snippets and the passages ranked, in one pass, for LangChain, LlamaIndex, Haystack and MCP"
 readme = "README.md"
 license = "MIT"
@@ -30,6 +30,7 @@ dependencies = [
     "safetensors",
     "huggingface_hub",
     "numpy",
+    "mcp>=1.2",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +43,7 @@ test = ["pytest"]
 
 [project.scripts]
 chopper-mcp = "chopper_rag.mcp_server:main"
+chopper-rag = "chopper_rag.mcp_server:main"
 
 [project.urls]
 Model = "https://huggingface.co/wiiiktor/chopper_mmbert"

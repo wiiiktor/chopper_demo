@@ -1,5 +1,7 @@
 # chopper-rag
 
+<!-- mcp-name: io.github.wiiiktor/chopper -->
+
 The **chopper** as a drop-in context compressor **and reranker** for LangChain, LlamaIndex and Haystack, and as an MCP
 server for Claude.
 
@@ -96,7 +98,8 @@ print([d.content for d in out["chopper"]["documents"]], out["chopper"]["decision
 
 ## MCP server (Claude Desktop, Claude Code, any MCP client)
 
-`pip install "chopper-rag[mcp]"` installs `chopper-mcp`, a stdio MCP server with three tools:
+`pip install chopper-rag` installs `chopper-mcp`, a stdio MCP server with three tools (no install needed with uv:
+`uvx chopper-rag` runs the same server). It is listed in the official MCP Registry as `io.github.wiiiktor/chopper`.
 
 | tool | what it does |
 |---|---|
@@ -108,7 +111,7 @@ The chop tools return `decision` (ANSWER / SEARCH), the `chops`, a ready-to-read
 `ranking`, so the model reads a few quotes instead of whole documents and needs no separate reranker. Claude Code:
 
 ```bash
-claude mcp add chopper -- chopper-mcp
+claude mcp add chopper -- chopper-mcp        # or, without installing:  claude mcp add chopper -- uvx chopper-rag
 ```
 
 Claude Desktop (`claude_desktop_config.json`):
