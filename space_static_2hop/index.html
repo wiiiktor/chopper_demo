@@ -69,6 +69,12 @@ details .body{padding:0 12px 12px;font-size:14px}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation:none}}
 button:disabled:has(.spin){opacity:.85}
+.recap{margin:14px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:6px;background:var(--card)}
+.recap .rq{font-size:16px;font-weight:600;margin:0 0 8px}
+.recap .rl{font-size:12px;letter-spacing:.04em;color:var(--grey);font-weight:600;margin:0 0 4px}
+.recap ul{margin:0;padding-left:18px}
+.recap li{margin:3px 0}
+.recap mark{background:var(--mark);color:inherit;border-radius:2px;padding:0 2px}
 .wait{font-size:15px;font-weight:400;color:var(--grey);font-style:italic}
 .para{margin:8px 0;padding-bottom:8px;border-bottom:1px solid var(--line)}
 #pl{max-height:520px;overflow:auto}
@@ -104,6 +110,7 @@ button:disabled:has(.spin){opacity:.85}
     <details id="paras" open><summary id="psum">Retrieved paragraphs (20): what Qwen reads without Chopper</summary><div class="body" id="pl"></div></details>
   </section>
 
+  <section class="recap" id="recap" aria-live="polite"></section>
   <div class="pair" aria-live="polite">
     <section class="card side">
       <h3>Without Chopper</h3>
@@ -175,6 +182,10 @@ function renderParas(e, masks, how) {
     return `<div class="para${m && m.some(Boolean) ? " hit" : ""}"><b>${i + 1}. ${seg(0, L)}</b><br>${seg(L + 1, C.length)}</div>`;
   }).join("");
 }
+function renderRecap(q, chops) {             // question + the exact chops, right above the two answers: one glance
+  $("recap").innerHTML = `<p class="rl">QUESTION</p><p class="rq">${esc(q)}</p><p class="rl">CHOPS QWEN READ WITH CHOPPER (${chops.length})</p>` +
+    (chops.length ? `<ul>${chops.map(t => `<li><mark>${esc(t)}</mark></li>`).join("")}</ul>` : `<p class="status">(Chopper kept nothing)</p>`);
+}
 function masksFromTexts(e, chops) {            // precomputed chops are plain strings: find them in "title text" (whitespace-insensitive)
   const norm = C => { let t = "", map = []; for (let i = 0; i < C.length; i++) { if (/\s/.test(C[i])) { if (t.endsWith(" ")) continue; t += " "; } else t += C[i]; map.push(i); } return { t, map }; };
   const P = e.paragraphs.map(p => norm(p.title + " " + p.text));
@@ -207,6 +218,7 @@ function show(i) {
   showAns("wa", e.without.answer); $("wk").innerHTML = pill(e.without.ok);
   showAns("ca", e.with.answer); $("ck").innerHTML = pill(e.with.ok);
   $("gold").innerHTML = `Gold answer: <b>${esc(e.gold)}</b>${e.aliases && e.aliases.length ? ` (also accepted: ${esc(e.aliases.join("; "))})` : ""} · example ${i + 1} of ${EX.length}, precomputed`;
+  renderRecap(e.question, e.with.chops);
   renderParas(e, masksFromTexts(e, e.with.chops), "precomputed: what Qwen read");
   $("ask").disabled = true; $("st").textContent = "Showing a precomputed example. Edit the question to ask your own.";
 }
@@ -278,6 +290,7 @@ async function ask() {
     const chops = r.chops.map(c => ({ title: e.paragraphs[c.passage].title, text: c.text.replace(/\s*\n\s*/g, " ") }));
     const masks = e.paragraphs.map(p => new Array(p.title.length + 1 + p.text.length).fill(false));
     for (const c of r.chops) masks[c.passage].fill(true, c.start, c.end);
+    renderRecap(q, chops.map(c => c.text));
     renderParas(e, masks, `cut live in your browser in ${(cms / 1000).toFixed(1)} s`);
     $("paras").open = true;
     const full = paras.join("\n\n"), short = chops.map(c => `- ${c.text}`).join("\n");
