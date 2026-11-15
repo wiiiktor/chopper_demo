@@ -1,12 +1,13 @@
 <p align="center">
-
-> **Note.** Every quality number in this document (F1, recall, answer accuracy, nDCG) was measured on raw chops, without word or sentence snapping. Since `chopper-rag` 0.1.7 the package snaps chops to whole sentences by default; on the 8-language holdout this keeps ~4.1% of the text instead of 3.4% and gives char-level F1 0.433 vs 0.458 raw (word snapping alone: 0.458).
   <a href="https://youtu.be/KMvmdXCEOJU"><img src="../media/youtube_cover_v17.jpg" width="100%" alt="LLMs need a Chopper: watch the video"></a><br>
   <a href="#quick-start"><img src="../media/choice_universal_v6.png" width="49%" alt="Option 1, universal chopper: a small separate model (mmBERT-base 0.31B or mmBERT-small 0.14B), text in and text out, works with any answering model. Links to the quick start."></a>
   <a href="#a-host-with-latent-attention-minicpm3-4b"><img src="../media/choice_integrated_v6.png" width="49%" alt="Option 2, integrated chopper: a 20% slice of MiniCPM3-4B itself, no second model, reads the model's own cache of the whole session. Links to how it works."></a>
 </p>
 
 <p align="center"><em>70-second video: <a href="https://youtu.be/KMvmdXCEOJU">youtu.be/KMvmdXCEOJU</a> · also in this repo as <a href="../media/chopper.mp4">media/chopper.mp4</a></em></p>
+
+
+> **Note.** Every quality number in this document (F1, recall, answer accuracy, nDCG) was measured on raw chops, without word or sentence snapping. Since `chopper-rag` 0.1.7 the package snaps chops to whole sentences by default; on the 8-language holdout this keeps ~4.1% of the text instead of 3.4% and gives char-level F1 0.433 vs 0.458 raw (word snapping alone: 0.458).
 
 # Chopper: full technical details
 
