@@ -3,20 +3,49 @@
   "name": "io.github.wiiiktor/chopper",
   "title": "Chopper",
   "description": "Cuts the exact quotes that answer a question out of long text and reranks passages, in one pass.",
-  "repository": {"url": "https://github.com/wiiiktor/chopper_demo", "source": "github"},
+  "repository": {
+    "url": "https://github.com/wiiiktor/chopper_demo",
+    "source": "github"
+  },
   "websiteUrl": "https://github.com/wiiiktor/chopper_demo",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "chopper-rag",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "runtimeHint": "uvx",
-      "transport": {"type": "stdio"},
+      "transport": {
+        "type": "stdio"
+      },
       "environmentVariables": [
-        {"name": "CHOPPER_VARIANT", "description": "Model size and language: base (default), small, base-pl, small-pl", "isRequired": false, "format": "string", "default": "base"},
-        {"name": "CHOPPER_DEVICE", "description": "auto (default), cpu or cuda; a GPU is recommended", "isRequired": false, "format": "string", "default": "auto"},
-        {"name": "CHOPPER_ALLOWED_DIRS", "description": "Directories chop_files may read (default: the home directory)", "isRequired": false, "format": "string"}
+        {
+          "name": "CHOPPER_VARIANT",
+          "description": "Model size and language: base (default), small, base-pl, small-pl",
+          "isRequired": false,
+          "format": "string",
+          "default": "base"
+        },
+        {
+          "name": "CHOPPER_DEVICE",
+          "description": "auto (default), cpu or cuda; a GPU is recommended",
+          "isRequired": false,
+          "format": "string",
+          "default": "auto"
+        },
+        {
+          "name": "CHOPPER_ALLOWED_DIRS",
+          "description": "Directories chop_files may read (default: the home directory)",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "CHOPPER_SNAP",
+          "description": "word (default: chops never cut inside a word), sentence (whole sentences) or none",
+          "isRequired": false,
+          "format": "string",
+          "default": "word"
+        }
       ]
     }
   ]
