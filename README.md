@@ -19,9 +19,11 @@ quote directly.
 > 20 snippets once, the chopper cuts them once, and Qwen3-14B answers once. There are no follow-up searches and no second
 > rounds, so a 4-hop question has to be chained from one cut.
 
-### mmBERT is 32,000 times smaller
+### A reranker that also gives you the chops
 
-<p align="center"><img src="figures/size_cube.svg" width="100%" alt="One corner of a cube of dots. Each dot is 0.31B, the size of the mmBERT chopper; the chopper is the single red dot on the corner; a 32 by 32 by 32 cube of such dots, about 32,000, stands for Claude Opus 5.5 at a rough 10,000B estimate (its size is not published)."></p>
+<p align="center"><img src="figures/chopper_reranker.svg" width="100%" alt="Two pipelines. Top: 16 retrieved passages go into a reranker, which scores each passage and outputs them ranked; the LLM then reads whole passages, mostly text it does not need. Bottom: the same 16 passages go into the Chopper in one pass, which outputs the same ranking plus the chops highlighted inside the top passages; the LLM reads only the chops, exact quotes, about 2 to 5 percent of the text. Ranking quality nDCG@10 on 8 languages with 16 passages per query: Chopper 0.973, bge-reranker-v2-m3 0.984, Qwen3-Reranker-4B 0.986, at the same speed as bge (0.20 s), chops included."></p>
+
+One model replaces both the reranker and the compressor. Full comparison: [below](#also-a-reranker-ranking-and-chopping-in-one-pass).
 
 ### Qwen3-14B answering from full snippets or just short chops
 
