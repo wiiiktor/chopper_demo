@@ -65,6 +65,10 @@ details .body{padding:0 12px 12px;font-size:14px}
 .chop{border-left:3px solid var(--teal);padding:4px 10px;margin:8px 0;background:var(--pale);border-radius:0 4px 4px 0}
 .chop .t{font-size:12px;color:var(--grey)}
 .nan{display:block;font-size:13px;font-weight:400;color:var(--grey);margin-top:4px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;margin-right:8px;vertical-align:-1px;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+button:disabled:has(.spin){opacity:.85}
 .wait{font-size:15px;font-weight:400;color:var(--grey);font-style:italic}
 .para{margin:8px 0;padding-bottom:8px;border-bottom:1px solid var(--line)}
 #pl{max-height:520px;overflow:auto}
@@ -79,7 +83,7 @@ details .body{padding:0 12px 12px;font-size:14px}
 <main>
   <h1>Chopper: with and without</h1>
   <p class="lede">A question that needs <b>two facts</b> from 20 retrieved Wikipedia paragraphs. <b>Without Chopper</b>, Qwen3-14B reads all 20 paragraphs. <b>With Chopper</b>, it reads only the exact quotes Chopper cut out, about 12× fewer tokens. Same model, same prompt.</p>
-  <p class="links"><a target="_top" href="https://github.com/wiiiktor/chopper_demo#readme">GitHub</a> · <a target="_top" href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <a target="_top" href="https://huggingface.co/spaces/wiiiktor/chopper-pl">po polsku</a> · <code>pip install chopper-rag</code> · <b>MIT, commercial use allowed</b></p>
+  <p class="links"><a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">GitHub</a> · <a target="_blank" rel="noopener" href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <a target="_blank" rel="noopener" href="https://huggingface.co/spaces/wiiiktor/chopper-pl">po polsku</a> · <code>pip install chopper-rag</code> · <b>MIT, commercial use allowed</b></p>
 
   <div class="summary" id="sum"></div>
 
@@ -117,7 +121,7 @@ details .body{padding:0 12px 12px;font-size:14px}
   <p class="gold" id="gold"></p>
 
 
-  <p class="note">Data: MuSiQue 2-hop development questions (CC BY 4.0), each with the 20 paragraphs MuSiQue provides. Answers by Qwen3-14B (no thinking, answer only, temperature 0), judged against the gold answer and its aliases by an LLM judge. The 20 examples were drawn at random, stratified to match the result on all 100 two-hop questions of our hop study; chops are the released Chopper's raw output (what Qwen read), so some start or end mid-sentence. For your own questions Chopper runs here in your browser (base model, whole sentences) and Qwen3-14B answers through a small proxy; nothing is stored. <a target="_top" href="https://github.com/wiiiktor/chopper_demo#readme">Full results</a>.</p>
+  <p class="note">Data: MuSiQue 2-hop development questions (CC BY 4.0), each with the 20 paragraphs MuSiQue provides. Answers by Qwen3-14B (no thinking, answer only, temperature 0), judged against the gold answer and its aliases by an LLM judge. The 20 examples were drawn at random, stratified to match the result on all 100 two-hop questions of our hop study; chops are the released Chopper's raw output (what Qwen read), so some start or end mid-sentence. For your own questions Chopper runs here in your browser (base model, whole sentences) and Qwen3-14B answers through a small proxy; nothing is stored. <a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">Full results</a>.</p>
 </main>
 
 <script type="module">
@@ -146,7 +150,7 @@ const pct = (a, b) => `${Math.round(100 * a / b)}%`;
 $("sum").innerHTML = `
   <div class="tile"><div class="k">WITHOUT CHOPPER (these 20)</div><div class="v">${S.without_ok} / ${S.n} correct</div><div class="s">${fmt(S.without_tokens)} tokens read on average</div></div>
   <div class="tile"><div class="k">WITH CHOPPER (these 20)</div><div class="v">${S.with_ok} / ${S.n} correct</div><div class="s">${fmt(S.with_tokens)} tokens read on average</div></div>
-  <div class="tile"><div class="k">ALL ${S.full100.n} TWO-HOP QUESTIONS</div><div class="v">${pct(S.full100.without_ok, S.full100.n)} → ${pct(S.full100.with_ok, S.full100.n)}</div><div class="s">${fmt(S.full100.without_tokens)} → ${fmt(S.full100.with_tokens)} tokens · <a target="_top" href="https://github.com/wiiiktor/chopper_demo#readme">README</a></div></div>`;
+  <div class="tile"><div class="k">ALL ${S.full100.n} TWO-HOP QUESTIONS</div><div class="v">${pct(S.full100.without_ok, S.full100.n)} → ${pct(S.full100.with_ok, S.full100.n)}</div><div class="s">${fmt(S.full100.without_tokens)} → ${fmt(S.full100.with_tokens)} tokens · <a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">README</a></div></div>`;
 
 // ---- example table: sorted with-Chopper correct first, then without-Chopper correct first
 const ORDER = EX.map((e, i) => i).sort((a, b) => (EX[b].with.ok - EX[a].with.ok) || (EX[b].without.ok - EX[a].without.ok) || a - b);
@@ -258,7 +262,7 @@ async function qwen(question, notes) {
 let busy = false;
 async function ask() {
   const q = $("q").value.trim(); if (!q || busy) return;
-  busy = true; $("ask").disabled = true;
+  busy = true; $("ask").disabled = true; $("ask").innerHTML = `<span class="spin"></span>Working…`;
   const e = EX[cur];
   document.querySelectorAll("tr.exr").forEach(r => r.classList.remove("sel"));
   $("gold").textContent = "Your own question: there is no gold answer, so judge the two answers yourself.";
@@ -291,18 +295,24 @@ async function ask() {
     if (none) b.value = { answer: "not in notes", prompt_tokens: 0, ms: 0, empty: true };
     const put = (res, ak, mk, label) => {
       if (res.status === "fulfilled") {
-        showAns(ak, res.value.answer);
+        showAns(ak, res.value.answer + (res.value.cut ? " …" : ""));
         $(mk).textContent = `${label}: ${res.value.prompt_tokens ? fmt(res.value.prompt_tokens) + " tokens · " : ""}${(res.value.ms / 1000).toFixed(1)} s`;
       } else { $(ak).textContent = "—"; $(mk).innerHTML = `<span class="warn">${esc(res.reason.message.includes("Failed to fetch") ? "Live answers not reachable right now." : res.reason.message)}</span>`; }
     };
     put(a, "wa", "wm", "Qwen3-14B read all 20 paragraphs");
     put(b, "ca", "cm", "Qwen3-14B read only the chops");
+    {                                                   // one plain-words verdict for the visitor's own question
+      const ab = x => x.status !== "fulfilled" || /^not in notes\.?$/i.test((x.value.answer || "").trim());
+      const A = a.status === "fulfilled" ? a.value.prompt_tokens || 0 : 0, B = b.status === "fulfilled" ? b.value.prompt_tokens || 0 : 0;
+      if (a.status === "fulfilled" && b.status === "fulfilled")
+        $("gold").innerHTML = ab(a) && !ab(b) ? `Chopper helped: reading all paragraphs (${fmt(A)} tokens), Qwen did not find the answer; from Chopper's chops (${fmt(B)} tokens) it answered. Too much text distracts the model.` : !ab(a) && ab(b) ? `Without Chopper Qwen answered, from the chops alone it did not: Chopper left out a needed passage.` : ab(a) && ab(b) ? `Qwen found no answer either way: this is probably not in these paragraphs. Ask about what they say (topics above).` : `Both answered: compare the answers; with Chopper Qwen read ${fmt(A)} → ${fmt(B)} tokens.`;
+    }
     if (none) $("cm").textContent = "Chopper kept nothing (decision SEARCH: the answer is probably not in these 20 paragraphs), so Qwen3-14B was not asked";
     $("st").textContent = "Done. Change the question to ask again, or pick an example.";
   } catch (err) {
     $("st").innerHTML = `<span class="warn">${esc(err.message)}</span>`;
   } finally {
-    busy = false; $("barw").hidden = true;
+    busy = false; $("barw").hidden = true; $("ask").textContent = "Ask Qwen3-14B live";
     $("ask").disabled = !($("q").value.trim() && $("q").value.trim() !== EX[cur].question);
   }
 }

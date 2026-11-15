@@ -38,6 +38,7 @@ export default {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) return json({ error: (d.error && d.error.message) || `upstream ${r.status}` }, 502, origin);
     const text = ((d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || "").split("</think>").pop().trim();
-    return json({ answer: text, prompt_tokens: d.usage ? d.usage.prompt_tokens : null, ms: Date.now() - t0 }, 200, origin);
+    const cut = !!(d.choices && d.choices[0] && d.choices[0].finish_reason === "length");
+    return json({ answer: text, cut, prompt_tokens: d.usage ? d.usage.prompt_tokens : null, ms: Date.now() - t0 }, 200, origin);
   },
 };

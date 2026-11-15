@@ -65,6 +65,10 @@ details .body{padding:0 12px 12px;font-size:14px}
 .chop{border-left:3px solid var(--teal);padding:4px 10px;margin:8px 0;background:var(--pale);border-radius:0 4px 4px 0}
 .chop .t{font-size:12px;color:var(--grey)}
 .nan{display:block;font-size:13px;font-weight:400;color:var(--grey);margin-top:4px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;margin-right:8px;vertical-align:-1px;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+button:disabled:has(.spin){opacity:.85}
 .wait{font-size:15px;font-weight:400;color:var(--grey);font-style:italic}
 .para{margin:8px 0;padding-bottom:8px;border-bottom:1px solid var(--line)}
 #pl{max-height:520px;overflow:auto}
@@ -77,9 +81,9 @@ details .body{padding:0 12px 12px;font-size:14px}
 </head>
 <body>
 <main>
-  <h1>Chopper: z i bez <span style="font-size:.5em;font-weight:400"><a target="_top" href="https://huggingface.co/spaces/wiiiktor/chopper">English</a></span></h1>
+  <h1>Chopper: z i bez <span style="font-size:.5em;font-weight:400"><a target="_blank" rel="noopener" href="https://huggingface.co/spaces/wiiiktor/chopper">English</a></span></h1>
   <p class="lede">Polskie pytania (PoQuAD, PolQA) i 16 znalezionych fragmentów tekstu. <b>Bez Choppera</b> Qwen3-14B czyta wszystkie 16 fragmentów. <b>Z Chopperem</b> czyta tylko dosłowne cytaty wycięte przez polski Chopper: <b>ta sama trafność przy ok. 15× mniejszej liczbie tokenów</b>. Ten sam model, ten sam prompt.</p>
-  <p class="links"><a target="_top" href="https://github.com/wiiiktor/chopper_demo#readme">GitHub</a> · <a target="_top" href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <a target="_top" href="https://huggingface.co/spaces/wiiiktor/chopper">English</a> · <code>pip install chopper-rag</code> · <b>MIT, także do użytku komercyjnego</b></p>
+  <p class="links"><a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">GitHub</a> · <a target="_blank" rel="noopener" href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <a target="_blank" rel="noopener" href="https://huggingface.co/spaces/wiiiktor/chopper">English</a> · <code>pip install chopper-rag</code> · <b>MIT, także do użytku komercyjnego</b></p>
 
   <div class="summary" id="sum"></div>
 
@@ -117,7 +121,7 @@ details .body{padding:0 12px 12px;font-size:14px}
   <p class="gold" id="gold"></p>
 
 
-  <p class="note">Dane: pytania walidacyjne PoQuAD i PolQA, każde z 16 fragmentami tekstu. Odpowiedzi Qwen3-14B (bez myślenia, sama odpowiedź, temperatura 0) oceniane względem wzorcowej odpowiedzi przez sędziego LLM. 20 przykładów wylosowano warstwowo, tak by odpowiadały wynikowi na wszystkich 856 polskich pytaniach (85,2% bez Choppera vs 85,6% z polskim Chopperem base-pl, 3856 vs 255 tokenów); cytaty to surowy wynik Choppera (to czytał Qwen). Dla Twoich pytań Chopper działa w przeglądarce (base-pl, całe zdania), a Qwen3-14B odpowiada przez małe proxy; nic nie jest zapisywane. <a target="_top" href="https://github.com/wiiiktor/chopper_demo#readme">Pełne wyniki</a>.</p>
+  <p class="note">Dane: pytania walidacyjne PoQuAD i PolQA, każde z 16 fragmentami tekstu. Odpowiedzi Qwen3-14B (bez myślenia, sama odpowiedź, temperatura 0) oceniane względem wzorcowej odpowiedzi przez sędziego LLM. 20 przykładów wylosowano warstwowo, tak by odpowiadały wynikowi na wszystkich 856 polskich pytaniach (85,2% bez Choppera vs 85,6% z polskim Chopperem base-pl, 3856 vs 255 tokenów); cytaty to surowy wynik Choppera (to czytał Qwen). Dla Twoich pytań Chopper działa w przeglądarce (base-pl, całe zdania), a Qwen3-14B odpowiada przez małe proxy; nic nie jest zapisywane. <a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">Pełne wyniki</a>.</p>
 </main>
 
 <script type="module">
@@ -146,7 +150,7 @@ const pct = (a, b) => `${Math.round(100 * a / b)}%`;
 $("sum").innerHTML = `
   <div class="tile"><div class="k">BEZ CHOPPERA (te 20)</div><div class="v">${S.without_ok} / ${S.n} poprawnie</div><div class="s">średnio ${fmt(S.without_tokens)} tokenów</div></div>
   <div class="tile"><div class="k">Z CHOPPEREM (te 20)</div><div class="v">${S.with_ok} / ${S.n} poprawnie</div><div class="s">średnio ${fmt(S.with_tokens)} tokenów</div></div>
-  <div class="tile"><div class="k">WSZYSTKIE ${S.full100.n} POLSKIE PYTANIA</div><div class="v">${pct(S.full100.without_ok, S.full100.n)} → ${pct(S.full100.with_ok, S.full100.n)}</div><div class="s">${fmt(S.full100.without_tokens)} → ${fmt(S.full100.with_tokens)} tokenów · <a target="_top" href="https://github.com/wiiiktor/chopper_demo#readme">README</a></div></div>`;
+  <div class="tile"><div class="k">WSZYSTKIE ${S.full100.n} POLSKIE PYTANIA</div><div class="v">${pct(S.full100.without_ok, S.full100.n)} → ${pct(S.full100.with_ok, S.full100.n)}</div><div class="s">${fmt(S.full100.without_tokens)} → ${fmt(S.full100.with_tokens)} tokenów · <a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">README</a></div></div>`;
 
 // ---- example table: sorted with-Chopper correct first, then without-Chopper correct first
 const ORDER = EX.map((e, i) => i).sort((a, b) => (EX[b].with.ok - EX[a].with.ok) || (EX[b].without.ok - EX[a].without.ok) || a - b);
@@ -258,7 +262,7 @@ async function qwen(question, notes) {
 let busy = false;
 async function ask() {
   const q = $("q").value.trim(); if (!q || busy) return;
-  busy = true; $("ask").disabled = true;
+  busy = true; $("ask").disabled = true; $("ask").innerHTML = `<span class="spin"></span>Pracuję…`;
   const e = EX[cur];
   document.querySelectorAll("tr.exr").forEach(r => r.classList.remove("sel"));
   $("gold").textContent = "Twoje pytanie: nie ma wzorcowej odpowiedzi, oceń obie odpowiedzi sam.";
@@ -291,18 +295,24 @@ async function ask() {
     if (none) b.value = { answer: "not in notes", prompt_tokens: 0, ms: 0, empty: true };
     const put = (res, ak, mk, label) => {
       if (res.status === "fulfilled") {
-        showAns(ak, res.value.answer);
+        showAns(ak, res.value.answer + (res.value.cut ? " …" : ""));
         $(mk).textContent = `${label}: ${res.value.prompt_tokens ? fmt(res.value.prompt_tokens) + " tokenów · " : ""}${(res.value.ms / 1000).toFixed(1)} s`;
       } else { $(ak).textContent = "—"; $(mk).innerHTML = `<span class="warn">${esc(res.reason.message.includes("Failed to fetch") ? "Odpowiedzi na żywo są teraz niedostępne." : res.reason.message)}</span>`; }
     };
     put(a, "wa", "wm", "Qwen3-14B przeczytał wszystkie fragmenty");
     put(b, "ca", "cm", "Qwen3-14B przeczytał tylko cytaty");
+    {                                                   // one plain-words verdict for the visitor's own question
+      const ab = x => x.status !== "fulfilled" || /^not in notes\.?$/i.test((x.value.answer || "").trim());
+      const A = a.status === "fulfilled" ? a.value.prompt_tokens || 0 : 0, B = b.status === "fulfilled" ? b.value.prompt_tokens || 0 : 0;
+      if (a.status === "fulfilled" && b.status === "fulfilled")
+        $("gold").innerHTML = ab(a) && !ab(b) ? `Chopper pomógł: czytając wszystkie fragmenty (${fmt(A)} tokenów) Qwen nie znalazł odpowiedzi, a z cytatów Choppera (${fmt(B)} tokenów) odpowiedział. Nadmiar tekstu rozprasza model.` : !ab(a) && ab(b) ? `Bez Choppera Qwen odpowiedział, a z samych cytatów nie: Chopper pominął potrzebny fragment.` : ab(a) && ab(b) ? `Qwen nie znalazł odpowiedzi w żadnej wersji: tych informacji prawdopodobnie nie ma w fragmentach. Zadaj pytanie o ich treść (tematy wyżej).` : `Obie wersje odpowiedziały: porównaj odpowiedzi; z Chopperem Qwen przeczytał ${fmt(A)} → ${fmt(B)} tokenów.`;
+    }
     if (none) $("cm").textContent = "Chopper nic nie zostawił (decyzja SEARCH: odpowiedzi raczej nie ma w tych fragmentach), więc Qwen3-14B nie był pytany";
     $("st").textContent = "Gotowe. Zmień pytanie, aby zapytać ponownie, albo wybierz przykład.";
   } catch (err) {
     $("st").innerHTML = `<span class="warn">${esc(err.message)}</span>`;
   } finally {
-    busy = false; $("barw").hidden = true;
+    busy = false; $("barw").hidden = true; $("ask").textContent = "Zapytaj Qwen3-14B na żywo";
     $("ask").disabled = !($("q").value.trim() && $("q").value.trim() !== EX[cur].question);
   }
 }
