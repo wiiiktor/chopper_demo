@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chopper in your browser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono&display=swap">
+<style>
+:root{--teal:#2f7d6d;--ink:#1b211f;--grey:#5d6863;--line:#d9ddd6;--pale:#eef0ec;--bg:#fbfbf9;--card:#ffffff;--mark:#cfe6df;--warn:#9a5b13}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--teal:#5fb3a0;--ink:#e6ebe8;--grey:#a3ada8;--line:#34403b;--pale:#1d2522;--bg:#121816;--card:#18201d;--mark:#24534a;--warn:#e0a35a}}
+:root[data-theme="dark"]{--teal:#5fb3a0;--ink:#e6ebe8;--grey:#a3ada8;--line:#34403b;--pale:#1d2522;--bg:#121816;--card:#18201d;--mark:#24534a;--warn:#e0a35a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "IBM Plex Sans",system-ui,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:28px 16px 48px}
+h1{font-size:30px;margin:0 0 4px;letter-spacing:-.01em}
+.lede{color:var(--grey);max-width:70ch;margin:0 0 6px}
+.links{font-size:14px;color:var(--grey);margin:0 0 22px}
+.links a{color:var(--ink);text-decoration:none;border-bottom:1px dashed var(--grey)}
+.links code{font:13px "IBM Plex Mono",monospace;background:var(--pale);padding:1px 5px;border-radius:3px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px}
+label{display:block;font-size:13px;font-weight:600;color:var(--grey);margin:0 0 4px;letter-spacing:.02em}
+input,textarea{width:100%;font:15px/1.5 "IBM Plex Sans",sans-serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+textarea{min-height:300px;resize:vertical}
+input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+button{font:600 15px "IBM Plex Sans",sans-serif;border:1px solid var(--teal);background:var(--teal);color:#fff;border-radius:4px;padding:8px 18px;cursor:pointer}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line);font-weight:400;font-size:14px;padding:6px 10px}
+button:disabled{opacity:.5;cursor:default}
+.status{font-size:14px;color:var(--grey)}
+.bar{height:4px;background:var(--pale);border-radius:2px;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;width:0;background:var(--teal);transition:width .2s}
+.verdict{font-weight:600;margin:0 0 4px}
+.verdict.search{color:var(--warn)}
+.stats{font-size:14px;color:var(--grey);margin:0 0 12px}
+.kept{white-space:pre-wrap;font-size:14.5px;max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:4px;padding:10px;background:var(--bg);color:var(--grey)}
+.kept mark{background:var(--mark);color:var(--ink);border-radius:2px;padding:0 1px}
+table{border-collapse:collapse;width:100%;font-size:14px;margin-top:14px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--grey);font-weight:600;letter-spacing:.03em}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.relbar{display:inline-block;height:6px;background:var(--teal);border-radius:3px;vertical-align:middle;margin-right:6px}
+.note{font-size:13px;color:var(--grey);margin-top:20px;max-width:90ch}
+</style>
+</head>
+<body>
+<main>
+  <h1>Chopper <span style="font-size:.5em;font-weight:400"><a href="https://huggingface.co/spaces/wiiiktor/chopper">English</a></span></h1>
+  <p class="lede">Wklej pytanie i długi tekst (wyniki wyszukiwania, dokumenty, notatki). Chopper zostawia tylko <b>dokładne cytaty</b>, które na nie odpowiadają, zwykle 2–5% tekstu, i porządkuje fragmenty według trafności, w jednym przebiegu małego otwartego modelu. <b>Działa w Twojej przeglądarce: nic nie jest wysyłane na serwer.</b></p>
+  <p class="links"><a href="https://github.com/wiiiktor/chopper_demo">GitHub</a> · <a href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <code>pip install chopper-rag</code> (LangChain, LlamaIndex, Haystack) · serwer MCP <code>uvx chopper-rag</code> · <b>MIT, także do użytku komercyjnego</b></p>
+
+  <div class="grid">
+    <section class="card">
+      <label for="q">Pytanie</label>
+      <input id="q" autocomplete="off">
+      <label for="t" style="margin-top:12px">Tekst (fragmenty dzielone na pustych liniach, po ~500 znaków)</label>
+      <textarea id="t"></textarea>
+      <div class="row">
+        <button id="go" disabled>Tnij</button>
+        <span class="status" id="st">Wczytywanie modelu (ok. 220 MB, jednorazowo; potem z pamięci przeglądarki)…</span>
+      </div>
+      <div class="bar"><i id="pb"></i></div>
+      <div class="row" id="ex"><span class="status">Przykłady:</span></div>
+    </section>
+    <section class="card" aria-live="polite">
+      <p class="verdict" id="vd">Tu pojawią się wyniki.</p>
+      <p class="stats" id="ss"></p>
+      <label>Zachowany tekst (podświetlony)</label>
+      <div class="kept" id="kp"></div>
+      <table id="rk" hidden><thead><tr><th>Miejsce</th><th>Fragment</th><th>Trafność</th><th>Początek fragmentu</th></tr></thead><tbody></tbody></table>
+    </section>
+  </div>
+  <p class="note">Model: polski <code>small-pl</code> chopper (mmBERT-small, 0,14 mld parametrów; wersja mniejsza od zalecanej <code>base-pl</code>, 0,31 mld), osadzenia int8 i macierze fp16 (te same cytaty co model PyTorch w 18 z 20 wierszy testowych). Trafność = średnie p(KEEP) 16 najbardziej prawdopodobnych tokenów fragmentu: chopper jako reranker. Na GPU pakiet Pythona potrzebuje ok. 0,1 s na 16 fragmentów; tutaj liczy Twój procesor. <a href="https://huggingface.co/spaces/wiiiktor/chopper">English version</a>.</p>
+</main>
+
+<script type="module">
+import { PreTrainedTokenizer } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js";
+import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/ort.wasm.min.mjs";
+import { Chopper, splitPassages } from "./chopper.js";
+
+const BASE = "https://huggingface.co/wiiiktor/chopper_mmbert/resolve/main/onnx/mmbert-small-pl/";
+const $ = id => document.getElementById(id);
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/";
+ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(8, navigator.hardwareConcurrency || 4) : 1;
+
+const EXAMPLES = [
+  ["Jakie dwa pierwiastki odkryli państwo Curie?", `Maria Skłodowska-Curie urodziła się w Warszawie 7 listopada 1867 roku jako najmłodsze z pięciorga dzieci Władysława Skłodowskiego i Bronisławy Boguskiej. Jej ojciec uczył matematyki i fizyki.
+
+W 1891 roku przeniosła się do Paryża i rozpoczęła studia na Sorbonie, gdzie uzyskała dyplomy z fizyki (1893) i matematyki (1894). Tam poznała Pierre'a Curie, którego poślubiła w 1895 roku.
+
+Państwo Curie odkryli dwa pierwiastki: polon, nazwany na cześć jej ojczystej Polski, oraz rad. W 1903 roku otrzymała wraz z Pierre'em Curie i Henrim Becquerelem Nagrodę Nobla z fizyki za badania nad promieniotwórczością.
+
+W 1911 roku otrzymała drugą Nagrodę Nobla, tym razem z chemii, za odkrycie polonu i radu oraz wyodrębnienie radu. Pozostaje jedyną osobą nagrodzoną Noblem w dwóch różnych dziedzinach nauk.
+
+Podczas I wojny światowej stworzyła ruchome aparaty rentgenowskie, nazywane „małymi Curie”, które służyły szpitalom polowym w pobliżu frontu. Zmarła w 1934 roku w Passy we Francji na anemię aplastyczną, prawdopodobnie wywołaną długotrwałym narażeniem na promieniowanie.`],
+  ["Za kogo i kiedy wyszła za mąż Maria?", null],
+  ["Gdzie uchodzi Wisła?", `Wisła jest najdłuższą rzeką Polski. Jej długość wynosi 1047 km, a powierzchnia dorzecza około 194 tys. km², z czego większość leży w granicach kraju.
+
+Rzeka bierze początek na zachodnim stoku Baraniej Góry w Beskidzie Śląskim, a uchodzi do Zatoki Gdańskiej. Przepływa przez Kraków, Warszawę, Toruń i Bydgoszcz (Fordon).
+
+Największymi dopływami Wisły są Bug (prawy, przez Narew) oraz San. Wisła należy do zlewiska Morza Bałtyckiego.`],
+];
+EXAMPLES[1][1] = EXAMPLES[0][1];
+EXAMPLES.forEach(([q, t]) => {
+  const b = document.createElement("button"); b.className = "ghost"; b.textContent = q;
+  b.onclick = () => { $("q").value = q; $("t").value = t; if (!$("go").disabled) chop(); };
+  $("ex").appendChild(b);
+});
+$("q").value = EXAMPLES[0][0]; $("t").value = EXAMPLES[0][1];
+
+// download with progress; kept in the Cache API so a second visit loads instantly
+const TOTAL = { "model.onnx": 184.2e6, "tokenizer.json": 34.4e6 };
+const got = {};
+function progress() {
+  const d = Object.values(got).reduce((a, b) => a + b, 0), t = Object.values(TOTAL).reduce((a, b) => a + b, 0);
+  $("pb").style.width = `${Math.min(100, 100 * d / t).toFixed(1)}%`;
+  $("st").textContent = `Wczytywanie modelu: ${(d / 1e6).toFixed(0)} z ${(t / 1e6).toFixed(0)} MB (jednorazowo)…`;
+}
+async function fetchBytes(name) {
+  let cache = null;
+  try { cache = await caches.open("chopper-pl-v1"); const hit = await cache.match(BASE + name); if (hit) { const b = new Uint8Array(await hit.arrayBuffer()); got[name] = TOTAL[name] || b.length; progress(); return b; } } catch (_) { cache = null; }
+  const r = await fetch(BASE + name); if (!r.ok) throw new Error(`${name}: HTTP ${r.status}`);
+  const reader = r.body.getReader(); const parts = []; let n = 0;
+  for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); n += value.length; if (TOTAL[name]) { got[name] = n; progress(); } }
+  const b = new Uint8Array(n); let o = 0; for (const p of parts) { b.set(p, o); o += p.length; }
+  try { if (cache) await cache.put(BASE + name, new Response(b)); } catch (_) {}
+  return b;
+}
+const dec = new TextDecoder();
+let chopper;
+try {
+  const [m, tj, tc, cc] = await Promise.all(["model.onnx", "tokenizer.json", "tokenizer_config.json", "chopper_config.json"].map(fetchBytes));
+  $("st").textContent = "Uruchamianie modelu…";
+  const session = await ort.InferenceSession.create(m, { executionProviders: ["wasm"] });
+  const tok = new PreTrainedTokenizer(JSON.parse(dec.decode(tj)), JSON.parse(dec.decode(tc)));
+  chopper = new Chopper(tok, session, ort, JSON.parse(dec.decode(cc)));
+  $("pb").style.width = "100%"; $("go").disabled = false;
+  $("st").textContent = `Gotowe (wątki CPU: ${ort.env.wasm.numThreads}).`;
+  chop();
+} catch (e) { $("st").textContent = "Nie udało się wczytać modelu: " + e.message; }
+
+const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+async function chop() {
+  const q = $("q").value.trim(), text = $("t").value;
+  if (!q || !text.trim()) { $("vd").textContent = "Wpisz pytanie i tekst."; return; }
+  $("go").disabled = true; $("st").textContent = "Tnę…";
+  await new Promise(r => setTimeout(r, 20));
+  const parts = splitPassages(text, 500), offs = parts.map(p => p[0]), passages = parts.map(p => p[1]);
+  const t0 = performance.now();
+  const r = await chopper.run(q, passages);
+  const dt = (performance.now() - t0) / 1000;
+  const spans = r.chops.map(c => [offs[c.passage] + c.start, offs[c.passage] + c.end]).sort((a, b) => a[0] - b[0]);
+  let html = "", cur = 0, kept = 0;
+  for (const [a, b] of spans) { html += esc(text.slice(cur, a)) + "<mark>" + esc(text.slice(a, b)) + "</mark>"; cur = b; kept += b - a; }
+  $("kp").innerHTML = html + esc(text.slice(cur));
+  const v = $("vd");
+  v.textContent = r.decision === "ANSWER" ? `ANSWER: tekst prawdopodobnie zawiera odpowiedź (p = ${r.pAnswer.toFixed(2)})`
+                                          : `SEARCH: odpowiedzi tu raczej nie ma, szukaj dalej (p = ${r.pAnswer.toFixed(2)})`;
+  v.className = "verdict" + (r.decision === "SEARCH" ? " search" : "");
+  $("ss").textContent = `Zachowano ${kept.toLocaleString("pl")} z ${text.length.toLocaleString("pl")} znaków (${(100 * kept / Math.max(1, text.length)).toFixed(1)}%), cytaty: ${spans.length}, fragmenty: ${passages.length}, ${dt.toFixed(1)} s na Twoim CPU.`;
+  const tb = $("rk").querySelector("tbody"); tb.innerHTML = "";
+  r.ranking.forEach(([i, s], k) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="num">${k + 1}</td><td class="num">${i + 1}</td><td class="num"><span class="relbar" style="width:${Math.round(60 * s)}px"></span>${s.toFixed(3)}</td><td>${esc(passages[i].slice(0, 90))}${passages[i].length > 90 ? "…" : ""}</td>`;
+    tb.appendChild(tr);
+  });
+  $("rk").hidden = false; $("go").disabled = false; $("st").textContent = "Gotowe.";
+}
+$("go").onclick = chop;
+$("q").addEventListener("keydown", e => { if (e.key === "Enter" && !$("go").disabled) chop(); });
+</script>
+</body>
+</html>
