@@ -264,10 +264,44 @@ first) tied the flat mix, so the flat mix is the one released.
 | 🟧 **universal chopper: mmBERT-base** | `jhu-clsp/mmBERT-base` (0.31B) | all weights + KEEP head + decision head | the 54,000 rows of datasets A and B, then the 102,654-row final mix ([C](#c-final-mix)), one epoch each | ✅ on HF (final mix 5 h 50 min, 3090) |
 | universal chopper: mmBERT-small | `jhu-clsp/mmBERT-small` (0.14B) | same | the 54,000 rows of datasets A and B, then the final mix | ✅ on HF (final mix 4 h 15 min); Qwen3-14B 4-hop 23 vs base 29 |
 | universal chopper, Polish: mmBERT-base-pl / mmBERT-small-pl | the two above | same | + 15,652 Polish rows (PoQuAD, PolQA) mixed with 15,935 rows of the final mix | ✅ on HF (base 2 h 40 min, small 1 h 40 min); Qwen3-14B on 856 Polish questions: 85.6% / 84.1% from chops vs 85.2% from all snippets |
-| universal chopper, Polish bases from OPI PIB (suggested by the OPI PIB AI Lab) | [`OPI-PIB/pl-ModernBERT-base`](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (0.15B, 8k context); [`sdadas/polish-roberta-large-v2`](https://huggingface.co/sdadas/polish-roberta-large-v2) (0.43B, 512 positions, read in overlapping windows) | same | the full recipe from scratch: datasets A and B, rerank set, final mix, then the Polish rows | 🏃 in training on the RTX 3090 (pl-ModernBERT-base about 16 Nov, polish-roberta-large-v2 about 19 Nov); compared with mmBERT-base-pl on the same 856 Polish questions |
+| universal chopper, Polish bases from OPI PIB (suggested by the OPI PIB AI Lab) | [`OPI-PIB/pl-ModernBERT-base`](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (0.15B, 8k context); [`sdadas/polish-roberta-large-v2`](https://huggingface.co/sdadas/polish-roberta-large-v2) (0.43B, 512 positions, read in overlapping windows) | same | the full recipe from scratch: datasets A and B, rerank set, final mix, then the Polish rows, each fitted to the base's tokenizer ([below](#polish-bases-fitting-the-data-to-the-tokenizer)) | 🏃 in training on the RTX 3090, restarted 15 Nov with fitted data (pl-ModernBERT-base about 16 Nov, polish-roberta-large-v2 about 19 Nov); compared with mmBERT-base-pl on the same 856 Polish questions |
 | 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
 | **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ✅ both on 🤗 [`chopper_minicpm3/answerer/`](https://huggingface.co/wiiiktor/chopper_minicpm3/tree/main/answerer): `chopper-notes/`, `clean-notes/` |
+
+### Polish bases: fitting the data to the tokenizer
+
+The training mix was built for mmBERT, whose tokenizer covers 1,800+ languages. A Polish base reads the same rows
+through a much narrower vocabulary, and that broke two things (measured on samples of the stage-2 rerank set):
+
+| problem | mmBERT | pl-ModernBERT-base |
+|---|---|---|
+| Japanese / Chinese text: share of characters under `<unk>` tokens (19.6% of the rerank rows) | ~0 | **0.83 / 0.77**: `法輪大法を始めてから…` becomes `['▁', '<unk>', '?']` |
+| rows longer than the 8,192-token input, cut at the end | 2.4% | **38.5%** (German, French, Spanish and Portuguese take ~10,000 tokens per row) |
+| rows labelled ANSWER whose evidence was entirely in the cut-off part | 0.1% | **4.1%**: the model is taught "the answer is here" without seeing it |
+
+`polish-roberta-large-v2` has the same `<unk>` problem. French or Portuguese accents are also `<unk>` in both
+(`café` -> `ca f <unk>`), but that is ~5% of the characters and the text stays readable, so those rows are kept.
+
+The first pl-ModernBERT run (stage 2 stopped at step ~20,000, where it trailed mmBERT by ~0.05 KEEP F1 on training
+batches) was restarted with every training split fitted per tokenizer by
+[`scripts/chopper/fit_splits.py`](../scripts/chopper/fit_splits.py):
+
+1. drop a row when more than 30% of its characters fall under `<unk>` (only Japanese and Chinese rows reach that);
+2. if a row does not fit 8,192 tokens, drop passages **without** label spans from the end until it fits, so every
+   labelled passage, and with it the ANSWER / SEARCH label, stays valid; drop the row if the labelled passages alone
+   do not fit (9 of 54,923 rows).
+
+| split (pl-ModernBERT-base) | rows before | rows after | trimmed | dropped (`<unk>`) |
+|---|---|---|---|---|
+| stage 1, datasets A and B | 54,000 | 54,000 | 9 | 0 |
+| stage 2, rerank set | 54,923 | 44,147 | 19,964 | 10,767 |
+| stage 3, final mix (all 10 parts) | 102,654 | 98,282 | 8,053 | 4,369 |
+| stage 4, Polish replay | 15,935 | 15,311 | 1,230 | 623 |
+
+The Polish rows (PoQuAD, PolQA) fit unchanged. Stage 1 data was effectively unchanged, so its checkpoint was kept.
+Validation and test splits are not modified, so results stay comparable with mmBERT-base-pl. A check on 1,500 fitted
+rows: none longer than 8,192 tokens, label spans and ANSWER / SEARCH labels identical to the originals.
 
 **Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
 

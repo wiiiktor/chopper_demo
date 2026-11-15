@@ -29,9 +29,14 @@ ap.add_argument("--keep-w", type=float, default=0.5, help="KEEP loss share of th
 ap.add_argument("--train-splits", default="train", help="comma list of ctx_/qw_ file tags to train on (e.g. train,train2)")
 ap.add_argument("--val-split", default="val", help="ctx_/qw_ tag to evaluate on (val, wval)")
 ap.add_argument("--eval-only", default="", help="chopper.pt (or an older reader.pt) to load; evaluate on val and dump preds, no training")
+ap.add_argument("--curriculum", default="", help="2026-11-11 quality curriculum: 'split:a,b,c;split:a,b,c' = share of each split's rows put in "
+                "phase A / B / C (shuffled within a phase, phases in order); splits not listed are spread evenly. Empty = one shuffled pool")
+ap.add_argument("--lr-shape", default="cosine", help="cosine (old) | flat-anneal: flat LR, linear decay over the last --anneal share (memory: ties cosine)")
+ap.add_argument("--anneal", type=float, default=0.25)
 ap.add_argument("--recycle", type=int, default=0, help="2026-11-10 multi-hop chopper: re-run the LAST N encoder layers a second time with the "
                 "first pass's KEEP probability added to every token (zero-initialised projection, AlphaFold-style recycling); loss on both passes, "
                 "the second pass is the output. 0 = one pass (the old chopper)")
+ap.add_argument("--win-overlap", type=int, default=64, help="2026-11-14: overlap between windows when the base has ≤1024 positions (polish-roberta)")
 ap.add_argument("--rec-w1", type=float, default=0.5, help="weight of the first pass's KEEP loss when recycling")
 ap.add_argument("--init", default="", help="chopper.pt (or an older reader.pt) to CONTINUE training from (fresh optimiser and schedule)")
 ap.add_argument("--merge-gap", type=int, default=0, help="decode: fill gaps of ≤ this many tokens between kept tokens")
@@ -89,6 +94,8 @@ class Chopper(nn.Module):
         nn.init.zeros_(self.rec.weight); nn.init.zeros_(self.rec.bias)
 
     def forward(self, ids, both=False):
+        if WIN:
+            return self.win_forward(ids, both)
         if not A.recycle:
             h = self.enc(input_ids=ids).last_hidden_state[0].float()
             k, d = self.keep(h)[:, 0], self.dec(h[0])
@@ -111,13 +118,54 @@ class Chopper(nn.Module):
         k2, d = self.keep(h)[:, 0], self.dec(h[0])
         return (k2, d, k1) if both else (k2, d)
 
+    def win_forward(self, ids, both=False):
+        """2026-11-14 short-context bases (polish-roberta-large-v2, 512 positions): every window = <s> question </s> + a slice of the
+        passages + </s>, slices overlap by --win-overlap tokens; KEEP logits averaged where windows overlap, question-token logits and
+        the decision taken as the mean over windows. Returns logits for every token of the full (unwindowed) sequence."""
+        x = ids[0]; n = len(x); sep = (x[1:] == tk.sep_token_id).nonzero()
+        qe = int(sep[0]) + 1 if len(sep) else 1                       # index of the </s> closing the question
+        head = x[:qe + 1]
+        if len(head) > 160:                                          # long conversation tail: keep <s> + its last 158 tokens + </s>
+            head = torch.cat([x[:1], x[qe - 158:qe + 1]])
+        body = x[qe + 1:n - 1]; B = WIN - len(head) - 1; st = max(1, B - A.win_overlap)
+        starts = list(range(0, max(1, len(body) - A.win_overlap), st)) or [0]
+        wins = [torch.cat([head, body[s:s + B], x[n - 1:]]) for s in starts]
+        L = max(len(w) for w in wins); pad = tk.pad_token_id
+        I = torch.full((len(wins), L), pad, device=x.device); am = torch.zeros_like(I)
+        for i, w in enumerate(wins):
+            I[i, :len(w)] = w; am[i, :len(w)] = 1
+        h = self.enc(input_ids=I, attention_mask=am).last_hidden_state.float()
+        kw = self.keep(h)[..., 0]; d = self.dec(h[:, 0]).mean(0)
+        k = torch.zeros(n, device=x.device); c = torch.zeros(n, device=x.device)
+        k[:qe + 1] = kw[:, 0].mean(0).expand(qe + 1) if len(head) != qe + 1 else kw[:, :qe + 1].mean(0)
+        c[:qe + 1] = 1
+        for i, s in enumerate(starts):
+            m = min(B, len(body) - s)
+            k[qe + 1 + s:qe + 1 + s + m] += kw[i, len(head):len(head) + m]; c[qe + 1 + s:qe + 1 + s + m] += 1
+        k = k / c.clamp(min=1)                                       # the final </s> keeps logit 0 (label is always 0)
+        return (k, d, None) if both else (k, d)
 
+
+_cfg = __import__("transformers").AutoConfig.from_pretrained(A.base)
+WIN = (_cfg.max_position_embeddings - 2) if _cfg.max_position_embeddings <= 1024 else 0
 M = Chopper().to(dev)
 M.enc.gradient_checkpointing_enable() if hasattr(M.enc, "gradient_checkpointing_enable") else None
 opt = torch.optim.AdamW([{"params": M.enc.parameters(), "lr": A.lr},
                          {"params": list(M.keep.parameters()) + list(M.dec.parameters()) + list(M.rec.parameters()), "lr": A.head_lr}], weight_decay=0.0)
 TR, VA = [x for sp in A.train_splits.split(",") for x in load(sp)], load(A.val_split)
 random.shuffle(TR)
+if A.curriculum:                                      # phase A = broad / weaker labels, C = best labels (trained under the LR anneal)
+    CUR = {k: [float(x) for x in v.split(",")] for k, v in (z.split(":") for z in A.curriculum.split(";") if z)}
+    SPL = {}
+    for sp in A.train_splits.split(","):
+        for c, lab in load(sp):
+            SPL.setdefault((c["dataset"], c["row"]), sp)
+    PH = [[], [], []]
+    for x in TR:
+        w = CUR.get(SPL.get((x[0]["dataset"], x[0]["row"])), [1 / 3, 1 / 3, 1 / 3])
+        PH[random.choices([0, 1, 2], weights=w)[0]].append(x)
+    TR = PH[0] + PH[1] + PH[2]
+    print(f"curriculum phases A/B/C: {len(PH[0])} / {len(PH[1])} / {len(PH[2])} rows", flush=True)
 if A.smoke:
     TR, VA = TR[:A.smoke], VA[:max(6, A.smoke)]
 pa = np.mean([c["allin"] == 1.0 for c, _ in TR]); W = torch.tensor([0.5 / max(1 - pa, 1e-3), 0.5 / max(pa, 1e-3)], device=dev, dtype=torch.float)
@@ -215,7 +263,8 @@ M.train(); opt.zero_grad(set_to_none=True)
 total = len(TR); upd = math.ceil(total / A.accum)
 for step, (c, lab) in enumerate(TR, 1):
     u = (step - 1) // A.accum
-    f = min(1.0, (u + 1) / 50) * (0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * u / upd)))
+    f = min(1.0, (u + 1) / 50) * ((0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * u / upd))) if A.lr_shape == "cosine"
+                                  else min(1.0, max(0.05, (upd - u) / max(1, A.anneal * upd))))
     opt.param_groups[0]["lr"] = A.lr * f; opt.param_groups[1]["lr"] = A.head_lr * f
     s, e, y, dec, hw = encode(c, lab); y = y.to(dev); hw = 1 + (A.hop_w - 1) * hw.to(dev)
     with torch.autocast("cuda", dtype=torch.bfloat16):

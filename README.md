@@ -90,7 +90,7 @@ question ─► retrieve 16 passages ─► 🔪 chop to ~3 fragments ─► mod
 | 4-hop MuSiQue questions answered correctly by Qwen3-14B, one retrieval | **12% → 29%** with the chopper's chops instead of all 20 snippets (11× fewer tokens); with Opus 5.5's chops: 43% |
 | Polish questions (PoQuAD, PolQA) answered correctly by Qwen3-14B | **85.6%** from the Polish chopper's chops (255 tokens) vs 85.2% from all 16 snippets (3,856 tokens) |
 
-*In training (Nov 2026), suggested by the OPI PIB AI Lab:* the same Polish chopper recipe on two Polish encoders from OPI PIB, [pl-ModernBERT-base](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (results expected about 16 Nov) and [polish-roberta-large-v2](https://huggingface.co/sdadas/polish-roberta-large-v2) (read in 512-token windows, about 19 Nov), compared with mmBERT-base-pl on the same 856 Polish questions.
+*In training (Nov 2026), suggested by the OPI PIB AI Lab:* the same Polish chopper recipe on two Polish encoders from OPI PIB, [pl-ModernBERT-base](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (results expected about 16 Nov) and [polish-roberta-large-v2](https://huggingface.co/sdadas/polish-roberta-large-v2) (read in 512-token windows, about 19 Nov), compared with mmBERT-base-pl on the same 856 Polish questions. Restarted 15 Nov with the training data fitted to the Polish tokenizers ([why](docs/DETAILS.md#polish-bases-fitting-the-data-to-the-tokenizer)).
 
 Long-conversation memory results (LoCoMo, LongMemEval) are in
 [the details](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval): there the 4B answering model is the limit.
