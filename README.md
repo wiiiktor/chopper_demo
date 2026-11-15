@@ -4,7 +4,7 @@
   <a href="docs/DETAILS.md#a-host-with-latent-attention-minicpm3-4b"><img src="media/choice_integrated_v6.png" width="49%" alt="Option 2, integrated chopper: a 20% slice of MiniCPM3-4B itself, no second model, reads the model's own cache of the whole session. Links to how it works."></a>
 </p>
 <p align="center"><em>70-second video: <a href="https://youtu.be/KMvmdXCEOJU">youtu.be/KMvmdXCEOJU</a></em></p>
-<p align="center"><b>Try it in your browser, nothing to install:</b> <a href="https://huggingface.co/spaces/wiiiktor/chopper">English demo</a> · <a href="https://huggingface.co/spaces/wiiiktor/chopper-pl">Polish demo</a><br><em>The demos run the <b>small</b> chopper (mmBERT-small, 0.14B) on your CPU. The recommended <b>base</b> model (0.31B) is more accurate: use it with <code>pip install chopper-rag</code>.</em></p>
+<p align="center"><b>Try it in your browser, nothing to install:</b> <a href="https://huggingface.co/spaces/wiiiktor/chopper">English demo</a> · <a href="https://huggingface.co/spaces/wiiiktor/chopper-pl">Polish demo</a><br><em>They run the recommended <b>base</b> chopper (0.31B) on your CPU, with <b>small</b> (0.14B) as a faster option.</em></p>
 
 ## Chopper 0.3B close to Opus 5.5 in cutting out the best pieces
 
@@ -132,7 +132,7 @@ should become almost free. **If you pretrain models and want to build that, cont
 
 ## Quick start
 
-No install: try the [in-browser demo](https://huggingface.co/spaces/wiiiktor/chopper) ([po polsku](https://huggingface.co/spaces/wiiiktor/chopper-pl)). It runs `small` (0.14B); the code below uses the more accurate `base` (0.31B).
+No install: try the [in-browser demo](https://huggingface.co/spaces/wiiiktor/chopper) ([po polsku](https://huggingface.co/spaces/wiiiktor/chopper-pl)). It runs `base` (0.31B) by default, like the code below, or `small` (0.14B).
 
 In your own RAG pipeline (LangChain, LlamaIndex, Haystack or plain Python):
 
