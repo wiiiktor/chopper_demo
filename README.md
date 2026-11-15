@@ -5,6 +5,9 @@
 </p>
 <p align="center"><em>70-second video: <a href="https://youtu.be/KMvmdXCEOJU">youtu.be/KMvmdXCEOJU</a></em></p>
 <p align="center"><b>Try it in your browser, nothing to install:</b> <a href="https://huggingface.co/spaces/wiiiktor/chopper">English demo</a> · <a href="https://huggingface.co/spaces/wiiiktor/chopper-pl">Polish demo</a><br><em>They run the recommended <b>base</b> chopper (0.31B) on your CPU, with <b>small</b> (0.14B) as a faster option.</em></p>
+<p align="center"><b>See it on real examples:</b> <a href="examples/chopper_vs_opus_20_examples_en.pdf">20 English questions, Chopper vs Opus 5.5 vs gold (PDF)</a></p>
+
+> **Where this is going.** The standalone chopper is a first, practical step. The main idea is an **integrated chopper**: chopping built into the answering LLM itself, reading the model's own cache of the session instead of re-encoding the text in a second model, which should give the highest possible quality and speed. A proof of concept with MiniCPM3-4B is described [here](docs/DETAILS.md#a-host-with-latent-attention-minicpm3-4b).
 
 ## Chopper 0.3B close to Opus 5.5 in cutting out the best pieces
 
