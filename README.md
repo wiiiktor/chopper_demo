@@ -21,7 +21,7 @@ quote directly.
 
 ### A reranker that also gives you the chops
 
-<p align="center"><img src="figures/chopper_reranker.svg" width="100%" alt="Two pipelines. Top: 16 retrieved passages go into a reranker, which scores each passage and outputs them ranked; the LLM then reads whole passages, mostly text it does not need. Bottom: the same 16 passages go into the Chopper in one pass, which outputs the same ranking plus the chops highlighted inside the top passages; the LLM reads only the chops, exact quotes, about 2 to 5 percent of the text. Ranking quality nDCG@10 on 8 languages with 16 passages per query: Chopper 0.973, bge-reranker-v2-m3 0.984, Qwen3-Reranker-4B 0.986, at the same speed as bge (0.20 s), chops included."></p>
+<p align="center"><img src="figures/chopper_reranker_v2.svg" width="100%" alt="Two pipelines. Top: 16 retrieved passages go into a reranker, which scores each passage and outputs them ranked; the LLM then reads whole passages, mostly text it does not need. Bottom: the same 16 passages go into the Chopper in one pass, which outputs the same ranking plus the chops highlighted inside the top passages; the LLM reads only the chops, exact quotes, about 2 to 5 percent of the text. Ranking quality nDCG@10 on 8 languages with 16 passages per query: Chopper 0.973, bge-reranker-v2-m3 0.984, Qwen3-Reranker-4B 0.986, at the same speed as bge (0.20 s), chops included."></p>
 
 One model replaces both the reranker and the compressor. Full comparison: [below](#also-a-reranker-ranking-and-chopping-in-one-pass).
 
