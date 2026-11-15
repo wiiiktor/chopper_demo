@@ -1,0 +1,9 @@
+name = "chopper-demo-proxy"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+# 10 requests per minute per visitor IP (each question = 2 requests: with and without Chopper)
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }

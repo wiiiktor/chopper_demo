@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chopper: with and without</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono&display=swap">
+<style>
+:root{--teal:#2f7d6d;--ink:#1b211f;--grey:#5d6863;--line:#d9ddd6;--pale:#eef0ec;--bg:#fbfbf9;--card:#ffffff;--mark:#cfe6df;--warn:#9a5b13;--good:#2f7d4f;--bad:#a8432f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--teal:#5fb3a0;--ink:#e6ebe8;--grey:#a3ada8;--line:#34403b;--pale:#1d2522;--bg:#121816;--card:#18201d;--mark:#24534a;--warn:#e0a35a;--good:#6cc08f;--bad:#e08a75}}
+:root[data-theme="dark"]{--teal:#5fb3a0;--ink:#e6ebe8;--grey:#a3ada8;--line:#34403b;--pale:#1d2522;--bg:#121816;--card:#18201d;--mark:#24534a;--warn:#e0a35a;--good:#6cc08f;--bad:#e08a75}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "IBM Plex Sans",system-ui,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:28px 16px 48px}
+h1{font-size:30px;margin:0 0 4px;letter-spacing:-.01em}
+.lede{color:var(--grey);max-width:74ch;margin:0 0 6px}
+.links{font-size:14px;color:var(--grey);margin:0 0 18px}
+a{color:var(--ink);text-decoration:none;border-bottom:1px dashed var(--grey)}
+code{font:13px "IBM Plex Mono",monospace;background:var(--pale);padding:1px 5px;border-radius:3px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:0 0 18px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+.tile .k{font-size:12px;font-weight:600;color:var(--grey);letter-spacing:.03em}
+.tile .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.tile .s{font-size:13px;color:var(--grey)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px}
+label{display:block;font-size:13px;font-weight:600;color:var(--grey);margin:0 0 4px;letter-spacing:.02em}
+input{width:100%;font:16px/1.5 "IBM Plex Sans",sans-serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:9px 11px}
+input:focus,button:focus-visible,summary:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+button{font:600 15px "IBM Plex Sans",sans-serif;border:1px solid var(--teal);background:var(--teal);color:#fff;border-radius:4px;padding:8px 18px;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+.status{font-size:14px;color:var(--grey)}
+.bar{height:4px;background:var(--pale);border-radius:2px;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;width:0;background:var(--teal);transition:width .2s}
+.exs{width:100%;border-collapse:separate;border-spacing:0 4px;margin:10px 0 18px;font-size:14px}
+.exs th{text-align:left;font-size:12px;letter-spacing:.04em;color:var(--grey);font-weight:600;padding:4px 10px}
+.exs td{padding:8px 10px;vertical-align:top;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.exs tr{cursor:pointer} .exs tr:focus-visible td{outline:2px solid var(--teal)}
+.exs td.q{background:var(--card);border-left:1px solid var(--line);border-radius:5px 0 0 5px;width:52%}
+.exs td.okc{background:#dff0e3;color:#1f5e33} .exs td.noc{background:#f6ddd7;color:#7d2b1c}
+.exs td:last-child{border-radius:0 5px 5px 0;border-right:1px solid var(--line)}
+.exs tr.sel td.q{box-shadow:inset 4px 0 0 var(--teal);font-weight:600}
+.exs .n{color:var(--grey);font-variant-numeric:tabular-nums;margin-right:6px}
+.exs .a{font-weight:600} .exs .mk{font-weight:700;margin-right:4px}
+@media (max-width:640px){.exs td.q{width:auto}.exs td{padding:6px}}
+.live{border:2px solid var(--teal);border-radius:6px;background:#eef6f3;padding:12px 14px;margin:0 0 12px;font-size:15px}
+.live b.t{display:block;font-size:16px;margin-bottom:4px;color:var(--teal)}
+.live ol{margin:6px 0 0 18px;padding:0}
+.ex{display:flex;gap:8px;align-items:flex-start;text-align:left;font:400 14px/1.4 "IBM Plex Sans",sans-serif;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:8px 10px}
+.ex[aria-pressed="true"]{border-color:var(--teal);box-shadow:inset 3px 0 0 var(--teal)}
+.ex .n{font-weight:600;color:var(--grey);font-variant-numeric:tabular-nums;min-width:1.6em}
+.ex .r{margin-left:auto;white-space:nowrap;font-size:13px;color:var(--grey)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media (max-width:760px){.pair{grid-template-columns:1fr}}
+.side h3{margin:0 0 2px;font-size:15px}
+.side .meta{font-size:13px;color:var(--grey);margin-bottom:10px}
+.ans{font-size:19px;font-weight:600;margin:0 0 6px;word-break:break-word}
+.pill{display:inline-block;font-size:13px;font-weight:600;padding:1px 8px;border-radius:10px;border:1px solid currentColor}
+.pill.ok{color:var(--good)} .pill.no{color:var(--bad)} .pill.na{color:var(--grey)}
+.gold{font-size:14px;color:var(--grey);margin-top:12px}
+details{margin-top:14px;border:1px solid var(--line);border-radius:5px;background:var(--card)}
+details>summary{cursor:pointer;padding:9px 12px;font-size:14px;font-weight:600}
+details .body{padding:0 12px 12px;font-size:14px}
+.chop{border-left:3px solid var(--teal);padding:4px 10px;margin:8px 0;background:var(--pale);border-radius:0 4px 4px 0}
+.chop .t{font-size:12px;color:var(--grey)}
+.para{margin:8px 0;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.para b{font-weight:600}
+.note{font-size:13px;color:var(--grey);margin-top:20px;max-width:92ch}
+.warn{color:var(--warn)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Chopper: with and without</h1>
+  <p class="lede">A question that needs <b>two facts</b> from 20 retrieved Wikipedia paragraphs. <b>Without Chopper</b>, Qwen3-14B reads all 20 paragraphs. <b>With Chopper</b>, it reads only the exact quotes Chopper cut out, about 12× fewer tokens. Same model, same prompt.</p>
+  <p class="links"><a target="_top" href="https://github.com/wiiiktor/chopper_demo#readme">GitHub</a> · <a target="_top" href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <a target="_top" href="https://huggingface.co/spaces/wiiiktor/chopper-playground">playground: chop your own text</a> · <code>pip install chopper-rag</code> · <b>MIT, commercial use allowed</b></p>
+
+  <div class="summary" id="sum"></div>
+
+  <section class="card" aria-labelledby="ql">
+    <div class="live"><b class="t">Ask your own question, answered live</b>Type any question about the same 20 paragraphs into the box below and press <b>Ask Qwen3-14B live</b>.<ol><li>Chopper cuts the chops <b>in your browser</b> (first time: downloads the model, ~450 MB; 10–60 s).</li><li>Qwen3-14B then answers <b>live, twice</b>: once reading all 20 paragraphs, once reading only the chops.</li></ol>The 20 examples below are precomputed; only your own question calls the model.</div>
+    <label id="ql" for="q">Question</label>
+    <input id="q" autocomplete="off">
+    <div class="row">
+      <button id="ask" disabled>Ask Qwen3-14B live</button>
+      <span class="status" id="st">Showing a precomputed example. Edit the question to ask your own.</span>
+    </div>
+    <div class="bar" id="barw" hidden><i id="pb"></i></div>
+    <details id="paras"><summary>Retrieved paragraphs (20): what Qwen reads without Chopper</summary><div class="body" id="pl"></div></details>
+  </section>
+
+  <div class="pair" aria-live="polite">
+    <section class="card side">
+      <h3>Without Chopper</h3>
+      <div class="meta" id="wm"></div>
+      <p class="ans" id="wa"></p>
+      <span id="wk"></span>
+    </section>
+    <section class="card side">
+      <h3>With Chopper</h3>
+      <div class="meta" id="cm"></div>
+      <p class="ans" id="ca"></p>
+      <span id="ck"></span>
+    </section>
+  </div>
+  <p class="gold" id="gold"></p>
+  <details id="chops"><summary id="chs">Show chops</summary><div class="body" id="chl"></div></details>
+
+  <h2 style="font-size:18px;margin:26px 0 0">20 example questions: Qwen3-14B's answers</h2>
+  <p class="status" style="margin:4px 0 0">Green = correct, red = wrong. Sorted: questions Chopper got right first. Click a row to see it above.</p>
+  <table class="exs"><thead><tr><th>Question</th><th>Without Chopper</th><th>With Chopper</th></tr></thead><tbody id="exs"></tbody></table>
+
+  <p class="note">Data: MuSiQue 2-hop development questions (CC BY 4.0), each with the 20 paragraphs MuSiQue provides. Answers by Qwen3-14B (no thinking, answer only, temperature 0), judged against the gold answer and its aliases by an LLM judge. The 20 examples were drawn at random, stratified to match the result on all 100 two-hop questions of our hop study; chops are the released Chopper's raw output (what Qwen read), so some start or end mid-sentence. For your own questions Chopper runs here in your browser (base model, whole sentences) and Qwen3-14B answers through a small proxy; nothing is stored. <a target="_top" href="https://github.com/wiiiktor/chopper_demo#readme">Full results</a>.</p>
+</main>
+
+<script type="module">
+// Live answers go through a Cloudflare Worker that holds the OpenRouter key (release/space_worker). Set its URL here.
+const WORKER_URL = "https://chopper-demo-proxy.space-worker.workers.dev";
+
+import { PreTrainedTokenizer } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js";
+import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/ort.wasm.min.mjs";
+import { Chopper } from "./chopper.js";
+
+const ROOT = "https://huggingface.co/wiiiktor/chopper_mmbert/resolve/a4bf00014d3f5da4342e69281ed0adc2ec47feb5/onnx/mmbert-base/";
+const SIZE = { "model.onnx": 418.9e6, "tokenizer.json": 34.4e6 };
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = n => Number(n).toLocaleString("en");
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/";
+ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(8, navigator.hardwareConcurrency || 4) : 1;
+const liveConfigured = /^https:\/\/[^<>\s]+$/.test(WORKER_URL);
+
+const DATA = await (await fetch("./examples.json")).json();
+const EX = DATA.examples, S = DATA.summary;
+let cur = 0;
+
+// ---- summary tiles
+const pct = (a, b) => `${Math.round(100 * a / b)}%`;
+$("sum").innerHTML = `
+  <div class="tile"><div class="k">WITHOUT CHOPPER (these 20)</div><div class="v">${S.without_ok} / ${S.n} correct</div><div class="s">${fmt(S.without_tokens)} tokens read on average</div></div>
+  <div class="tile"><div class="k">WITH CHOPPER (these 20)</div><div class="v">${S.with_ok} / ${S.n} correct</div><div class="s">${fmt(S.with_tokens)} tokens read on average</div></div>
+  <div class="tile"><div class="k">ALL ${S.full100.n} TWO-HOP QUESTIONS</div><div class="v">${pct(S.full100.without_ok, S.full100.n)} → ${pct(S.full100.with_ok, S.full100.n)}</div><div class="s">${fmt(S.full100.without_tokens)} → ${fmt(S.full100.with_tokens)} tokens · <a target="_top" href="https://github.com/wiiiktor/chopper_demo#readme">README</a></div></div>`;
+
+// ---- example table: sorted with-Chopper correct first, then without-Chopper correct first
+const ORDER = EX.map((e, i) => i).sort((a, b) => (EX[b].with.ok - EX[a].with.ok) || (EX[b].without.ok - EX[a].without.ok) || a - b);
+ORDER.forEach(i => {
+  const e = EX[i], tr = document.createElement("tr"); tr.className = "ex"; tr.tabIndex = 0; tr.dataset.i = i;
+  const cell = x => `<td class="${x.ok ? "okc" : "noc"}"><span class="mk">${x.ok ? "✓" : "✗"}</span><span class="a">${esc(x.answer)}</span></td>`;
+  tr.innerHTML = `<td class="q"><span class="n">${i + 1}</span>${esc(e.question)}</td>${cell(e.without)}${cell(e.with)}`;
+  const go = () => { show(i); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  tr.onclick = go; tr.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); } };
+  $("exs").appendChild(tr);
+});
+
+const paraText = e => e.paragraphs.map(p => `${p.title}\n${p.text}`);       // exactly the notes Qwen read without Chopper
+function renderParas(e) {
+  $("pl").innerHTML = e.paragraphs.map((p, i) => `<div class="para"><b>${i + 1}. ${esc(p.title)}</b><br>${esc(p.text)}</div>`).join("");
+}
+const pill = ok => ok === null ? `<span class="pill na">no gold answer</span>` : ok ? `<span class="pill ok">✓ correct</span>` : `<span class="pill no">✗ wrong</span>`;
+
+function show(i) {
+  cur = i; const e = EX[i];
+  document.querySelectorAll("tr.ex").forEach(r => r.classList.toggle("sel", +r.dataset.i === i));
+  $("q").value = e.question; renderParas(e);
+  $("wm").textContent = `Qwen3-14B read all 20 paragraphs: ${fmt(e.without.tokens)} tokens`;
+  $("cm").textContent = `Qwen3-14B read only the chops: ${fmt(e.with.tokens)} tokens`;
+  $("wa").textContent = e.without.answer || "(no answer)"; $("wk").innerHTML = pill(e.without.ok);
+  $("ca").textContent = e.with.answer || "(no answer)"; $("ck").innerHTML = pill(e.with.ok);
+  $("gold").innerHTML = `Gold answer: <b>${esc(e.gold)}</b>${e.aliases && e.aliases.length ? ` (also accepted: ${esc(e.aliases.join("; "))})` : ""} · example ${i + 1} of ${EX.length}, precomputed`;
+  renderChops(e.with.chops.map(t => ({ text: t })), "precomputed: what Qwen read");
+  $("ask").disabled = true; $("st").textContent = "Showing a precomputed example. Edit the question to ask your own.";
+}
+
+function renderChops(list, how) {
+  $("chs").textContent = `Show chops (${list.length}, ${how})`;
+  const body = c => c.title && c.text.startsWith(c.title + " ") ? c.text.slice(c.title.length + 1) : c.text;   // title shown above
+  $("chl").innerHTML = list.length ? list.map(c => `<div class="chop">${c.title ? `<div class="t">${esc(c.title)}</div>` : ""}${esc(body(c))}</div>`).join("")
+                                   : `<p class="status">Chopper kept nothing: it judged the paragraphs do not answer the question.</p>`;
+}
+
+$("q").addEventListener("input", () => {
+  const changed = $("q").value.trim() && $("q").value.trim() !== EX[cur].question;
+  $("ask").disabled = !changed;
+  $("st").textContent = changed ? (liveConfigured ? "Press Ask (or Enter): Chopper cuts the paragraphs here, then Qwen3-14B answers twice."
+                                                  : "Press Ask (or Enter): Chopper cuts the paragraphs here. Live Qwen answers are not configured yet.")
+                                : "Showing a precomputed example. Edit the question to ask your own.";
+});
+$("q").addEventListener("keydown", ev => { if (ev.key === "Enter" && !$("ask").disabled) { ev.preventDefault(); ask(); } });
+$("ask").onclick = ask;
+
+// ---- chopper model (loaded only for the first own question)
+let chopperP = null;
+function progress(got) {
+  const d = Object.values(got).reduce((a, b) => a + b, 0), t = SIZE["model.onnx"] + SIZE["tokenizer.json"];
+  $("pb").style.width = `${Math.min(100, 100 * d / t).toFixed(1)}%`;
+  $("st").textContent = `Loading Chopper (base, once; then cached): ${(d / 1e6).toFixed(0)} of ${(t / 1e6).toFixed(0)} MB…`;
+}
+async function fetchBytes(name, got) {
+  let cache = null;
+  try { cache = await caches.open("chopper-v2"); const hit = await cache.match(ROOT + name); if (hit) { const b = new Uint8Array(await hit.arrayBuffer()); got[name] = SIZE[name] || b.length; progress(got); return b; } } catch (_) { cache = null; }
+  const r = await fetch(ROOT + name); if (!r.ok) throw new Error(`${name}: HTTP ${r.status}`);
+  const reader = r.body.getReader(); const parts = []; let n = 0;
+  for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); n += value.length; if (SIZE[name]) { got[name] = n; progress(got); } }
+  const b = new Uint8Array(n); let o = 0; for (const p of parts) { b.set(p, o); o += p.length; }
+  try { if (cache) await cache.put(ROOT + name, new Response(b)); } catch (_) {}
+  return b;
+}
+function loadChopper() {
+  if (!chopperP) chopperP = (async () => {
+    $("barw").hidden = false; const got = {}; const dec = new TextDecoder();
+    const [m, tj, tc, cc] = await Promise.all(["model.onnx", "tokenizer.json", "tokenizer_config.json", "chopper_config.json"].map(n => fetchBytes(n, got)));
+    $("st").textContent = "Starting Chopper…";
+    const session = await ort.InferenceSession.create(m, { executionProviders: ["wasm"] });
+    const ch = new Chopper(new PreTrainedTokenizer(JSON.parse(dec.decode(tj)), JSON.parse(dec.decode(tc))), session, ort, JSON.parse(dec.decode(cc)));
+    ch.snap = "sentence"; $("pb").style.width = "100%"; return ch;
+  })().catch(e => { chopperP = null; throw e; });
+  return chopperP;
+}
+
+async function qwen(question, notes) {
+  const t0 = performance.now();
+  const r = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, notes }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+  return { ...d, ms: Math.round(performance.now() - t0) };
+}
+
+let busy = false;
+async function ask() {
+  const q = $("q").value.trim(); if (!q || busy) return;
+  busy = true; $("ask").disabled = true;
+  const e = EX[cur];
+  document.querySelectorAll(".ex").forEach(b => b.setAttribute("aria-pressed", "false"));
+  $("gold").textContent = "Your own question: there is no gold answer, so judge the two answers yourself.";
+  for (const k of ["wa", "ca"]) $(k).textContent = "…";
+  $("wk").innerHTML = $("ck").innerHTML = pill(null);
+  $("wm").textContent = "Qwen3-14B reads all 20 paragraphs"; $("cm").textContent = "Qwen3-14B reads only the chops";
+  try {
+    const ch = await loadChopper();
+    $("st").textContent = "Chopper is cutting the 20 paragraphs on your CPU (about 3,000 tokens; 10–60 s depending on your computer)…";
+    const paras = paraText(e), t0 = performance.now();
+    const r = await ch.run(q, paras);
+    const cms = Math.round(performance.now() - t0);
+    const chops = r.chops.map(c => ({ title: e.paragraphs[c.passage].title, text: c.text.replace(/\s*\n\s*/g, " ") }));
+    renderChops(chops, `cut live in your browser in ${(cms / 1000).toFixed(1)} s`);
+    const full = paras.join("\n\n"), short = chops.map(c => `- ${c.text}`).join("\n");
+    const kept = short.length;
+    $("cm").textContent = `Qwen3-14B reads only the chops: ${fmt(kept)} of ${fmt(full.length)} characters · Chopper says ${r.decision}`;
+    if (!liveConfigured) {
+      $("wa").textContent = $("ca").textContent = "Live answers are not configured yet";
+      $("st").innerHTML = `<span class="warn">Live Qwen answers are not configured yet. The chops above were cut live; the 20 examples below show precomputed answers.</span>`;
+      return;
+    }
+    $("st").textContent = "Qwen3-14B is answering both ways…";
+    const [a, b] = await Promise.allSettled([qwen(q, full), qwen(q, short)]);
+    const put = (res, ak, mk, label) => {
+      if (res.status === "fulfilled") {
+        $(ak).textContent = res.value.answer || "(no answer)";
+        $(mk).textContent = `${label}: ${res.value.prompt_tokens ? fmt(res.value.prompt_tokens) + " tokens · " : ""}${(res.value.ms / 1000).toFixed(1)} s`;
+      } else { $(ak).textContent = "—"; $(mk).innerHTML = `<span class="warn">${esc(res.reason.message.includes("Failed to fetch") ? "Live answers not reachable right now." : res.reason.message)}</span>`; }
+    };
+    put(a, "wa", "wm", "Qwen3-14B read all 20 paragraphs");
+    put(b, "ca", "cm", "Qwen3-14B read only the chops");
+    $("st").textContent = "Done. Change the question to ask again, or pick an example.";
+  } catch (err) {
+    $("st").innerHTML = `<span class="warn">${esc(err.message)}</span>`;
+  } finally {
+    busy = false; $("barw").hidden = true;
+    $("ask").disabled = !($("q").value.trim() && $("q").value.trim() !== EX[cur].question);
+  }
+}
+
+// open on the first example where Chopper changes the outcome (the list below shows all 20, wins and losses)
+show(Math.max(0, EX.findIndex(e => !e.without.ok && e.with.ok)));
+</script>
+</body>
+</html>

@@ -51,7 +51,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 </head>
 <body>
 <main>
-  <h1>Chopper <span style="font-size:.5em;font-weight:400"><a target="_top" href="https://huggingface.co/spaces/wiiiktor/chopper">English</a></span></h1>
+  <h1>Chopper <span style="font-size:.5em;font-weight:400"><a target="_top" href="https://huggingface.co/spaces/wiiiktor/chopper-playground">English</a></span></h1>
   <p class="lede">Wklej pytanie i długi tekst (wyniki wyszukiwania, dokumenty, notatki). Chopper zostawia tylko <b>dokładne cytaty</b>, które na nie odpowiadają, zwykle 2–5% tekstu, i porządkuje fragmenty według trafności, w jednym przebiegu małego otwartego modelu. <b>Działa w Twojej przeglądarce: nic nie jest wysyłane na serwer.</b></p>
   <p class="links"><a target="_top" href="https://github.com/wiiiktor/chopper_demo">GitHub</a> · <a target="_top" href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <code>pip install chopper-rag</code> (LangChain, LlamaIndex, Haystack) · serwer MCP <code>uvx chopper-rag</code> · <b>MIT, także do użytku komercyjnego</b></p>
 
@@ -78,7 +78,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
       <table id="rk" hidden><thead><tr><th>Miejsce</th><th>Fragment</th><th>Trafność</th><th>Zachowane z tego fragmentu</th></tr></thead><tbody></tbody></table>
     </section>
   </div>
-  <p class="note">Modele: polski <code>base-pl</code> (mmBERT-base, 0,31 mld parametrów, domyślny i dokładniejszy) lub <code>small-pl</code> (mmBERT-small, 0,14 mld, szybszy), osadzenia int8 i macierze fp16. Trafność = średnie p(KEEP) 16 najbardziej prawdopodobnych tokenów fragmentu: chopper jako reranker. Na GPU pakiet Pythona potrzebuje ok. 0,1 s na 16 fragmentów; tutaj liczy Twój procesor. <a target="_top" href="https://huggingface.co/spaces/wiiiktor/chopper">English version</a>.</p>
+  <p class="note">Modele: polski <code>base-pl</code> (mmBERT-base, 0,31 mld parametrów, domyślny i dokładniejszy) lub <code>small-pl</code> (mmBERT-small, 0,14 mld, szybszy), osadzenia int8 i macierze fp16. Trafność = średnie p(KEEP) 16 najbardziej prawdopodobnych tokenów fragmentu: chopper jako reranker. Na GPU pakiet Pythona potrzebuje ok. 0,1 s na 16 fragmentów; tutaj liczy Twój procesor. <a target="_top" href="https://huggingface.co/spaces/wiiiktor/chopper-playground">English version</a>.</p>
 </main>
 
 <script type="module">
