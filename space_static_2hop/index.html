@@ -77,9 +77,8 @@ button:disabled:has(.spin){opacity:.85}
 .cchops ul{margin:0;padding-left:18px}
 .cchops li{margin:3px 0}
 .cchops mark{background:var(--mark);color:inherit;border-radius:2px;padding:0 2px}
-#wm,#cm{display:inline-block;border-radius:4px;padding:3px 9px;font-weight:600}
-#wm{background:var(--rustbg);color:var(--rustfg)} #cm{background:var(--greenbg);color:var(--greenfg)}
-#wm:empty,#cm:empty{display:none}
+.bdg{display:inline-block;border-radius:4px;padding:2px 8px;font-weight:600;white-space:nowrap}
+.bdg.r{background:var(--rustbg);color:var(--rustfg)} .bdg.g{background:var(--greenbg);color:var(--greenfg)}
 .wait{font-size:15px;font-weight:400;color:var(--grey);font-style:italic}
 .para{margin:8px 0;padding-bottom:8px;border-bottom:1px solid var(--line)}
 #pl{max-height:520px;overflow:auto}
@@ -134,7 +133,7 @@ button:disabled:has(.spin){opacity:.85}
   <p class="gold" id="gold"></p>
 
 
-  <p class="note">Data: MuSiQue 2-hop development questions (CC BY 4.0), each with the 20 paragraphs MuSiQue provides. Answers by Qwen3-14B (no thinking, answer only, temperature 0), judged against the gold answer and its aliases by an LLM judge. The 20 examples were drawn at random, stratified to match the result on all 100 two-hop questions of our hop study; chops are the released Chopper's raw output (what Qwen read), so some start or end mid-sentence. For your own questions Chopper runs here in your browser (base model, whole sentences) and Qwen3-14B answers through a small proxy; nothing is stored. <a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">Full results</a>.</p>
+  <p class="note">Data: MuSiQue 2-hop development questions (CC BY 4.0), each with the 20 paragraphs MuSiQue provides. Answers by Qwen3-14B (no thinking, answer only, temperature 0), judged against the gold answer and its aliases by an LLM judge. The 20 examples were drawn at random, stratified to match the result on all 100 two-hop questions of our hop study; chops are the released Chopper's raw output (what Qwen read), so some start or end mid-sentence. For your own questions Chopper runs here in your browser (base model, whole sentences) and Qwen3-14B answers through a small proxy; nothing is stored. <a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">Full results</a>. * Time: an estimate for one RTX 3090 running Qwen3-14B (4-bit): about 1,800 prompt tokens per second plus about 0.25 s to write a short answer; with Chopper add 0.16 s for Chopper itself (measured 155 ms per lookup). Live answers come through OpenRouter, so their real time depends on the network.</p>
 </main>
 
 <script type="module">
@@ -214,14 +213,18 @@ function showAns(id, a, note = true) {                     // "not in notes" is 
   const el = $(id), x = (a || "").trim();
   if (/^not in notes\.?$/i.test(x)) el.innerHTML = `Not in these paragraphs${note ? `<span class="nan">Qwen answers only from the text it read, not from its own knowledge.</span>` : ""}`; else el.textContent = x || "(no answer)";
 }
+// time shown = ESTIMATE for one RTX 3090 running Qwen3-14B 4-bit (not OpenRouter's network time):
+// ~1,800 prompt tokens/s prefill + ~0.25 s to write a short answer; with Chopper + 0.16 s for Chopper itself (measured 155 ms per lookup)
+const estS = (tok, chop) => tok / 1800 + 0.25 + (chop ? 0.16 : 0);
+const badge = (tok, chop) => `<span class="bdg ${chop ? "g" : "r"}">${fmt(tok)} tokens · ≈${estS(tok, chop).toFixed(1).replace(".", ".")} s*</span>`;
 const pill = ok => ok === null ? `<span class="pill na">no gold answer</span>` : ok ? `<span class="pill ok">✓ correct</span>` : `<span class="pill no">✗ wrong</span>`;
 
 function show(i) {
   cur = i; const e = EX[i]; $("topics").innerHTML = `This example's paragraphs are about: <b>${esc([...new Set(e.paragraphs.map(p => p.title))].join(" · "))}</b>. Ask about what these paragraphs say; Qwen does not use its own knowledge here.`; $("qsrc").textContent = `(paragraphs of example ${i + 1})`;
   document.querySelectorAll("tr.exr").forEach(r => r.classList.toggle("sel", +r.dataset.i === i));
   $("q").value = e.question;
-  $("wm").textContent = `Qwen3-14B read all 20 paragraphs: ${fmt(e.without.tokens)} tokens`;
-  $("cm").textContent = `Qwen3-14B read only the chops: ${fmt(e.with.tokens)} tokens`;
+  $("wm").innerHTML = `Qwen3-14B read all 20 paragraphs: ${badge(e.without.tokens, false)}`;
+  $("cm").innerHTML = `Qwen3-14B read only the chops: ${badge(e.with.tokens, true)}`;
   showAns("wa", e.without.answer); $("wk").innerHTML = pill(e.without.ok);
   showAns("ca", e.with.answer); $("ck").innerHTML = pill(e.with.ok);
   $("gold").innerHTML = `Gold answer: <b>${esc(e.gold)}</b>${e.aliases && e.aliases.length ? ` (also accepted: ${esc(e.aliases.join("; "))})` : ""} · example ${i + 1} of ${EX.length}, precomputed`;
@@ -316,7 +319,7 @@ async function ask() {
     const put = (res, ak, mk, label) => {
       if (res.status === "fulfilled") {
         showAns(ak, res.value.answer + (res.value.cut ? " …" : ""), false);
-        $(mk).textContent = `${label}: ${res.value.prompt_tokens ? fmt(res.value.prompt_tokens) + " tokens · " : ""}${(res.value.ms / 1000).toFixed(1)} s`;
+        $(mk).innerHTML = res.value.prompt_tokens ? `${label}: ${badge(res.value.prompt_tokens, mk === "cm")}` : label;
       } else { $(ak).textContent = "—"; $(mk).innerHTML = `<span class="warn">${esc(res.reason.message.includes("Failed to fetch") ? "Live answers not reachable right now." : res.reason.message)}</span>`; }
     };
     put(a, "wa", "wm", "Qwen3-14B read all 20 paragraphs");

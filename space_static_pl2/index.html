@@ -77,9 +77,8 @@ button:disabled:has(.spin){opacity:.85}
 .cchops ul{margin:0;padding-left:18px}
 .cchops li{margin:3px 0}
 .cchops mark{background:var(--mark);color:inherit;border-radius:2px;padding:0 2px}
-#wm,#cm{display:inline-block;border-radius:4px;padding:3px 9px;font-weight:600}
-#wm{background:var(--rustbg);color:var(--rustfg)} #cm{background:var(--greenbg);color:var(--greenfg)}
-#wm:empty,#cm:empty{display:none}
+.bdg{display:inline-block;border-radius:4px;padding:2px 8px;font-weight:600;white-space:nowrap}
+.bdg.r{background:var(--rustbg);color:var(--rustfg)} .bdg.g{background:var(--greenbg);color:var(--greenfg)}
 .wait{font-size:15px;font-weight:400;color:var(--grey);font-style:italic}
 .para{margin:8px 0;padding-bottom:8px;border-bottom:1px solid var(--line)}
 #pl{max-height:520px;overflow:auto}
@@ -134,7 +133,7 @@ button:disabled:has(.spin){opacity:.85}
   <p class="gold" id="gold"></p>
 
 
-  <p class="note">Dane: 100 dwuetapowych pytań walidacyjnych MuSiQue z naszego badania liczby kroków (CC BY 4.0), każde z 20 akapitami, które daje MuSiQue; pytania, odpowiedzi i akapity przetłumaczył na polski model GPT-6 Luna. Cytaty: polski Chopper base-pl (surowy wynik, to czytał Qwen). Odpowiedzi: Qwen3-14B przez OpenRouter (bez myślenia, sama odpowiedź, temperatura 0), dokładnie tym samym zapytaniem co Twoje pytania; ocenione przez sędziego LLM względem wzorcowej odpowiedzi (polskiej lub angielskiej). Na wszystkich 100 pytaniach: 33% bez Choppera vs 43% z Chopperem, 3864 vs 243 tokeny (dla porównania angielski oryginał: 28% vs 48%). 20 przykładów wylosowano warstwowo, tak by odpowiadały wynikowi na 100 pytaniach. Dla Twoich pytań Chopper działa w przeglądarce (base-pl, całe zdania), a Qwen3-14B odpowiada przez małe proxy; nic nie jest zapisywane. <a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">Pełne wyniki</a>.</p>
+  <p class="note">Dane: 100 dwuetapowych pytań walidacyjnych MuSiQue z naszego badania liczby kroków (CC BY 4.0), każde z 20 akapitami, które daje MuSiQue; pytania, odpowiedzi i akapity przetłumaczył na polski model GPT-6 Luna. Cytaty: polski Chopper base-pl (surowy wynik, to czytał Qwen). Odpowiedzi: Qwen3-14B przez OpenRouter (bez myślenia, sama odpowiedź, temperatura 0), dokładnie tym samym zapytaniem co Twoje pytania; ocenione przez sędziego LLM względem wzorcowej odpowiedzi (polskiej lub angielskiej). Na wszystkich 100 pytaniach: 33% bez Choppera vs 43% z Chopperem, 3864 vs 243 tokeny (dla porównania angielski oryginał: 28% vs 48%). 20 przykładów wylosowano warstwowo, tak by odpowiadały wynikowi na 100 pytaniach. Dla Twoich pytań Chopper działa w przeglądarce (base-pl, całe zdania), a Qwen3-14B odpowiada przez małe proxy; nic nie jest zapisywane. <a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">Pełne wyniki</a>. * Czas: szacunek dla jednej karty RTX 3090 z Qwen3-14B (4-bit): ok. 1800 tokenów promptu na sekundę plus ok. 0,25 s na krótką odpowiedź; z Chopperem dodatkowo 0,16 s na sam Chopper (zmierzone 155 ms). Odpowiedzi na żywo przychodzą przez OpenRouter, więc ich rzeczywisty czas zależy od sieci.</p>
 </main>
 
 <script type="module">
@@ -214,14 +213,18 @@ function showAns(id, a, note = true) {                     // "not in notes" is 
   const el = $(id), x = (a || "").trim();
   if (/^not in notes\.?$/i.test(x)) el.innerHTML = `Nie ma tego w tych fragmentach${note ? `<span class="nan">Qwen odpowiada tylko na podstawie przeczytanego tekstu, nie z własnej wiedzy.</span>` : ""}`; else el.textContent = x || "(no answer)";
 }
+// time shown = ESTIMATE for one RTX 3090 running Qwen3-14B 4-bit (not OpenRouter's network time):
+// ~1,800 prompt tokens/s prefill + ~0.25 s to write a short answer; with Chopper + 0.16 s for Chopper itself (measured 155 ms per lookup)
+const estS = (tok, chop) => tok / 1800 + 0.25 + (chop ? 0.16 : 0);
+const badge = (tok, chop) => `<span class="bdg ${chop ? "g" : "r"}">${fmt(tok)} tokenów · ≈${estS(tok, chop).toFixed(1).replace(".", ",")} s*</span>`;
 const pill = ok => ok === null ? `<span class="pill na">brak wzorcowej odpowiedzi</span>` : ok ? `<span class="pill ok">✓ poprawnie</span>` : `<span class="pill no">✗ błędnie</span>`;
 
 function show(i) {
   cur = i; const e = EX[i]; $("topics").innerHTML = `Te fragmenty dotyczą: <b>${esc([...new Set(e.paragraphs.map(p => p.title))].join(" · "))}</b>. Pytaj o to, co jest w tych fragmentach; Qwen nie korzysta z własnej wiedzy.`; $("qsrc").textContent = `(fragmenty przykładu ${i + 1})`;
   document.querySelectorAll("tr.exr").forEach(r => r.classList.toggle("sel", +r.dataset.i === i));
   $("q").value = e.question;
-  $("wm").textContent = `Qwen3-14B przeczytał wszystkie fragmenty: ${fmt(e.without.tokens)} tokenów`;
-  $("cm").textContent = `Qwen3-14B przeczytał tylko cytaty: ${fmt(e.with.tokens)} tokenów`;
+  $("wm").innerHTML = `Qwen3-14B przeczytał wszystkie fragmenty: ${badge(e.without.tokens, false)}`;
+  $("cm").innerHTML = `Qwen3-14B przeczytał tylko cytaty: ${badge(e.with.tokens, true)}`;
   showAns("wa", e.without.answer); $("wk").innerHTML = pill(e.without.ok);
   showAns("ca", e.with.answer); $("ck").innerHTML = pill(e.with.ok);
   $("gold").innerHTML = `Wzorcowa odpowiedź: <b>${esc(e.gold)}</b>${e.aliases && e.aliases.length ? ` (akceptowane też: ${esc(e.aliases.join("; "))})` : ""} · przykład ${i + 1} z ${EX.length}, policzony wcześniej`;
@@ -316,7 +319,7 @@ async function ask() {
     const put = (res, ak, mk, label) => {
       if (res.status === "fulfilled") {
         showAns(ak, res.value.answer + (res.value.cut ? " …" : ""), false);
-        $(mk).textContent = `${label}: ${res.value.prompt_tokens ? fmt(res.value.prompt_tokens) + " tokenów · " : ""}${(res.value.ms / 1000).toFixed(1)} s`;
+        $(mk).innerHTML = res.value.prompt_tokens ? `${label}: ${badge(res.value.prompt_tokens, mk === "cm")}` : label;
       } else { $(ak).textContent = "—"; $(mk).innerHTML = `<span class="warn">${esc(res.reason.message.includes("Failed to fetch") ? "Odpowiedzi na żywo są teraz niedostępne." : res.reason.message)}</span>`; }
     };
     put(a, "wa", "wm", "Qwen3-14B przeczytał wszystkie fragmenty");
