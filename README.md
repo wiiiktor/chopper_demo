@@ -101,7 +101,8 @@ the paper's own answer model aya-expanse-8b (our no-pruning aya scores match the
 | LLMLingua-2, rate 0.33 | 0.408 (65%) | 0.576 (67%) | 0.307 (64%) | 0.847 (64%) |
 
 - **At the same aggressive cut** (85–90% of the text removed), Chopper ties or beats XProvence; with aya-expanse-8b too
-  (MKQA 0.414 vs 0.415, TyDi QA 0.712 vs 0.712, XPQA 0.410 vs 0.381). It is also **~5× faster** (0.03 s vs 0.17 s per question).
+  (MKQA 0.414 vs 0.415, TyDi QA 0.712 vs 0.712; on XPQA XProvence's 0.7 setting removes 99.6%, so the fair pair is its 0.3
+  setting: 0.410 vs 0.407, removing 87% vs 78%). It is also **~5× faster** (0.03 s vs 0.17 s per question).
 - **XProvence is better at light trimming**: at its default it removes only 23–57% and stays near full accuracy. Chopper always
   keeps a few quotes, which costs 6–9 points against reading everything; on MedExpQA (one long explanation per question) it cuts
   away what the answer needs.
