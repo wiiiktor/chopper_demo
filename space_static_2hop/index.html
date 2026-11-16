@@ -70,11 +70,13 @@ details .body{padding:0 12px 12px;font-size:14px}
 @media (prefers-reduced-motion:reduce){.spin{animation:none}}
 button:disabled:has(.spin){opacity:.85}
 .recap{margin:14px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:6px;background:var(--card)}
-.recap .rq{font-size:16px;font-weight:600;margin:0 0 8px}
+.recap .rq{font-size:16px;font-weight:600;margin:0}
 .recap .rl{font-size:12px;letter-spacing:.04em;color:var(--grey);font-weight:600;margin:0 0 4px}
-.recap ul{margin:0;padding-left:18px}
-.recap li{margin:3px 0}
-.recap mark{background:var(--mark);color:inherit;border-radius:2px;padding:0 2px}
+.cchops{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:14px}
+.cchops .rl,.recap .rl{font-size:12px;letter-spacing:.04em;color:var(--grey);font-weight:600;margin:0 0 4px}
+.cchops ul{margin:0;padding-left:18px}
+.cchops li{margin:3px 0}
+.cchops mark{background:var(--mark);color:inherit;border-radius:2px;padding:0 2px}
 .wait{font-size:15px;font-weight:400;color:var(--grey);font-style:italic}
 .para{margin:8px 0;padding-bottom:8px;border-bottom:1px solid var(--line)}
 #pl{max-height:520px;overflow:auto}
@@ -123,6 +125,7 @@ button:disabled:has(.spin){opacity:.85}
       <div class="meta" id="cm"></div>
       <p class="ans" id="ca"></p>
       <span id="ck"></span>
+      <div class="cchops" id="cchops"></div>
     </section>
   </div>
   <p class="gold" id="gold"></p>
@@ -182,8 +185,9 @@ function renderParas(e, masks, how) {
     return `<div class="para${m && m.some(Boolean) ? " hit" : ""}"><b>${i + 1}. ${seg(0, L)}</b><br>${seg(L + 1, C.length)}</div>`;
   }).join("");
 }
-function renderRecap(q, chops) {             // question + the exact chops, right above the two answers: one glance
-  $("recap").innerHTML = `<p class="rl">QUESTION</p><p class="rq">${esc(q)}</p><p class="rl">CHOPS QWEN READ WITH CHOPPER (${chops.length})</p>` +
+function renderRecap(q, chops) {             // the question above both answers; the chops inside the "With Chopper" card
+  $("recap").innerHTML = `<p class="rl">QUESTION</p><p class="rq">${esc(q)}</p>`;
+  $("cchops").innerHTML = `<p class="rl">CHOPS QWEN READ (${chops.length})</p>` +
     (chops.length ? `<ul>${chops.map(t => `<li><mark>${esc(t)}</mark></li>`).join("")}</ul>` : `<p class="status">(Chopper kept nothing)</p>`);
 }
 function masksFromTexts(e, chops) {            // precomputed chops are plain strings: find them in "title text" (whitespace-insensitive)
