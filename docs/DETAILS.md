@@ -258,6 +258,19 @@ questions, the 8-language rerank pools ([§5](#5-rerank-pilot-8-languages-busine
 of 🤗 [`wiiiktor/chopper_demo`](https://huggingface.co/datasets/wiiiktor/chopper_demo). A curriculum (noisier sources
 first) tied the flat mix, so the flat mix is the one released.
 
+### D. Polish data
+
+| data | rows | source and how it was made | used for | license |
+|---|---|---|---|---|
+| PoQuAD train / validation | 12,000 train; validation held out | Tuora et al., 2022 (IPI PAN), Polish SQuAD-style QA; passages packed into retrieval-like pools | Polish stage (train); `plpqval` KEEP F1 | CC BY 4.0 |
+| PolQA train / validation | 3,652 train; validation held out | Rybak et al., 2024 (IPI PAN), open-domain Polish QA with retrieved passages | Polish stage (train); `plqaval` KEEP F1 | CC BY-SA 4.0 |
+| 856 Polish evaluation questions | 856 | held-out PoQuAD + PolQA questions, 16 snippets each | Qwen3-14B accuracy from chops vs all snippets | as PoQuAD / PolQA |
+| Polish 2-hop evaluation set | 100 | the 100 two-hop MuSiQue dev questions of the hop study ([§7](#7-multi-hop-where-answers-get-lost)) with their 20 paragraphs, question, answer and aliases translated to Polish by GPT-6 Luna (~$0.24) | Polish multi-hop check; the 20 examples of the [Polish demo](https://huggingface.co/spaces/wiiiktor/chopper-pl) | CC BY 4.0 (from MuSiQue) |
+| Polish multi-hop training set | 12,753 | MuSiQue train 1–4 hop rows with Claude Opus 5.5 span labels, translated by GPT-6 Luna (~$32); each labelled span is wrapped in ⟦…⟧ markers before translation and recovered after it (rows that lose a marker are dropped, ~0.6%); 1,091 rows sharing a paragraph with the 100 evaluation questions removed | Polish multi-hop stage of pl-ModernBERT-base (16 Nov) | CC BY 4.0 (from MuSiQue) |
+| MAUPQA | not used yet | IPI PAN, 28 Polish QA/retrieval sets, downloaded for a larger Polish set; its 1z10, czy-wiesz-v2, gpt3.5-wiki and poquad subsets are PIRB *evaluation* tasks and must stay out of training if PIRB is ever reported | planned | CC BY-SA 4.0 |
+
+All Polish rows are fitted to each Polish base's tokenizer like the rest of the mix ([above](#polish-bases-fitting-the-data-to-the-tokenizer)).
+
 ---
 
 ## Models
@@ -267,7 +280,7 @@ first) tied the flat mix, so the flat mix is the one released.
 | 🟧 **universal chopper: mmBERT-base** | `jhu-clsp/mmBERT-base` (0.31B) | all weights + KEEP head + decision head | the 54,000 rows of datasets A and B, then the 102,654-row final mix ([C](#c-final-mix)), one epoch each | ✅ on HF (final mix 5 h 50 min, 3090) |
 | universal chopper: mmBERT-small | `jhu-clsp/mmBERT-small` (0.14B) | same | the 54,000 rows of datasets A and B, then the final mix | ✅ on HF (final mix 4 h 15 min); Qwen3-14B 4-hop 23 vs base 29 |
 | universal chopper, Polish: mmBERT-base-pl / mmBERT-small-pl | the two above | same | + 15,652 Polish rows (PoQuAD, PolQA) mixed with 15,935 rows of the final mix | ✅ on HF (base 2 h 40 min, small 1 h 40 min); Qwen3-14B on 856 Polish questions: 85.6% / 84.1% from chops vs 85.2% from all snippets |
-| universal chopper, Polish bases (suggested by the OPI PIB AI Lab) | [`OPI-PIB/pl-ModernBERT-base`](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (0.15B, 8k context); [`sdadas/polish-roberta-base-8k`](https://huggingface.co/sdadas/polish-roberta-base-8k) (0.18B, 8k context) | same | the full recipe from scratch: datasets A and B, rerank set, final mix, then the Polish rows, each fitted to the base's tokenizer ([below](#polish-bases-fitting-the-data-to-the-tokenizer)) | 🏃 in training on the RTX 3090, restarted 15 Nov with fitted data (pl-ModernBERT-base about 16 Nov, polish-roberta-base-8k about 18 Nov); compared with mmBERT-base-pl on the same 856 Polish questions |
+| universal chopper, Polish bases (suggested by the OPI PIB AI Lab) | [`OPI-PIB/pl-ModernBERT-base`](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (0.15B, 8k context, Apache 2.0); [`sdadas/polish-roberta-base-8k`](https://huggingface.co/sdadas/polish-roberta-base-8k) (0.18B, 8k context, Apache 2.0) | same | the full recipe from scratch: datasets A and B, rerank set, final mix, then the Polish rows, each fitted to the base's tokenizer ([below](#polish-bases-fitting-the-data-to-the-tokenizer)) | pl-ModernBERT-base ✅ trained 16 Nov (not yet on HF): best Polish chopper so far ([results](#polish-bases-results)); + Polish multi-hop stage 🏃 16 Nov; polish-roberta-base-8k queued (about 18 Nov) |
 | 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
 | **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ✅ both on 🤗 [`chopper_minicpm3/answerer/`](https://huggingface.co/wiiiktor/chopper_minicpm3/tree/main/answerer): `chopper-notes/`, `clean-notes/` |
@@ -305,6 +318,22 @@ batches) was restarted with every training split fitted per tokenizer by
 The Polish rows (PoQuAD, PolQA) fit unchanged. Stage 1 data was effectively unchanged, so its checkpoint was kept.
 Validation and test splits are not modified, so results stay comparable with mmBERT-base-pl. A check on 1,500 fitted
 rows: none longer than 8,192 tokens, label spans and ANSWER / SEARCH labels identical to the originals.
+
+### Polish bases: results
+
+pl-ModernBERT-base after the full recipe (stages 1–4), against the released mmBERT-base-pl, on the same held-out data:
+
+| | pl-ModernBERT-base | mmBERT-base-pl |
+|---|---|---|
+| KEEP F1, PoQuAD validation (plpqval) | **0.669** | 0.562 |
+| KEEP F1, PolQA validation (plqaval) | **0.691** | 0.647 |
+| Qwen3-14B correct on 856 Polish questions from the chops (all 16 snippets: 85.0%, 3,856 tokens) | **86.6%** (239 tokens) | 85.5% (255 tokens) |
+| Qwen3-14B correct on 100 Polish 2-hop questions ([D](#d-polish-data)) (all 20 paragraphs: 33%) | 44% | 43% |
+| KEEP F1 on non-Polish holdouts: mixed val / QASPER / rerank / MSC | 0.340 / 0.223 / 0.486 / 0.680 | 0.394 / 0.288 / 0.542 / 0.675 |
+
+A clearly better Polish chopper, weaker outside Polish (its tokenizer is Polish-only). The 856-question baselines were
+re-run on 16 Nov (85.0% / 85.5%; the earlier run gave 85.2% / 85.6%). Multi-hop is the weak spot in Polish (2-hop: 44%
+vs 48% in English), so a Polish multi-hop stage is being trained on translated MuSiQue ([D](#d-polish-data)).
 
 **Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
 
@@ -851,18 +880,22 @@ after the fact.
 | component | author | license | used for |
 |---|---|---|---|
 | mmBERT-base / -small | JHU CLSP | MIT | universal chopper |
-| Qwen3-4B, Qwen3-14B-AWQ | Qwen team, Alibaba | Apache 2.0 | fragment labels, follow-up questions, dataset B questions and filter |
+| Qwen3-4B, Qwen3-14B-AWQ | Qwen team, Alibaba | Apache 2.0 | fragment labels, follow-up questions, dataset B questions and filter; answer model in evaluations and in the demos (Qwen3-14B via OpenRouter) |
 | MiniCPM3-4B | OpenBMB / ModelBest | code Apache 2.0; weights [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md) | integrated chopper (20% slice) |
 | Qwen3-Embedding-0.6B | Qwen team, Alibaba | Apache 2.0 | first-stage retrieval |
 | bge-reranker-v2-m3 | BAAI | Apache 2.0 | reranking |
 | Qwen3-Reranker-0.6B | Qwen team, Alibaba | Apache 2.0 | scoring pairs in the rerank dataset |
 | Claude Opus 5.5 | Anthropic | API terms | MuSiQue multi-hop span labels (final mix); note-taker in the hop study |
-| gpt-5.6-luna, GPT-6 Luna | OpenAI | API terms | YES/NO filtering of rerank rows; answer judging in every evaluation |
+| gpt-5.6-luna, GPT-6 Luna | OpenAI | API terms | YES/NO filtering of rerank rows; answer judging in every evaluation; Polish translations of MuSiQue ([D](#d-polish-data)) |
 | LLMLingua-2 | Pan et al., 2024 (Microsoft) | MIT | compared against (README) |
-| Provence | Chirkova et al., 2025 (Naver) | CC BY-NC-ND 4.0 | compared against (README) |
+| Provence, XProvence | Chirkova et al., 2025; Mohamed et al., 2026 (Naver) | CC BY-NC-ND 4.0 | compared against (evaluation only) |
+| aya-expanse-8b | Cohere Labs | CC BY-NC 4.0 | answer model in XProvence's own benchmark (evaluation only) |
+| pl-ModernBERT-base | OPI PIB (AI Lab) | Apache 2.0 | Polish-base chopper |
+| polish-roberta-base-8k | Sławomir Dadas (OPI PIB) | Apache 2.0 | Polish-base chopper (queued) |
 | PoQuAD | Tuora et al., 2022 (IPI PAN) | CC BY 4.0 (Hugging Face card) | Polish chopper |
 | PolQA | [Rybak et al., 2024](https://aclanthology.org/2024.lrec-main.1125) (IPI PAN, LREC-COLING 2024) | CC BY-SA 4.0 | Polish chopper |
-| MuSiQue | Trivedi et al., 2022 | CC BY 4.0 | dataset A |
+| MuSiQue | Trivedi et al., 2022 | CC BY 4.0 | dataset A; hop study; Polish translations ([D](#d-polish-data)); the demos |
+| MAUPQA | Rybak et al. (IPI PAN) | CC BY-SA 4.0 | downloaded, not used yet |
 | HotpotQA | Yang et al., 2018 | CC BY-SA 4.0 | dataset A |
 | TriviaQA | Joshi et al., 2017 | Apache 2.0 *(verify per release)* | dataset A |
 | 2WikiMultiHopQA | Ho et al., 2020 | Apache 2.0 | final mix |
@@ -878,8 +911,10 @@ after the fact.
 **Licenses of what is released here** (commercial use allowed for the mmBERT choppers and the code; by contrast Naver's Provence and XProvence context pruners are CC BY-NC-ND 4.0, non-commercial):
 - **Code:** MIT ([LICENSE](../LICENSE)), as the `chopper-rag` package.
 - **Datasets:** they inherit from their sources. Because HotpotQA and Wikipedia are CC BY-SA, the derived datasets
-  must be **CC BY-SA 4.0** (share-alike). The Polish rows keep their sources' terms: PoQuAD CC BY 4.0, PolQA CC BY-SA 4.0.
-- **Models:** follow their base models: MIT for the mmBERT choppers, the Polish ones included. The
+  must be **CC BY-SA 4.0** (share-alike). The Polish rows keep their sources' terms: PoQuAD CC BY 4.0, PolQA CC BY-SA 4.0; the Polish MuSiQue translations
+  (2-hop evaluation set, multi-hop training set) are CC BY 4.0 like MuSiQue, with attribution to MuSiQue.
+- **Models:** follow their base models: MIT for the mmBERT choppers, the Polish ones included; Apache 2.0 for choppers on
+  the Polish bases (pl-ModernBERT-base, polish-roberta-base-8k) when they are released. The
   MiniCPM3 chopper derives from the MiniCPM3-4B weights and follows the [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md): free for
   academic research; commercial use is free after registering with OpenBMB / ModelBest (questionnaire linked from the
   [MiniCPM3-4B model card](https://huggingface.co/openbmb/MiniCPM3-4B)).
