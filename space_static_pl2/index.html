@@ -146,7 +146,7 @@ const ROOT = "https://huggingface.co/wiiiktor/chopper_mmbert/resolve/a4bf00014d3
 const SIZE = { "model.onnx": 418.9e6, "tokenizer.json": 34.4e6 };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const fmt = n => Number(n).toLocaleString("en");
+const fmt = n => Number(n).toLocaleString("pl");
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/";
 ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(8, navigator.hardwareConcurrency || 4) : 1;
 const liveConfigured = /^https:\/\/[^<>\s]+$/.test(WORKER_URL);
