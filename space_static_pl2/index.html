@@ -207,9 +207,9 @@ function masksFromTexts(e, chops) {            // precomputed chops are plain st
   }
   return masks;
 }
-function showAns(id, a) {                     // "not in notes" is the prompt's abstain reply: say it in plain words
+function showAns(id, a, note = true) {                     // "not in notes" is the prompt's abstain reply: say it in plain words
   const el = $(id), x = (a || "").trim();
-  if (/^not in notes\.?$/i.test(x)) el.innerHTML = `Nie ma tego w tych fragmentach<span class="nan">Qwen odpowiada tylko na podstawie przeczytanego tekstu, nie z własnej wiedzy.</span>`; else el.textContent = x || "(no answer)";
+  if (/^not in notes\.?$/i.test(x)) el.innerHTML = `Nie ma tego w tych fragmentach${note ? `<span class="nan">Qwen odpowiada tylko na podstawie przeczytanego tekstu, nie z własnej wiedzy.</span>` : ""}`; else el.textContent = x || "(no answer)";
 }
 const pill = ok => ok === null ? `<span class="pill na">brak wzorcowej odpowiedzi</span>` : ok ? `<span class="pill ok">✓ poprawnie</span>` : `<span class="pill no">✗ błędnie</span>`;
 
@@ -281,9 +281,9 @@ async function ask() {
   busy = true; $("ask").disabled = true; $("ask").innerHTML = `<span class="spin"></span>Pracuję…`;
   const e = EX[cur];
   document.querySelectorAll("tr.exr").forEach(r => r.classList.remove("sel"));
-  $("gold").textContent = "Twoje pytanie: nie ma wzorcowej odpowiedzi, oceń obie odpowiedzi sam.";
+  $("gold").textContent = "";
   for (const k of ["wa", "ca"]) $(k).innerHTML = `<span class="wait">czekam na Choppera…</span>`;
-  $("wk").innerHTML = $("ck").innerHTML = pill(null);
+  $("wk").innerHTML = $("ck").innerHTML = "";
   $("wm").textContent = "Qwen3-14B czyta wszystkie fragmenty"; $("cm").textContent = "Qwen3-14B czyta tylko cytaty";
   try {
     const ch = await loadChopper();
@@ -312,7 +312,7 @@ async function ask() {
     if (none) b.value = { answer: "not in notes", prompt_tokens: 0, ms: 0, empty: true };
     const put = (res, ak, mk, label) => {
       if (res.status === "fulfilled") {
-        showAns(ak, res.value.answer + (res.value.cut ? " …" : ""));
+        showAns(ak, res.value.answer + (res.value.cut ? " …" : ""), false);
         $(mk).textContent = `${label}: ${res.value.prompt_tokens ? fmt(res.value.prompt_tokens) + " tokenów · " : ""}${(res.value.ms / 1000).toFixed(1)} s`;
       } else { $(ak).textContent = "—"; $(mk).innerHTML = `<span class="warn">${esc(res.reason.message.includes("Failed to fetch") ? "Odpowiedzi na żywo są teraz niedostępne." : res.reason.message)}</span>`; }
     };
