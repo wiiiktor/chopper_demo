@@ -33,8 +33,9 @@ import numpy as np
 import torch
 
 DEFAULT_REPO = "wiiiktor/chopper_mmbert"
-VARIANTS = {"base": "mmbert-base", "small": "mmbert-small", "base-pl": "mmbert-base-pl", "small-pl": "mmbert-small-pl",
-            "plmodernbert-base": "plmodernbert-base"}
+# "base-pl" = the Polish default: since 0.1.9 the pl-ModernBERT-base chopper (before: mmBERT-base-pl, still "mmbert-base-pl")
+VARIANTS = {"base": "mmbert-base", "small": "mmbert-small", "base-pl": "plmodernbert-base", "small-pl": "mmbert-small-pl",
+            "plmodernbert-base": "plmodernbert-base", "mmbert-base-pl": "mmbert-base-pl"}
 MAX_LEN = 8192
 TOP_K_TOKENS = 16    # passage relevance = mean p(KEEP) of its TOP_K_TOKENS most likely tokens
 _SAFETY = 32          # tokens kept free when packing groups (tokenisation at segment borders may differ slightly)
@@ -171,8 +172,9 @@ class Chopper:
     def from_pretrained(cls, repo: str = DEFAULT_REPO, variant: str = "base", device: str = "auto",
                         threshold: float | None = None, dtype: torch.dtype | None = None, snap: str = "sentence") -> "Chopper":
         """repo: HF repo id or a local directory containing ``mmbert-base/`` / ``mmbert-small/``.
-        variant: "base" (0.31B, recommended) or "small" (0.14B); "base-pl" / "small-pl" for Polish documents;
-        "plmodernbert-base" (0.15B, on OPI PIB's pl-ModernBERT-base) for Polish-only documents: best Polish answers, Polish-only tokenizer. threshold: p(KEEP) cut-off (default from
+        variant: "base" (0.31B, recommended) or "small" (0.14B); for Polish documents "base-pl" (since 0.1.9 the 0.15B chopper on OPI
+        PIB's pl-ModernBERT-base, best Polish answers, Polish-only tokenizer), "mmbert-base-pl" (0.31B, the previous Polish default:
+        better for mixed-language text) or "small-pl" (0.14B). threshold: p(KEEP) cut-off (default from
         chopper_config.json). dtype: default bfloat16 on CUDA, float32 on CPU. snap: "sentence" (default), "word" or "none"."""
         from safetensors.torch import load_file
         from transformers import AutoModel, AutoTokenizer

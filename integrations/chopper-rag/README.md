@@ -24,7 +24,7 @@ of bge-reranker-v2-m3, with the chops and the decision included:
 So in most pipelines you can drop the reranker: retrieve, then rank and chop in one call. Details and caveats:
 [DETAILS.md](https://github.com/wiiiktor/chopper_demo/blob/main/docs/DETAILS.md#the-chopper-as-a-reranker).
 
-- Model: [huggingface.co/wiiiktor/chopper_mmbert](https://huggingface.co/wiiiktor/chopper_mmbert): `base` (0.31B, recommended) and `small` (0.14B); for Polish documents `base-pl` and `small-pl`, and `plmodernbert-base` (0.15B, on OPI PIB's pl-ModernBERT-base, Apache 2.0) for Polish-only text: better Polish answers (two-hop 56% vs 43% with `base-pl`), slightly weaker Polish ranking, weak outside Polish
+- Model: [huggingface.co/wiiiktor/chopper_mmbert](https://huggingface.co/wiiiktor/chopper_mmbert): `base` (0.31B, recommended) and `small` (0.14B); for Polish documents `base-pl` (since 0.1.9: the 0.15B chopper on OPI PIB's pl-ModernBERT-base, Apache 2.0; two-hop 56% vs 43% with the previous Polish model), `mmbert-base-pl` (the previous Polish default, 0.31B: better for mixed-language text and slightly better at ranking Polish passages) and `small-pl`
 - Code and demo: [github.com/wiiiktor/chopper_demo](https://github.com/wiiiktor/chopper_demo)
 
 ## Install
@@ -120,7 +120,7 @@ Claude Desktop (`claude_desktop_config.json`):
 {"mcpServers": {"chopper": {"command": "chopper-mcp", "env": {"CHOPPER_VARIANT": "base", "CHOPPER_DEVICE": "auto"}}}}
 ```
 
-Settings: `CHOPPER_VARIANT` (base, small, base-pl, small-pl, plmodernbert-base), `CHOPPER_DEVICE` (auto, cpu, cuda), `CHOPPER_SNAP` (word, sentence, none), `CHOPPER_REPO`,
+Settings: `CHOPPER_VARIANT` (base, small, base-pl, mmbert-base-pl, small-pl), `CHOPPER_DEVICE` (auto, cpu, cuda), `CHOPPER_SNAP` (word, sentence, none), `CHOPPER_REPO`,
 `CHOPPER_ALLOWED_DIRS` (directories `chop_files` may read, default: your home directory). A GPU is recommended; on a CPU
 it works but is slow (about 10 s for 16 passages of 1,000 characters with `small`, 20 s with `base`). The model is
 downloaded on the first call.

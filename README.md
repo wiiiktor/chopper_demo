@@ -145,7 +145,7 @@ question ─► retrieve 16 passages ─► 🔪 rank + chop in one pass ─► 
 
 *All quality numbers in this repository (F1, recall, answer accuracy, nDCG) were measured on **raw chops, without word or sentence snapping**. Since `chopper-rag` 0.1.7 the package extends chops to whole sentences by default (97% of chops then end at a sentence end, vs 36% raw; about 4.1% of the text kept instead of 3.4%; [details](integrations/chopper-rag/README.md#whole-sentences-by-default-snap)).*
 
-*Polish (Nov 2026), suggested by the OPI PIB AI Lab:* the same recipe on OPI PIB's [pl-ModernBERT-base](https://huggingface.co/OPI-PIB/pl-ModernBERT-base), plus a Polish multi-hop stage (MuSiQue translated to Polish), is the best chopper for Polish documents: `Chopper.from_pretrained(variant="plmodernbert-base")` (chopper-rag ≥ 0.1.8; Apache 2.0). On 100 Polish two-hop questions Qwen3-14B answers **56%** from its chops vs 43% with mmBERT-base-pl and 33% from all 20 paragraphs; KEEP F1 0.694 vs 0.562 (PoQuAD) and 0.731 vs 0.647 (PolQA); 86.2% vs 85.5% of 856 Polish questions, with 30% fewer tokens per pool. mmBERT-base-pl still ranks Polish passages slightly better (nDCG@10 0.953 vs 0.939) and is the choice for mixed-language text (pl-ModernBERT's tokenizer is Polish-only). The [Polish demo](https://huggingface.co/spaces/wiiiktor/chopper-pl) now uses it. [polish-roberta-base-8k](https://huggingface.co/sdadas/polish-roberta-base-8k) follows. Details: [docs/DETAILS.md](docs/DETAILS.md#polish-bases-results).
+*Polish (Nov 2026), suggested by the OPI PIB AI Lab:* the same recipe on OPI PIB's [pl-ModernBERT-base](https://huggingface.co/OPI-PIB/pl-ModernBERT-base), plus a Polish multi-hop stage (MuSiQue translated to Polish), is the best chopper for Polish documents: the Polish default `Chopper.from_pretrained(variant="base-pl")` since chopper-rag 0.1.9 (Apache 2.0). On 100 Polish two-hop questions Qwen3-14B answers **56%** from its chops vs 43% with mmBERT-base-pl and 33% from all 20 paragraphs; KEEP F1 0.694 vs 0.562 (PoQuAD) and 0.731 vs 0.647 (PolQA); 86.2% vs 85.5% of 856 Polish questions, with 30% fewer tokens per pool. mmBERT-base-pl still ranks Polish passages slightly better (nDCG@10 0.953 vs 0.939) and stays available as `variant="mmbert-base-pl"` for mixed-language text (pl-ModernBERT's tokenizer is Polish-only). The [Polish demo](https://huggingface.co/spaces/wiiiktor/chopper-pl) now uses it. [polish-roberta-base-8k](https://huggingface.co/sdadas/polish-roberta-base-8k) follows. Details: [docs/DETAILS.md](docs/DETAILS.md#polish-bases-results).
 
 Long-conversation memory results (LoCoMo, LongMemEval) are in
 [the details](docs/DETAILS.md#6-long-conversation-memory-locomo-and-longmemeval): there the 4B answering model is the limit.
@@ -179,7 +179,7 @@ instead of whole documents, or `rank_passages` to rerank; setup in [integrations
 
 ```python
 from chopper_rag import Chopper
-chopper = Chopper.from_pretrained(variant="base")          # or "small"; for Polish "base-pl", "small-pl"
+chopper = Chopper.from_pretrained(variant="base")          # or "small"; for Polish "base-pl" (pl-ModernBERT), "mmbert-base-pl", "small-pl"
 result = chopper.run("When was the Eiffel Tower completed?", passages)   # passages: list of retrieved texts
 print([c.text for c in result.chops], result.decision)    # exact quotes + ANSWER / SEARCH
 print(result.ranking(top_k=5))                             # the same pass as a reranker: [(passage_index, relevance), ...]
@@ -227,6 +227,7 @@ LongMemEval datasets; for Polish, PoQuAD and [PolQA](https://aclanthology.org/20
 | what | license |
 |---|---|
 | mmBERT choppers, incl. Polish (`mmbert-base`, `mmbert-small`, `mmbert-base-pl`, `mmbert-small-pl`) | MIT (as mmBERT) |
+| Polish chopper on pl-ModernBERT-base (`plmodernbert-base`, package variant `base-pl`) | Apache 2.0 (as pl-ModernBERT) |
 | code in this repo ([LICENSE](LICENSE)) and `pip install chopper-rag` | MIT |
 | MiniCPM3 chopper | [MiniCPM Model License](https://github.com/OpenBMB/MiniCPM/blob/main/MiniCPM%20Model%20License.md) (as MiniCPM3-4B) |
 | training data [`wiiiktor/chopper_demo`](https://huggingface.co/datasets/wiiiktor/chopper_demo) | CC BY-SA 4.0 (share-alike from HotpotQA, Wikipedia and PolQA); Polish parts: PoQuAD CC BY 4.0, PolQA CC BY-SA 4.0 |

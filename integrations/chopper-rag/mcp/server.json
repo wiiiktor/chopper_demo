@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/wiiiktor/chopper_demo",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "chopper-rag",
-      "version": "0.1.7",
+      "version": "0.1.9",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"
@@ -21,7 +21,7 @@
       "environmentVariables": [
         {
           "name": "CHOPPER_VARIANT",
-          "description": "Model size and language: base (default), small, base-pl, small-pl",
+          "description": "Model size and language: base (default), small, base-pl (Polish), mmbert-base-pl, small-pl",
           "isRequired": false,
           "format": "string",
           "default": "base"

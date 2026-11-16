@@ -324,7 +324,7 @@ rows: none longer than 8,192 tokens, label spans and ANSWER / SEARCH labels iden
 pl-ModernBERT-base after the full recipe (stages 1–4), then after the Polish multi-hop stage (stage 5, 16 Nov: 12,602 Polish
 multi-hop rows from translated MuSiQue + 6,000 PoQuAD + 3,652 PolQA replay + 5,000 English multi-hop rows, one epoch,
 flat-anneal), against the released mmBERT-base-pl, on the same held-out data. Stage 5 is released as `plmodernbert-base/`
-(chopper-rag ≥ 0.1.8: `variant="plmodernbert-base"`; ONNX in `onnx/plmodernbert-base/`; it runs the [Polish demo](https://huggingface.co/spaces/wiiiktor/chopper-pl)).
+(chopper-rag ≥ 0.1.9: the Polish default `variant="base-pl"`, also `"plmodernbert-base"`; the previous `base-pl` is `"mmbert-base-pl"`; ONNX in `onnx/plmodernbert-base/`; it runs the [Polish demo](https://huggingface.co/spaces/wiiiktor/chopper-pl)).
 
 | | pl-ModernBERT-base, stage 5 (released) | pl-ModernBERT-base, stage 4 | mmBERT-base-pl |
 |---|---|---|---|
