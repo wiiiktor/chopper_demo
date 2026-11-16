@@ -92,8 +92,8 @@ button:disabled:has(.spin){opacity:.85}
 <body>
 <main>
   <h1>Chopper: z i bez <span style="font-size:.5em;font-weight:400"><a target="_blank" rel="noopener" href="https://huggingface.co/spaces/wiiiktor/chopper">English</a></span></h1>
-  <p class="lede">Pytanie, które wymaga <b>dwóch faktów</b> z 20 znalezionych akapitów Wikipedii (pytania dwuetapowe MuSiQue przetłumaczone na polski). <b>Bez Choppera</b> Qwen3-14B czyta wszystkie 20 akapitów. <b>Z Chopperem</b> czyta tylko dosłowne cytaty wycięte przez polski Chopper, ok. 16× mniej tokenów. Ten sam model, ten sam prompt.</p>
-  <p class="links"><a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">GitHub</a> · <a target="_blank" rel="noopener" href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <a target="_blank" rel="noopener" href="https://huggingface.co/spaces/wiiiktor/chopper">English</a> · <code>pip install chopper-rag</code> · <b>MIT, także do użytku komercyjnego</b></p>
+  <p class="lede">Pytanie, które wymaga <b>dwóch faktów</b> z 20 znalezionych akapitów Wikipedii (pytania dwuetapowe MuSiQue przetłumaczone na polski). <b>Bez Choppera</b> Qwen3-14B czyta wszystkie 20 akapitów. <b>Z Chopperem</b> czyta tylko dosłowne cytaty wycięte przez polski Chopper, ok. 14× mniej tokenów. Ten sam model, ten sam prompt.</p>
+  <p class="links"><a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">GitHub</a> · <a target="_blank" rel="noopener" href="https://huggingface.co/wiiiktor/chopper_mmbert">model</a> · <a target="_blank" rel="noopener" href="https://huggingface.co/spaces/wiiiktor/chopper">English</a> · <code>pip install chopper-rag</code> · <b>MIT / Apache 2.0, także do użytku komercyjnego</b></p>
 
   <div class="summary" id="sum"></div>
 
@@ -133,7 +133,7 @@ button:disabled:has(.spin){opacity:.85}
   <p class="gold" id="gold"></p>
 
 
-  <p class="note">Dane: 100 dwuetapowych pytań walidacyjnych MuSiQue z naszego badania liczby kroków (CC BY 4.0), każde z 20 akapitami, które daje MuSiQue; pytania, odpowiedzi i akapity przetłumaczył na polski model GPT-6 Luna. Cytaty: polski Chopper base-pl (surowy wynik, to czytał Qwen). Odpowiedzi: Qwen3-14B przez OpenRouter (bez myślenia, sama odpowiedź, temperatura 0), dokładnie tym samym zapytaniem co Twoje pytania; ocenione przez sędziego LLM względem wzorcowej odpowiedzi (polskiej lub angielskiej). Na wszystkich 100 pytaniach: 33% bez Choppera vs 43% z Chopperem, 3864 vs 243 tokeny (dla porównania angielski oryginał: 28% vs 48%). 20 przykładów wylosowano warstwowo, tak by odpowiadały wynikowi na 100 pytaniach. Dla Twoich pytań Chopper działa w przeglądarce (base-pl, całe zdania), a Qwen3-14B odpowiada przez małe proxy; nic nie jest zapisywane. <a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">Pełne wyniki</a>. * Czas: szacunek dla jednej karty RTX 3090 z Qwen3-14B (4-bit): ok. 1800 tokenów promptu na sekundę plus ok. 0,25 s na krótką odpowiedź; z Chopperem dodatkowo 0,16 s na sam Chopper (zmierzone 155 ms). Odpowiedzi na żywo przychodzą przez OpenRouter, więc ich rzeczywisty czas zależy od sieci.</p>
+  <p class="note">Dane: 100 dwuetapowych pytań walidacyjnych MuSiQue z naszego badania liczby kroków (CC BY 4.0), każde z 20 akapitami, które daje MuSiQue; pytania, odpowiedzi i akapity przetłumaczył na polski model GPT-6 Luna. Cytaty: polski Chopper na modelu pl-ModernBERT-base od OPI PIB (plmodernbert-base; surowy wynik, to czytał Qwen). Odpowiedzi: Qwen3-14B przez OpenRouter (bez myślenia, sama odpowiedź, temperatura 0), dokładnie tym samym zapytaniem co Twoje pytania; ocenione przez sędziego LLM względem wzorcowej odpowiedzi (polskiej lub angielskiej). Na wszystkich 100 pytaniach: 33% bez Choppera vs 56% z Chopperem, 3864 vs 277 tokenów (wcześniejszy Chopper mmBERT-base-pl: 43%; dla porównania angielski oryginał: 28% vs 48%). 20 przykładów wylosowano warstwowo, tak by odpowiadały wynikowi na 100 pytaniach. Dla Twoich pytań Chopper działa w przeglądarce (plmodernbert-base, całe zdania), a Qwen3-14B odpowiada przez małe proxy; nic nie jest zapisywane. <a target="_blank" rel="noopener" href="https://github.com/wiiiktor/chopper_demo#readme">Pełne wyniki</a>. * Czas: szacunek dla jednej karty RTX 3090 z Qwen3-14B (4-bit): ok. 1800 tokenów promptu na sekundę plus ok. 0,25 s na krótką odpowiedź; z Chopperem dodatkowo 0,16 s na sam Chopper (zmierzone 155 ms). Odpowiedzi na żywo przychodzą przez OpenRouter, więc ich rzeczywisty czas zależy od sieci.</p>
 </main>
 
 <script type="module">
@@ -144,8 +144,8 @@ import { PreTrainedTokenizer } from "https://cdn.jsdelivr.net/npm/@huggingface/t
 import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/ort.wasm.min.mjs";
 import { Chopper } from "./chopper.js";
 
-const ROOT = "https://huggingface.co/wiiiktor/chopper_mmbert/resolve/a4bf00014d3f5da4342e69281ed0adc2ec47feb5/onnx/mmbert-base-pl/";
-const SIZE = { "model.onnx": 418.9e6, "tokenizer.json": 34.4e6 };
+const ROOT = "https://huggingface.co/wiiiktor/chopper_mmbert/resolve/d9cccc65372ccc84e8b56b59e2681c303e5a43b1/onnx/plmodernbert-base/";
+const SIZE = { "model.onnx": 259.9e6, "tokenizer.json": 3.4e6 };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = n => Number(n).toLocaleString("pl");
@@ -249,7 +249,7 @@ let chopperP = null;
 function progress(got) {
   const d = Object.values(got).reduce((a, b) => a + b, 0), t = SIZE["model.onnx"] + SIZE["tokenizer.json"];
   $("pb").style.width = `${Math.min(100, 100 * d / t).toFixed(1)}%`;
-  $("st").textContent = `Wczytywanie Choppera (base-pl, jednorazowo; potem z pamięci przeglądarki): ${(d / 1e6).toFixed(0)} z ${(t / 1e6).toFixed(0)} MB…`;
+  $("st").textContent = `Wczytywanie Choppera (plmodernbert-base, jednorazowo; potem z pamięci przeglądarki): ${(d / 1e6).toFixed(0)} z ${(t / 1e6).toFixed(0)} MB…`;
 }
 async function fetchBytes(name, got) {
   let cache = null;

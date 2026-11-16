@@ -9,7 +9,7 @@ from transformers import AutoModel
 
 folder, out = sys.argv[1], sys.argv[2]
 os.makedirs(out, exist_ok=True)
-d = os.path.join(snapshot_download("wiiiktor/chopper_mmbert", allow_patterns=[f"{folder}/*"]), folder)
+d = folder if os.path.isdir(folder) else os.path.join(snapshot_download("wiiiktor/chopper_mmbert", allow_patterns=[f"{folder}/*"]), folder)   # a local packaged folder also works
 enc = AutoModel.from_pretrained(f"{d}/encoder", torch_dtype=torch.float32, attn_implementation="eager",
                                 reference_compile=False).eval()
 H = load_file(f"{d}/heads.safetensors")

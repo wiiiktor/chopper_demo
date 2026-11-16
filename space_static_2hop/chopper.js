@@ -12,12 +12,38 @@ export class Chopper {
     const v = tokenizer.get_vocab(); this.inv = [];
     for (const [t, i] of (v instanceof Map ? v.entries() : Object.entries(v))) this.inv[i] = t;
     this.special = new Set(tokenizer.all_special_tokens);
+    const ids = v instanceof Map ? v : new Map(Object.entries(v));
+    this.bosId = ids.get(tokenizer.bos_token ?? tokenizer.cls_token) ?? 2;   // mmBERT <bos> = 2, pl-ModernBERT <s> = 0
+    // pl-ModernBERT (Unigram, WhitespaceSplit + Metaspace, NFKC): tokens never carry whitespace, so offsets are found by aligning
+    // each token's text to the input after skipping whitespace (chopper_config.json "js": {"offsets": "align"}).
+    this.align = (cfg.js || {}).offsets === "align";
   }
+
+  _encodeAlign(text, ids, off) {
+    const pid = this.tok.encode(text, { add_special_tokens: false }); let c = 0;
+    const txt = id => (this.inv[id] ?? "").replace(/▁/g, "");
+    for (let k = 0; k < pid.length; k++) {
+      const id = pid[k], t = this.inv[id] ?? "", s = txt(id);
+      ids.push(id);
+      let a = c; while (a < text.length && /\s/.test(text[a])) a++;
+      if (!s) { off.push([a, Math.min(a + 1, text.length)]); continue; }   // a lone "▁": the Rust tokenizer gives it the next character
+      if (t !== this.tok.unk_token && text.startsWith(s, a)) { off.push([a, a + s.length]); c = a + s.length; continue; }
+      // <unk> (e.g. "Q" is not in the pl-ModernBERT vocabulary) or NFKC-changed text: up to where the next token's text starts,
+      // at most to the end of this run of non-space characters
+      let r = a + 1; while (r < text.length && !/\s/.test(text[r])) r++;
+      const nid = pid[k + 1], nx = k + 1 < pid.length && this.inv[nid] !== this.tok.unk_token ? txt(nid) : "";
+      const j = nx ? text.indexOf(nx, a + 1) : -1;
+      const e = j > a && j <= r ? j : r;
+      off.push([a, e]); c = e;
+    }
+  }
+
 
   // ---------------------------------------------------------------- tokenisation with character offsets
   // transformers.js merges a run of spaces into one "▁▁" token; the Rust tokenizer (used in training) starts a new word
   // at every space. Encoding each word-group separately (split before a space that follows a space) reproduces it.
   _encodeText(text, base, ids, off) {
+    if (this.align) return this._encodeAlign(text, ids, off);
     const pieces = []; let st = 0;
     for (let i = 1; i < text.length; i++) if (text[i] === " " && text[i - 1] === " ") { pieces.push([st, i]); st = i; }
     pieces.push([st, text.length]);
@@ -57,7 +83,7 @@ export class Chopper {
 
   encode(s) {
     // s = head + (sep + passage)*: split at the separator token, encode the text between them
-    const ids = [2], off = [[0, 0]];                         // <bos>
+    const ids = [this.bosId], off = [[0, 0]];                // <bos> / <s>
     const sepTok = this.tok.sep_token; let pos = 0;
     while (pos <= s.length) {
       let j = s.indexOf(sepTok, pos); if (j < 0) j = s.length;

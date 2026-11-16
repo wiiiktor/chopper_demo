@@ -4,7 +4,7 @@ back only the exact quotes that answer it, plus an ANSWER / SEARCH decision.
 Run:      chopper-mcp                      (stdio; installed by  pip install "chopper-rag[mcp]")
           python -m chopper_rag.mcp_server
 Settings (environment variables):
-    CHOPPER_VARIANT       base (default) | small | base-pl | small-pl
+    CHOPPER_VARIANT       base (default) | small | base-pl | small-pl | plmodernbert-base
     CHOPPER_DEVICE        auto (default) | cpu | cuda
     CHOPPER_SNAP          sentence (default: whole sentences) | word (never cut inside a word) | none (raw)
     CHOPPER_REPO          Hugging Face repo or local directory (default wiiiktor/chopper_mmbert)

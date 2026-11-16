@@ -266,7 +266,7 @@ first) tied the flat mix, so the flat mix is the one released.
 | PolQA train / validation | 3,652 train; validation held out | Rybak et al., 2024 (IPI PAN), open-domain Polish QA with retrieved passages | Polish stage (train); `plqaval` KEEP F1 | CC BY-SA 4.0 |
 | 856 Polish evaluation questions | 856 | held-out PoQuAD + PolQA questions, 16 snippets each | Qwen3-14B accuracy from chops vs all snippets | as PoQuAD / PolQA |
 | Polish 2-hop evaluation set | 100 | the 100 two-hop MuSiQue dev questions of the hop study ([§7](#7-multi-hop-where-answers-get-lost)) with their 20 paragraphs, question, answer and aliases translated to Polish by GPT-6 Luna (~$0.24) | Polish multi-hop check; the 20 examples of the [Polish demo](https://huggingface.co/spaces/wiiiktor/chopper-pl) | CC BY 4.0 (from MuSiQue) |
-| Polish multi-hop training set | 12,753 | MuSiQue train 1–4 hop rows with Claude Opus 5.5 span labels, translated by GPT-6 Luna (~$32); each labelled span is wrapped in ⟦…⟧ markers before translation and recovered after it (rows that lose a marker are dropped, ~0.6%); 1,091 rows sharing a paragraph with the 100 evaluation questions removed | Polish multi-hop stage of pl-ModernBERT-base (16 Nov) | CC BY 4.0 (from MuSiQue) |
+| Polish multi-hop training set | 12,753 | MuSiQue train 1–4 hop rows with Claude Opus 5.5 span labels, translated by GPT-6 Luna (~$32); each labelled span is wrapped in ⟦…⟧ markers before translation and recovered after it (rows that lose a marker are dropped, ~0.6%); 1,091 rows sharing a paragraph with the 100 evaluation questions removed | Polish multi-hop stage of pl-ModernBERT-base (16 Nov, released `plmodernbert-base/`) | CC BY 4.0 (from MuSiQue) |
 | MAUPQA | not used yet | IPI PAN, 28 Polish QA/retrieval sets, downloaded for a larger Polish set; its 1z10, czy-wiesz-v2, gpt3.5-wiki and poquad subsets are PIRB *evaluation* tasks and must stay out of training if PIRB is ever reported | planned | CC BY-SA 4.0 |
 
 All Polish rows are fitted to each Polish base's tokenizer like the rest of the mix ([above](#polish-bases-fitting-the-data-to-the-tokenizer)).
@@ -280,7 +280,7 @@ All Polish rows are fitted to each Polish base's tokenizer like the rest of the 
 | 🟧 **universal chopper: mmBERT-base** | `jhu-clsp/mmBERT-base` (0.31B) | all weights + KEEP head + decision head | the 54,000 rows of datasets A and B, then the 102,654-row final mix ([C](#c-final-mix)), one epoch each | ✅ on HF (final mix 5 h 50 min, 3090) |
 | universal chopper: mmBERT-small | `jhu-clsp/mmBERT-small` (0.14B) | same | the 54,000 rows of datasets A and B, then the final mix | ✅ on HF (final mix 4 h 15 min); Qwen3-14B 4-hop 23 vs base 29 |
 | universal chopper, Polish: mmBERT-base-pl / mmBERT-small-pl | the two above | same | + 15,652 Polish rows (PoQuAD, PolQA) mixed with 15,935 rows of the final mix | ✅ on HF (base 2 h 40 min, small 1 h 40 min); Qwen3-14B on 856 Polish questions: 85.6% / 84.1% from chops vs 85.2% from all snippets |
-| universal chopper, Polish bases (suggested by the OPI PIB AI Lab) | [`OPI-PIB/pl-ModernBERT-base`](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (0.15B, 8k context, Apache 2.0); [`sdadas/polish-roberta-base-8k`](https://huggingface.co/sdadas/polish-roberta-base-8k) (0.18B, 8k context, Apache 2.0) | same | the full recipe from scratch: datasets A and B, rerank set, final mix, then the Polish rows, each fitted to the base's tokenizer ([below](#polish-bases-fitting-the-data-to-the-tokenizer)) | pl-ModernBERT-base ✅ trained 16 Nov (not yet on HF): best Polish chopper so far ([results](#polish-bases-results)); + Polish multi-hop stage 🏃 16 Nov; polish-roberta-base-8k queued (about 18 Nov) |
+| universal chopper, Polish bases (suggested by the OPI PIB AI Lab) | [`OPI-PIB/pl-ModernBERT-base`](https://huggingface.co/OPI-PIB/pl-ModernBERT-base) (0.15B, 8k context, Apache 2.0); [`sdadas/polish-roberta-base-8k`](https://huggingface.co/sdadas/polish-roberta-base-8k) (0.18B, 8k context, Apache 2.0) | same | the full recipe from scratch: datasets A and B, rerank set, final mix, then the Polish rows, each fitted to the base's tokenizer ([below](#polish-bases-fitting-the-data-to-the-tokenizer)) | pl-ModernBERT-base ✅ stages 1–4 + Polish multi-hop stage, 16 Nov, released as `plmodernbert-base/` ([results](#polish-bases-results)); polish-roberta-base-8k queued after the bge chopper and the side slice |
 | 🟪 **integrated chopper, 20% width** | `openbmb/MiniCPM3-4B` (MLA), 8 of 40 heads + 960 of 6,400 neurons per layer | LoRA r32 + KEEP head (44.9M) | all 54k mixed, one epoch | ✅ on HF (27 h at 1.8 s/step, 11.7 GiB); a second epoch (lr 5e-5, new order) ties it, not uploaded |
 | integrated choppers, other models | other latent-attention (MLA) models | LoRA + KEEP head | datasets from this repo and/or your data | 🛠️ `scripts/mla/` rewires the model and trains its chopper |
 | **answerer** (answer or `[search] <question>`) for the integrated chopper | `openbmb/MiniCPM3-4B` | LoRA r32 | 27k rows of dataset A; two arms: notes = the integrated chopper's own fragments, or the Qwen3-14B labeller's | ✅ both on 🤗 [`chopper_minicpm3/answerer/`](https://huggingface.co/wiiiktor/chopper_minicpm3/tree/main/answerer): `chopper-notes/`, `clean-notes/` |
@@ -321,19 +321,28 @@ rows: none longer than 8,192 tokens, label spans and ANSWER / SEARCH labels iden
 
 ### Polish bases: results
 
-pl-ModernBERT-base after the full recipe (stages 1–4), against the released mmBERT-base-pl, on the same held-out data:
+pl-ModernBERT-base after the full recipe (stages 1–4), then after the Polish multi-hop stage (stage 5, 16 Nov: 12,602 Polish
+multi-hop rows from translated MuSiQue + 6,000 PoQuAD + 3,652 PolQA replay + 5,000 English multi-hop rows, one epoch,
+flat-anneal), against the released mmBERT-base-pl, on the same held-out data. Stage 5 is released as `plmodernbert-base/`
+(chopper-rag ≥ 0.1.8: `variant="plmodernbert-base"`; ONNX in `onnx/plmodernbert-base/`; it runs the [Polish demo](https://huggingface.co/spaces/wiiiktor/chopper-pl)).
 
-| | pl-ModernBERT-base | mmBERT-base-pl |
-|---|---|---|
-| KEEP F1, PoQuAD validation (plpqval) | **0.669** | 0.562 |
-| KEEP F1, PolQA validation (plqaval) | **0.691** | 0.647 |
-| Qwen3-14B correct on 856 Polish questions from the chops (all 16 snippets: 85.0%, 3,856 tokens) | **86.6%** (239 tokens) | 85.5% (255 tokens) |
-| Qwen3-14B correct on 100 Polish 2-hop questions ([D](#d-polish-data)) (all 20 paragraphs: 33%) | 44% | 43% |
-| KEEP F1 on non-Polish holdouts: mixed val / QASPER / rerank / MSC | 0.340 / 0.223 / 0.486 / 0.680 | 0.394 / 0.288 / 0.542 / 0.675 |
+| | pl-ModernBERT-base, stage 5 (released) | pl-ModernBERT-base, stage 4 | mmBERT-base-pl |
+|---|---|---|---|
+| KEEP F1, PoQuAD validation (plpqval) | **0.694** | 0.669 | 0.562 |
+| KEEP F1, PolQA validation (plqaval) | **0.731** | 0.691 | 0.647 |
+| Qwen3-14B correct on 856 Polish questions from the chops (all 16 snippets: 85.0%, 3,856 tokens): all / PoQuAD 356 / PolQA 500 | 86.2% / 76.7% / **93.0%** (240 tokens) | **86.6%** / **79.2%** / 91.8% (239 tokens) | 85.5% / 76.7% / 91.8% (255 tokens) |
+| Qwen3-14B correct on 100 Polish 2-hop questions ([D](#d-polish-data)) (all 20 paragraphs: 33%) | **56%** (package chops; trainer's eval decoder: 51%) | 44% | 43% |
+| Polish rerank pools (250 queries, 16 passages): nDCG@10 / Hit@1 / chops F1 (package, raw chops) | 0.939 / 0.918 / **0.421** | | **0.953 / 0.934** / 0.418 |
+| tokens per 16-passage Polish pool | **4,968** | | 7,007 |
+| KEEP F1 on non-Polish holdouts: mixed val / QASPER / rerank 8 languages / MSC | 0.322 / 0.212 / 0.488 / 0.632 | 0.340 / 0.223 / 0.486 / 0.680 | **0.394 / 0.288 / 0.542 / 0.675** |
 
-A clearly better Polish chopper, weaker outside Polish (its tokenizer is Polish-only). The 856-question baselines were
-re-run on 16 Nov (85.0% / 85.5%; the earlier run gave 85.2% / 85.6%). Multi-hop is the weak spot in Polish (2-hop: 44%
-vs 48% in English), so a Polish multi-hop stage is being trained on translated MuSiQue ([D](#d-polish-data)).
+The multi-hop stage fixed the Polish weak spot (2-hop 44% → 51–56%, vs 48% in English) and raised the one-hop F1 too; the
+856-question score is flat (738 vs 741 of 856, within noise). Not better in everything: mmBERT-base-pl ranks Polish passages
+slightly better, and pl-ModernBERT is clearly weaker outside Polish (its tokenizer is Polish-only; even "Q" of "Question:" is
+an unknown token), so the `-pl` mmBERT folders stay the choice for mixed-language text. The 856-question baselines were
+re-run on 16 Nov (85.0% / 85.5%; the earlier run gave 85.2% / 85.6%). Two 2-hop numbers for stage 5: 51% from the trainer's
+eval decoder (`mm_train.py --eval-only`), 56% from `chopper_rag` chops (bf16, package decoder; 71/100 identical chop sets),
+which is also how the 43% for mmBERT-base-pl was measured.
 
 **Name:** "chopper" is the component that cuts fragments. Checkpoints from before the rename are called `reader.pt`, and the scripts load them under either name.
 

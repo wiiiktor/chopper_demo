@@ -5,7 +5,7 @@ sys.path.insert(0, "release/integrations/chopper-rag")
 from chopper_rag.core import Chopper, shape, kept_text
 
 variant, onnx_path, n = sys.argv[1], sys.argv[2], int(sys.argv[3])
-ch = Chopper.from_pretrained(variant=variant, device="cpu")
+ch = Chopper.from_pretrained(variant=variant, device="cpu", **({"repo": sys.argv[4]} if len(sys.argv) > 4 else {}))
 so = ort.SessionOptions(); so.intra_op_num_threads = 8
 sess = ort.InferenceSession(onnx_path, so, providers=["CPUExecutionProvider"])
 rows = [json.loads(l) for l in open("/media/wii/bigdata/rr/pack/ctx_rrval_notag.jsonl")][::100][:n]

@@ -89,7 +89,7 @@ export class Chopper {
   // ---------------------------------------------------------------- public API (same results as Chopper.run in Python)
   async run(question, passages) {
     const head = `Question: ${question}`;
-    const budget = MAX_LEN - this.ntok(head) - 2 - SAFETY;
+    const budget = (this.maxLen || MAX_LEN) - this.ntok(head) - 2 - SAFETY;   // maxLen < 8192 in browsers: wasm memory (attention is quadratic)
     const segs = [];
     passages.forEach((p, i) => {
       const s = p.trim(); if (!s) return;
