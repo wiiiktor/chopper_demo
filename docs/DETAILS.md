@@ -615,6 +615,53 @@ es .991/.996/.997, fr .975/.965/.967, ja .968/.983/.984, pl .955/.979/.974, pt .
 - Times are GPU forward passes on an RTX 3090 shared with a training run; these rows are long (up to ~8k tokens per
   query), hence 0.20 s rather than the 50 ms of the 2,400-token benchmark inputs.
 
+#### Chopper vs XProvence, Provence and LLMLingua-2
+
+Two tests, run 16 Nov 2026 (scripts `scripts/rr/compare_pruners.py`, `scripts/rr/compare_pruners_theirs.py`).
+
+**1. Our 8-language rerank holdout** (rrval_notag, 400 queries × 16 passages; gold = answer sentences accepted by the LLM judge;
+character level). Caveat: the gold labels come from our own labelling pipeline, which favours Chopper.
+
+| method | recall | precision | F1 | text kept | nDCG@10 | s / query |
+|---|---|---|---|---|---|---|
+| Chopper (raw chops) | 0.640 | 0.357 | **0.458** | 3.4% | 0.974 | **0.26** |
+| Chopper, whole sentences | 0.680 | 0.316 | 0.432 | 4.1% | 0.974 | 0.26 |
+| XProvence v2, threshold 0.1 / 0.3 / 0.7 | 0.414 / 0.263 / 0.092 | 0.037 / 0.068 / 0.224 | 0.068 / 0.108 / 0.130 | 21.5% / 7.4% / 0.8% | **0.985** | 0.43–0.45 |
+| Provence (English rows only), 0.1 | 0.499 | 0.069 | 0.121 | 9.9% | 1.000 (n = 50) | 0.50 |
+| LLMLingua-2, rate 0.33 / Chopper's rate | 0.296 / 0.027 | 0.019 / 0.022 | 0.036 / 0.024 | 29% / 2.3% | – | 0.58 |
+
+**2. XProvence's own benchmark** (arXiv 2601.18886, Bergen runs released by the authors): their questions, top-5 retrieved
+documents (BGE-M3 + bge-reranker-v2-m3 over Wikipedia for MKQA / TyDi QA; given documents for XPQA / MedExpQA), their prompts,
+their metric (Recall_char3gram; MedExpQA: accuracy of the chosen option). Each method's output replaces the documents in their
+exact prompt; rebuilding the prompts with untouched documents reproduces theirs on 3,600 of 3,600 rows, and our metric gives their
+stored per-row scores on 3,600 of 3,600. 24 sets × 150 questions; family scores are means over languages; "+t" = Chopper plus the
+Wikipedia title (XProvence keeps titles). Score (share of the text removed):
+
+| | MKQA (10) | TyDi QA (3) | XPQA (7) | MedExpQA (4) |
+|---|---|---|---|---|
+| **Qwen3-14B** | | | | |
+| all documents | 0.462 | 0.754 | 0.376 | 0.940 |
+| no documents | 0.346 | 0.391 | 0.220 | 0.692 |
+| Chopper raw / whole sentences | 0.395 (93%) / 0.400 (90%) | 0.673 (93%) / 0.693 (92%) | 0.264 (95%) / 0.286 (87%) | 0.695 / 0.698 (97–98%) |
+| Chopper + title, whole sentences | 0.409 (90%) | 0.695 (91%) | 0.286 (87%) | 0.698 (97%) |
+| XProvence 0.1 / 0.3 / 0.7 | 0.455 / 0.443 / 0.402 (36 / 58 / 85%) | 0.737 / 0.728 / 0.683 (57 / 71 / 84%) | 0.369 / 0.295 / 0.211 (23 / 78 / 99.6%) | 0.930 / 0.845 / 0.695 (8 / 52 / 99%) |
+| Provence 0.1 (English sets only) | 0.666 (74%) | 0.707 (71%) | – | 0.887 (45%) |
+| LLMLingua-2, rate 0.33 | 0.408 (65%) | 0.576 (67%) | 0.307 (64%) | 0.847 (64%) |
+| **aya-expanse-8b** (the paper's answer model; bf16 here, int4 in the paper) | | | | |
+| all documents (paper's own run: 0.490 / 0.774 / 0.460) | 0.493 | 0.777 | 0.474 | 0.847 |
+| no documents | 0.425 | 0.423 | 0.417 | 0.447 |
+| Chopper whole sentences / + title | 0.414 / 0.424 (90%) | 0.712 / 0.717 (91%) | 0.410 (87%) | 0.453 (97%) |
+| XProvence 0.1 / 0.3 / 0.7 | 0.484 / 0.461 / 0.415 | 0.781 / 0.762 / 0.712 | 0.463 / 0.407 / 0.381 | 0.852 / 0.720 / 0.450 |
+| LLMLingua-2, rate 0.33 | 0.435 | 0.608 | 0.423 | 0.680 |
+
+Pruning time per question (5 documents, RTX 3090): Chopper 0.03 s, Provence 0.06 s, LLMLingua-2 0.12 s, XProvence 0.17 s.
+
+Reading: at matched aggressive compression (Chopper ~90% vs XProvence 0.7 at 84–99%) Chopper ties or wins on every set with both
+answer models; XProvence's lighter settings keep more text and lose less accuracy. With aya-expanse-8b, whose closed-book scores
+are high, any strong pruning lands close to closed-book on MKQA and XPQA. MedExpQA (one long explanation per question) is a clear
+Chopper failure: it removes what the answer needs. Next: a Chopper trained on bge-reranker-v2-m3 (XProvence's base, Apache 2.0),
+mainly to close the ranking gap (0.974 vs 0.985).
+
 ### 6. Long-conversation memory: LoCoMo and LongMemEval
 
 Does the chopper still work when the "documents" are a user's own past conversations? This is the long-session use

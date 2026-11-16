@@ -83,6 +83,33 @@ LLMLingua-2 drops tokens without looking at the question, so the facts a chain n
 but prunes each snippet on its own. **To be fair to them:** the chopper was trained on MuSiQue's train split (this test uses
 its dev split) and on other multi-hop data, while both were trained for general single-passage use.
 
+
+### Against XProvence on its own benchmark
+
+[XProvence](https://huggingface.co/naver/xprovence-reranker-bgem3-v2) (Naver, 2026) prunes each retrieved passage to the relevant
+sentences and is built on bge-reranker-v2-m3. We re-ran **its own evaluation**: its questions, its retrieved documents, its prompts
+and its metric (share of the gold answer's character 3-grams found in the answer), 150 questions per set, with Qwen3-14B and with
+the paper's own answer model aya-expanse-8b (our no-pruning aya scores match the paper's within 0.01 on MKQA, TyDi QA and XPQA).
+
+| Qwen3-14B answering, score (share of the text removed) | MKQA, 10 languages | TyDi QA | XPQA, 7 languages | MedExpQA |
+|---|---|---|---|---|
+| all documents | 0.462 | 0.754 | 0.376 | 0.940 |
+| **Chopper, whole sentences** | **0.400** (90%) | **0.693** (92%) | **0.286** (87%) | 0.698 (97%) |
+| XProvence, threshold 0.7 | 0.402 (85%) | 0.683 (84%) | 0.211 (99.6%) | 0.695 (99%) |
+| XProvence, threshold 0.3 | 0.443 (58%) | 0.728 (71%) | 0.295 (78%) | 0.845 (52%) |
+| XProvence, threshold 0.1 (default) | 0.455 (36%) | 0.737 (57%) | 0.369 (23%) | 0.930 (8%) |
+| LLMLingua-2, rate 0.33 | 0.408 (65%) | 0.576 (67%) | 0.307 (64%) | 0.847 (64%) |
+
+- **At the same aggressive cut** (85–90% of the text removed), Chopper ties or beats XProvence; with aya-expanse-8b too
+  (MKQA 0.414 vs 0.415, TyDi QA 0.712 vs 0.712, XPQA 0.410 vs 0.381). It is also **~5× faster** (0.03 s vs 0.17 s per question).
+- **XProvence is better at light trimming**: at its default it removes only 23–57% and stays near full accuracy. Chopper always
+  keeps a few quotes, which costs 6–9 points against reading everything; on MedExpQA (one long explanation per question) it cuts
+  away what the answer needs.
+- **As a reranker XProvence is still ahead** (nDCG@10 0.985 vs 0.974 on our 8-language holdout). A Chopper on
+  **bge-reranker-v2-m3** (XProvence's own base, Apache 2.0) is in training to improve Chopper as a reranker, so this gap will
+  probably close.
+- **License:** XProvence is CC BY-NC-ND 4.0 (non-commercial); Chopper is MIT. Full tables, aya results and method:
+  [DETAILS](docs/DETAILS.md#chopper-vs-xprovence-provence-and-llmlingua-2).
 ---
 
 # Chopper 🔪 keep only the part of RAG that answers the question
