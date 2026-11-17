@@ -55,7 +55,7 @@ Why it matters:
 3. [Quick start](#quick-start)
 4. [Datasets](#datasets)
 5. [Models](#models)
-6. [Training: hardware, time, memory](#training-hardware-time-memory)
+6. [Training: hardware, time, memory](#training-hardware-time-memory) · [reproduce the released chopper](#reproduce-the-released-chopper)
 7. [Results](#results)
 8. [The operator: double prefill, chopping, rollback, answer or search](#the-operator)
 9. [Rewiring a model into its own chopper](#rewiring)
@@ -128,7 +128,7 @@ Code lives here; weights and data live on Hugging Face (public): one model repo 
 | 🤗 [`chopper_mmbert/mmbert-base/`](https://huggingface.co/wiiiktor/chopper_mmbert/tree/main/mmbert-base) | 🟧 **the universal chopper**: mmBERT-base, trained once on all 54,000 rows (datasets A and B mixed): `encoder/` (a normal Transformers model) + `heads.safetensors` (KEEP + ANSWER/SEARCH) |
 | 🤗 [`chopper_mmbert/mmbert-small/`](https://huggingface.co/wiiiktor/chopper_mmbert/tree/main/mmbert-small) | the size-matched mmBERT-small chopper, same layout and data |
 | 🤗 [`chopper_minicpm3`](https://huggingface.co/wiiiktor/chopper_minicpm3) | 🟪 **the integrated chopper**: the 20% slice of MiniCPM3-4B (8 of 40 heads + 960 of 6,400 MLP neurons per layer), first epoch over all 54k rows: `permutation.safetensors`, `chopper_lora.safetensors`, `keep_head.safetensors` (+ the `.pt` files `scripts/mla/` reads). The base model is the unmodified `openbmb/MiniCPM3-4B`: the permutation is applied at load |
-| 🤗 [`wiiiktor/chopper_demo` (dataset)](https://huggingface.co/datasets/wiiiktor/chopper_demo) | dataset A (benchmark chains) and dataset B (Wikipedia chains) |
+| 🤗 [`wiiiktor/chopper_demo` (dataset)](https://huggingface.co/datasets/wiiiktor/chopper_demo) | all training data: dataset A (`benchmark_chains/`), dataset B (`wikipedia_chains/`), the rerank set (`rerank_set/`), the final mix (`final_mix/`) and the Polish rows (`polish/`) |
 | `operator-for-llm-with-mmbert.py` | the full loop over **your documents** with the 🟧 universal (mmBERT) chopper and **any** Hugging Face causal LM you choose (`--model`): retrieve → chop → roll back → answer or search |
 | `scripts/operator_common.py` | the operator's building blocks: corpus chunking, retrieval, the session cache with rollback, the answer loop |
 | `requirements.txt` | Python packages for the operators |
@@ -349,6 +349,23 @@ which is also how the 43% for mmBERT-base-pl was measured.
 ---
 
 ## Training: hardware, time, memory
+
+### Reproduce the released chopper
+
+The released universal chopper (🤗 [`wiiiktor/chopper-0.31B`](https://huggingface.co/wiiiktor/chopper-0.31B), the same
+weights as `chopper_mmbert/mmbert-base`) is three runs of `scripts/chopper/mm_train.py` on mmBERT-base, each continuing from
+the previous one. [`chains/full_recipe.sh`](../chains/full_recipe.sh) downloads the dataset repo and runs them with the
+original flags:
+
+| stage | data (folder of 🤗 [`wiiiktor/chopper_demo`](https://huggingface.co/datasets/wiiiktor/chopper_demo)) | rows | flags beyond the defaults |
+|---|---|---|---|
+| 1 | dataset A + B (`benchmark_chains/`, `wikipedia_chains/`) | 54,000 | `--accum 4` |
+| 2 | rerank set (`rerank_set/`) | 54,923 | `--keep-w 0.15 --accum 4` |
+| 3 | final mix (`final_mix/train/`) | 102,654 | `--keep-w 0.15 --accum 4 --lr-shape flat-anneal --anneal 0.25` |
+| 4 (Polish variants only) | `polish/train/` | 31,587 | as stage 3 |
+
+All stages use LR 3e-5 (heads 1e-3), 8,192-token inputs and one epoch. Together about 17 hours on one RTX 3090. For
+another base, first fit the rows to its tokenizer with `scripts/chopper/fit_splits.py`.
 
 Everything was built and trained on **one NVIDIA RTX 3090 (24 GB)**. No cloud.
 
@@ -593,7 +610,8 @@ French, Japanese, Portuguese and Polish (`scripts/rr/`, design in `scripts/rr/ta
 
 Answers are tied (differences under about .08 are noise at 62–98 questions); the gains are less text and the ability
 to say "nothing here". MuSiQue keeps its hop-1 gold passage 98% of the time but hop 2 only 58%; weighting hop-2 tokens
-in training did not move it, the search step of §3 does. The pilot chopper is not on Hugging Face yet.
+in training did not move it, the search step of §3 does. The full rerank set (54,923 rows) is `rerank_set/` in the dataset repo; the
+released chopper went through it as stage 2 ([recipe](#reproduce-the-released-chopper)).
 
 #### The chopper as a reranker
 
