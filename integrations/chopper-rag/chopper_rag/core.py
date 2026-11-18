@@ -37,6 +37,7 @@ DEFAULT_REPO = "wiiiktor/chopper_mmbert"
 VARIANTS = {"base": "mmbert-base", "small": "mmbert-small", "base-pl": "plmodernbert-base", "small-pl": "mmbert-small-pl",
             "plmodernbert-base": "plmodernbert-base", "mmbert-base-pl": "mmbert-base-pl"}
 MAX_LEN = 8192
+WINDOW_CHARS = 900     # rank passages longer than this by their best window (see Chopper.__init__)
 TOP_K_TOKENS = 16    # passage relevance = mean p(KEEP) of its TOP_K_TOKENS most likely tokens
 _SAFETY = 32          # tokens kept free when packing groups (tokenisation at segment borders may differ slightly)
 
@@ -159,7 +160,7 @@ class Chopper:
     """Load with :meth:`from_pretrained`; call :meth:`chop` (list of :class:`Chop`) or :meth:`run` (+ decision)."""
 
     def __init__(self, tokenizer, encoder, heads, device, threshold=0.5, merge_gap=5, min_run=4, max_length=MAX_LEN,
-                 snap="sentence"):
+                 snap="sentence", window_chars=WINDOW_CHARS):
         self.tokenizer, self.encoder, self.device = tokenizer, encoder, device
         self.heads = {k: v.to(device).float() for k, v in heads.items()}
         self.threshold, self.merge_gap, self.min_run, self.max_length = threshold, merge_gap, min_run, max_length
@@ -167,15 +168,22 @@ class Chopper:
         if snap not in SNAPS:
             raise ValueError(f"snap must be one of {SNAPS}, got {snap!r}")
         self.snap = snap
+        # ranking of long passages (since 0.1.10): a passage longer than window_chars is cut into windows of that size (stride
+        # half a window), every window is scored, and each passage's best window is then scored together with the other
+        # candidates in ONE read, so the relevances stay comparable (AlloprofReranking NDCG@10 0.571 -> 0.737; the MTEB
+        # submission uses exactly this). Chops are unaffected. None = score whole passages (the 0.1.9 behaviour).
+        self.window_chars = window_chars
 
     @classmethod
     def from_pretrained(cls, repo: str = DEFAULT_REPO, variant: str = "base", device: str = "auto",
-                        threshold: float | None = None, dtype: torch.dtype | None = None, snap: str = "sentence") -> "Chopper":
+                        threshold: float | None = None, dtype: torch.dtype | None = None, snap: str = "sentence",
+                        window_chars: int | None = WINDOW_CHARS) -> "Chopper":
         """repo: HF repo id or a local directory containing ``mmbert-base/`` / ``mmbert-small/``.
         variant: "base" (0.31B, recommended) or "small" (0.14B); for Polish documents "base-pl" (since 0.1.9 the 0.15B chopper on OPI
         PIB's pl-ModernBERT-base, best Polish answers, Polish-only tokenizer), "mmbert-base-pl" (0.31B, the previous Polish default:
         better for mixed-language text) or "small-pl" (0.14B). threshold: p(KEEP) cut-off (default from
-        chopper_config.json). dtype: default bfloat16 on CUDA, float32 on CPU. snap: "sentence" (default), "word" or "none"."""
+        chopper_config.json). dtype: default bfloat16 on CUDA, float32 on CPU. snap: "sentence" (default), "word" or "none".
+        window_chars: passages longer than this are ranked by their best window (default 900; None = whole passages)."""
         from safetensors.torch import load_file
         from transformers import AutoModel, AutoTokenizer
         if variant not in VARIANTS:
@@ -202,7 +210,7 @@ class Chopper:
         dec = json.load(open(f"{d}/chopper_config.json")).get("decode", {})
         thr = dec.get("pred_thr", 0.5) if threshold is None else threshold
         return cls(tok, enc, heads, device, threshold=thr, merge_gap=dec.get("merge_gap", 5),
-                   min_run=dec.get("min_run", 4), snap=snap)
+                   min_run=dec.get("min_run", 4), snap=snap, window_chars=window_chars)
 
     # -------------------------------------------------------------- public API
     def chop(self, question: str, passages: list[str]) -> list[Chop]:
@@ -223,8 +231,11 @@ class Chopper:
             p_ans = self._forward(head, [], passages, rel)[1]; n = 1
         chops.sort(key=lambda c: (c.passage_index, c.start))
         chops = snap_chops(chops, passages, self.snap)
-        return ChopResult(chops, "ANSWER" if p_ans >= 0.5 else "SEARCH", p_ans, n, [c.text for c in chops],
-                          [round(x, 4) for x in rel])
+        scores = [round(x, 4) for x in rel]
+        best = self._best_window_scores(head, passages)
+        if best is not None:
+            scores = best
+        return ChopResult(chops, "ANSWER" if p_ans >= 0.5 else "SEARCH", p_ans, n, [c.text for c in chops], scores)
 
     __call__ = run
 
@@ -233,6 +244,34 @@ class Chopper:
         return self.run(question, passages).ranking(top_k)
 
     # -------------------------------------------------------------- internals
+    def _windows(self, text):
+        w = self.window_chars
+        if not w or len(text) <= w:
+            return [text]
+        step = w // 2
+        return [text[i:i + w] for i in range(0, len(text) - step, step)]
+
+    def _rel(self, head, texts):
+        """relevance of each text (rounded as in ChopResult.passage_scores), from as few reads as fit"""
+        rel = [0.0] * len(texts)
+        for group in self._groups(head, self._segments(head, texts)):
+            self._forward(head, group, texts, rel)
+        return [round(x, 4) for x in rel]
+
+    def _best_window_scores(self, head, passages):
+        """best-window relevances, or None when no passage is longer than window_chars (or there is nothing to compare)"""
+        if len(passages) < 2:
+            return None
+        windows = [self._windows(p) for p in passages]
+        if all(len(w) == 1 for w in windows):
+            return None
+        flat = self._rel(head, [x for w in windows for x in w])
+        best, k = [], 0
+        for w in windows:
+            part = flat[k:k + len(w)]
+            best.append(w[max(range(len(w)), key=part.__getitem__)]); k += len(w)
+        return self._rel(head, best)
+
     def _ntok(self, text):
         return len(self.tokenizer(text, add_special_tokens=False)["input_ids"])
 

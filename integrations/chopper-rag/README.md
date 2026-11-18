@@ -21,6 +21,11 @@ of bge-reranker-v2-m3, with the chops and the decision included:
 | Qwen3-Reranker-0.6B | 0.977 | 0.972 | 0.77 s |
 | Qwen3-Reranker-4B | 0.986 | 0.990 | 3.3 s |
 
+**Long documents (since 0.1.10)** are ranked by their best window: a passage longer than 900 characters is cut into
+900-character windows (stride 450), every window is scored, and each passage's best window is then compared with the
+other candidates in one read. Chops are unaffected. This is the setting of the MTEB submission (AlloprofReranking NDCG@10
+0.571 → 0.737); `Chopper.from_pretrained(window_chars=None)` scores whole passages as before.
+
 So in most pipelines you can drop the reranker: retrieve, then rank and chop in one call. Details and caveats:
 [DETAILS.md](https://github.com/wiiiktor/chopper_demo/blob/main/docs/DETAILS.md#the-chopper-as-a-reranker).
 

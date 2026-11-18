@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/wiiiktor/chopper_demo",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "chopper-rag",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

@@ -153,3 +153,19 @@ def test_rerank_mode_adapters(chopper):
     out = ChopperCompressor(chopper=chopper, mode="rerank", top_n=2).compress_documents(
         [Document(page_content=p) for p in PASSAGES], QUESTION)
     assert len(out) == 2 and out[0].page_content == PASSAGES[1] and "relevance_score" in out[0].metadata
+
+
+def test_best_window_ranking(chopper):
+    # a long passage with the answer buried at the end: ranked by its best 900-character window, chops unchanged
+    filler = " ".join(["The weather in the region is mild and the soil supports many crops."] * 30)
+    long_key = filler + " " + PASSAGES[1].strip()
+    passages = [PASSAGES[0], long_key, PASSAGES[2]]
+    assert len(long_key) > 900
+    res = chopper.run(QUESTION, passages)
+    assert res.ranking()[0][0] == 1                                  # the long Eiffel passage still ranks first
+    full = copy.copy(chopper); full.window_chars = None
+    whole = full.run(QUESTION, passages)
+    assert [c.text for c in res.chops] == [c.text for c in whole.chops]   # windows change only the ranking
+    short = chopper.run(QUESTION, PASSAGES)                            # nothing longer than 900 chars: 0.1.9 scores
+    assert short.passage_scores == full.run(QUESTION, PASSAGES).passage_scores
+    assert chopper._windows("x" * 2000) == ["x" * 900] * 3 + ["x" * 650]
