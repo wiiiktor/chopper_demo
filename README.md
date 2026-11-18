@@ -177,6 +177,8 @@ As a tool for Claude (Claude Code, Claude Desktop or any MCP client): `pip insta
 `claude mcp add chopper -- chopper-mcp`. Claude can then call `chop_passages` / `chop_files` to read a few quotes
 instead of whole documents, or `rank_passages` to rerank; setup in [integrations/chopper-rag](integrations/chopper-rag#mcp-server-claude-desktop-claude-code-any-mcp-client).
 
+<a href="https://mcprush.com/wiiiktor/chopper-mcp"><img width="300" src="https://mcprush.com/badge/chopper-mcp/card.svg" alt="Chopper MCP on mcprush: security grade A, 3 tools" loading="lazy"></a>
+
 ```python
 from chopper_rag import Chopper
 chopper = Chopper.from_pretrained(variant="base")          # or "small"; for Polish "base-pl" (pl-ModernBERT), "mmbert-base-pl", "small-pl"

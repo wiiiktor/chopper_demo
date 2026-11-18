@@ -106,6 +106,8 @@ print([d.content for d in out["chopper"]["documents"]], out["chopper"]["decision
 `pip install chopper-rag` installs `chopper-mcp`, a stdio MCP server with three tools (no install needed with uv:
 `uvx chopper-rag` runs the same server). It is listed in the official MCP Registry as `io.github.wiiiktor/chopper`.
 
+<a href="https://mcprush.com/wiiiktor/chopper-mcp"><img width="300" src="https://mcprush.com/badge/chopper-mcp/card.svg" alt="Chopper MCP on mcprush: security grade A, 3 tools" loading="lazy"></a>
+
 | tool | what it does |
 |---|---|
 | `chop_passages(question, passages)` | cut the exact quotes that answer `question` out of a list of texts (search results, tool outputs) |
