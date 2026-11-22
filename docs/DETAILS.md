@@ -642,6 +642,27 @@ es .991/.996/.997, fr .975/.965/.967, ja .968/.983/.984, pl .955/.979/.974, pt .
 - Times are GPU forward passes on an RTX 3090 shared with a training run; these rows are long (up to ~8k tokens per
   query), hence 0.20 s rather than the 50 ms of the 2,400-token benchmark inputs.
 
+
+#### MTEB submission: ranking long candidate lists in rounds
+
+Relevance is relative to the passages read in the same pass, so scores from separate passes do not compare: with 100
+candidates per query (two passes), HotpotQAHardNegatives fell from 0.856 (top 50, one pass) to 0.835 (top 100). Since
+chopper-rag 0.1.11 / mteb#5974, lists of more than 50 are ranked in rounds: blocks of 50 in the retriever's order, the
+best 25 of each read together, then the best 10 of those read together once more. Lists of up to 50 get one plain read.
+
+| HotpotQAHardNegatives, top 100 of uibk-embedding-v1 (1,000 queries) | NDCG@10 |
+|---|---|
+| uibk-embedding-v1 alone | 0.810 |
+| chopper, one ranking (two passes) | 0.835 |
+| chopper, top 50 only, one pass | 0.856 |
+| chopper, 2 × 50 → best 25 each → final 50 | 0.863 |
+| **chopper, 2 × 50 → best 25 each → final 50 → best 10 re-read** | **0.876** (halves of the queries: 0.877 / 0.874) |
+| same, first stage multilingual-e5-large-instruct (HotpotQA-PLHardNegatives, Polish) | 0.757 (one ranking 0.728) |
+
+Re-reading the top 10 of short lists too lowered StackOverflowDupQuestions 0.688 → 0.636, so short lists are left as
+they were. Other splits tried (1-20 + 21-100, 1-32 + 33-96, four blocks of 50) scored 0.857-0.875. Scripts:
+`scripts/rr/uibk_first_stage.py` (first stage), `scripts/rr/hn_combo*.py` (rounds; paths are local). Results: embeddings-benchmark/results#850.
+
 #### Chopper vs XProvence, Provence and LLMLingua-2
 
 Two tests, run 16 Nov 2026 (scripts `scripts/rr/compare_pruners.py`, `scripts/rr/compare_pruners_theirs.py`).

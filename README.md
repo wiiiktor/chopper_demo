@@ -66,6 +66,14 @@ The chopper was never trained to rank, yet it is within about one point of the b
 so a pipeline can drop its reranker: `retrieve → chopper` gives the ranking *and* the quotes. Caveats (this test is easy
 for every model; the labels favour Qwen3-Reranker-0.6B) in [the details](docs/DETAILS.md#the-chopper-as-a-reranker).
 
+**On MTEB** (results submitted, pending review: [results#850](https://github.com/embeddings-benchmark/results/pull/850);
+code merged in [mteb#5926](https://github.com/embeddings-benchmark/mteb/pull/5926), rounds in
+[mteb#5974](https://github.com/embeddings-benchmark/mteb/pull/5974)): HotpotQAHardNegatives NDCG@10 **0.876** (top 100 of
+uibk-embedding-v1, reranked; the board's best so far is gemini-embedding-001 at 0.870), WikipediaRerankingMultilingual
+0.972, RuBQReranking 0.816, HotpotQA-PLHardNegatives 0.757, StackOverflowDupQuestions 0.687.
+Lists of more than 50 candidates are ranked in rounds (blocks of 50, the best 25 of each read together, the best 10 read
+once more), because a relevance is relative to the passages read in the same pass: 0.835 → 0.876 on HotpotQAHardNegatives.
+
 ### Against other context compressors
 
 Same 400 questions, same 20 snippets, same Qwen3-14B prompt; each compressor cuts the snippets once:
