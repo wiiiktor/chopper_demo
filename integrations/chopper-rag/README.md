@@ -26,6 +26,11 @@ of bge-reranker-v2-m3, with the chops and the decision included:
 other candidates in one read. Chops are unaffected. This is the setting of the MTEB submission (AlloprofReranking NDCG@10
 0.571 → 0.737); `Chopper.from_pretrained(window_chars=None)` scores whole passages as before.
 
+**Long candidate lists (since 0.1.11)** are ranked in rounds by `chopper.rerank`: a relevance is relative to the passages
+read in the same pass, so more than 50 candidates are read in blocks of 50, the best 25 of each block are read together,
+and the best 10 of those once more. Lists of up to 50 get one plain read, as before. HotpotQA-HN (top 100 of a
+first-stage retriever): NDCG@10 0.835 in one ranking vs 0.876 in rounds. `rerank(..., tournament=None)` turns it off.
+
 So in most pipelines you can drop the reranker: retrieve, then rank and chop in one call. Details and caveats:
 [DETAILS.md](https://github.com/wiiiktor/chopper_demo/blob/main/docs/DETAILS.md#the-chopper-as-a-reranker).
 

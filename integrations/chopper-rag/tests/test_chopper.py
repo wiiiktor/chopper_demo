@@ -169,3 +169,15 @@ def test_best_window_ranking(chopper):
     short = chopper.run(QUESTION, PASSAGES)                            # nothing longer than 900 chars: 0.1.9 scores
     assert short.passage_scores == full.run(QUESTION, PASSAGES).passage_scores
     assert chopper._windows("x" * 2000) == ["x" * 900] * 3 + ["x" * 650]
+
+
+def test_tournament_rerank(chopper):
+    # 60 candidates: two blocks (50 + 10), the best 25 + 10 read together, then the best 10 re-read
+    fillers = [f"Filler passage number {i} talks about gardening, rivers and the price of bread in a small town." for i in range(59)]
+    passages = fillers[:30] + [PASSAGES[1]] + fillers[30:]
+    r = chopper.rerank(QUESTION, passages)
+    assert sorted(i for i, _ in r) == list(range(len(passages)))
+    assert r[0][0] == 30                                              # the Eiffel passage wins
+    assert r[9][1] >= 2 > r[10][1] >= 1 > r[35][1]                     # 10 re-read, then 25 survivors, then the rest
+    plain = chopper.rerank(QUESTION, passages, tournament=None)
+    assert plain[0][0] == 30 and all(s <= 1 for _, s in plain)

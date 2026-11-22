@@ -38,6 +38,7 @@ VARIANTS = {"base": "mmbert-base", "small": "mmbert-small", "base-pl": "plmodern
             "plmodernbert-base": "plmodernbert-base", "mmbert-base-pl": "mmbert-base-pl"}
 MAX_LEN = 8192
 WINDOW_CHARS = 900     # rank passages longer than this by their best window (see Chopper.__init__)
+TOURNAMENT = (50, 25, 10)  # rerank long candidate lists in rounds (block, keep per block, final re-read): see Chopper.rerank
 TOP_K_TOKENS = 16    # passage relevance = mean p(KEEP) of its TOP_K_TOKENS most likely tokens
 _SAFETY = 32          # tokens kept free when packing groups (tokenisation at segment borders may differ slightly)
 
@@ -239,9 +240,44 @@ class Chopper:
 
     __call__ = run
 
-    def rerank(self, question: str, passages: list[str], top_k: int | None = None) -> list[tuple[int, float]]:
-        """(passage_index, relevance) most relevant first: the chopper as a reranker (chops come free with :meth:`run`)"""
-        return self.run(question, passages).ranking(top_k)
+    def rerank(self, question: str, passages: list[str], top_k: int | None = None,
+               tournament: tuple[int, int, int] | None = TOURNAMENT) -> list[tuple[int, float]]:
+        """(passage_index, relevance) most relevant first: the chopper as a reranker.
+
+        A relevance is relative to the passages read in the same pass, so since 0.1.11 long candidate lists are ranked
+        in rounds (``tournament=(block, keep, reread)``, default (50, 25, 10)): while more than ``block`` candidates
+        remain, read them in blocks of ``block`` (in the given order, e.g. the retriever's) and keep the best ``keep`` of
+        each; read the survivors together; then, after a block round, read the best ``reread`` of them together once more. A passage's score is
+        (rounds survived) + its relevance in the last pass it was in. Up to ``block`` passages this is one plain pass (re-reading a short list hurt StackOverflowDupQuestions);
+        HotpotQA-HN (top 100 of a first-stage retriever): NDCG@10 0.835 in one pass vs 0.876 with the default rounds.
+        ``tournament=None`` = one plain ranking (the 0.1.10 behaviour, chops come free with :meth:`run`)."""
+        if not tournament:
+            return self.run(question, passages).ranking(top_k)
+        block, keep, reread = tournament
+        passages = [p if isinstance(p, str) else str(p) for p in passages]
+        head = f"Question: {question}"
+        texts = passages
+        out = [0.0] * len(texts)
+
+        def read(idx, level):
+            sub = [texts[i] for i in idx]
+            sc = self._best_window_scores(head, sub) or self._rel(head, sub)   # long passages: best window among these
+            for i, v in zip(idx, sc):
+                out[i] = level + v
+            return dict(zip(idx, sc))
+
+        cur, level = list(range(len(texts))), 0
+        while block and len(cur) > block:
+            nxt = []
+            for b in range(0, len(cur), block):
+                sc = read(cur[b:b + block], level)
+                nxt += sorted(sc, key=lambda i: -sc[i])[:keep]
+            cur, level = sorted(nxt), level + 1
+        sc = read(cur, level) if cur else {}
+        if reread and level > 0 and len(cur) > reread:
+            read(sorted(sorted(sc, key=lambda i: -sc[i])[:reread]), level + 1)
+        r = sorted(enumerate(out), key=lambda x: -x[1])
+        return r[:top_k] if top_k else r
 
     # -------------------------------------------------------------- internals
     def _windows(self, text):
