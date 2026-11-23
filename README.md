@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://youtu.be/KMvmdXCEOJU"><img src="media/youtube_cover_v17.jpg" width="100%" alt="LLMs need a Chopper: watch the video"></a><br>
   <a href="#quick-start"><img src="media/choice_universal_v6.png" width="49%" alt="Option 1, universal chopper: a small separate model (mmBERT-base 0.31B or mmBERT-small 0.14B), text in and text out, works with any answering model. Links to the quick start."></a>
-  <a href="docs/DETAILS.md#a-host-with-latent-attention-minicpm3-4b"><img src="media/choice_integrated_v7.png" width="49%" alt="Option 2, integrated chopper: a 20% slice of MiniCPM3-4B itself, no second model, reads the model's own cache of the whole session. Pretraining LLMs? Let's build it together. Links to how it works."></a>
+  <a href="docs/DETAILS.md#a-host-with-latent-attention-minicpm3-4b"><img src="media/choice_integrated_v8.png" width="49%" alt="Option 2, integrated chopper: a 20% slice of MiniCPM3-4B itself, no second model, reads the model's own cache of the whole session. Pretraining LLMs? Let's build it together. Links to how it works."></a>
 </p>
 <p align="center"><em>70-second video: <a href="https://youtu.be/KMvmdXCEOJU">youtu.be/KMvmdXCEOJU</a></em></p>
 <p align="center"><b>Try it in your browser, nothing to install:</b> <a href="https://huggingface.co/spaces/wiiiktor/chopper">English demo</a> · <a href="https://huggingface.co/spaces/wiiiktor/chopper-pl">Polish demo</a><br><em>They run the recommended <b>base</b> chopper (0.31B) on your CPU, with <b>small</b> (0.14B) as a faster option.</em></p>
