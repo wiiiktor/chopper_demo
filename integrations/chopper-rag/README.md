@@ -63,6 +63,17 @@ In every framework below, `mode="rerank"` turns the component into a reranker: i
 most relevant first (`top_n`, or `top_k` in Haystack), with the chopper's relevance as their score
 (`metadata["relevance_score"]` in LangChain). The default `mode="chop"` returns the chops.
 
+### How many passages to retrieve (`top_k`)
+
+| Use | Retrieve | Why |
+|---|---|---|
+| chop only (`mode="chop"`) | **8–20**, default 16 | the chopper was trained on pools of ~16–20 passages; what fits in 8k tokens is read in one pass, more goes into extra passes |
+| rerank (+ chop the winners) | **up to 50** | up to 50 passages are read and compared together in one pass |
+| rerank a long list | **50–200** | over 50, `rerank` runs rounds: blocks of 50, the best 25 of each go on, the final 10 are read again together |
+
+Recall comes from the retriever: the chopper can only keep what it is given, so retrieve more when answers are often missed,
+and rerank first (then chop the top 10–16) when the list is long.
+
 ## LangChain
 
 Listed in the [LangChain integrations](https://docs.langchain.com/oss/python/integrations/providers/all_providers) as ChopperCompressor.

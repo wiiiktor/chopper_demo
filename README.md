@@ -195,6 +195,8 @@ print([c.text for c in result.chops], result.decision)    # exact quotes + ANSWE
 print(result.ranking(top_k=5))                             # the same pass as a reranker: [(passage_index, relevance), ...]
 ```
 
+How many passages to retrieve: 8–20 to chop, up to 50 to rerank in one pass, more in rounds ([guide](integrations/chopper-rag/README.md#how-many-passages-to-retrieve-top_k)).
+
 Framework examples: [integrations/chopper-rag](integrations/chopper-rag/README.md). Listed in the
 [LangChain integrations](https://docs.langchain.com/oss/python/integrations/providers/all_providers) (ChopperCompressor). Or try the demo in this repo:
 
